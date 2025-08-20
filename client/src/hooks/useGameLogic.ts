@@ -26,28 +26,26 @@ export function useGameLogic() {
   }, []);
 
   const drawCard = useCallback((source: 'draw' | 'discard') => {
-    if (!gameState || gameState.drawnCard || gameState.gamePhase !== 'playing' || gameState.currentPlayerIndex !== 0) {
-      return;
-    }
+    if (!gameState || gameState.drawnCard) return;
 
     setGameState(prevState => {
-      if (!prevState || prevState.drawnCard) return prevState;
+      if (!prevState) return prevState;
 
-      const newState = { ...prevState, drawPile: [...prevState.drawPile], discardPile: [...prevState.discardPile] };
+      let newState = { ...prevState };
       
       if (source === 'draw') {
         if (newState.drawPile.length === 0) {
-          const reshuffled = reshuffleIfNeeded(newState);
-          newState.drawPile = reshuffled.drawPile;
-          newState.discardPile = reshuffled.discardPile;
+          newState = reshuffleIfNeeded(newState);
         }
         if (newState.drawPile.length > 0) {
           newState.drawnCard = newState.drawPile[0];
           newState.drawPile = newState.drawPile.slice(1);
         }
-      } else if (source === 'discard' && newState.discardPile.length > 0) {
-        newState.drawnCard = newState.discardPile[newState.discardPile.length - 1];
-        newState.discardPile = newState.discardPile.slice(0, -1);
+      } else {
+        if (newState.discardPile.length > 0) {
+          newState.drawnCard = newState.discardPile[newState.discardPile.length - 1];
+          newState.discardPile = newState.discardPile.slice(0, -1);
+        }
       }
 
       return newState;
@@ -70,21 +68,13 @@ export function useGameLogic() {
     setGameState(prevState => {
       if (!prevState || !prevState.drawnCard || prevState.selectedGridPosition === null) return prevState;
 
-      const newState = {
-        ...prevState,
-        players: prevState.players.map((player, index) => ({
-          ...player,
-          grid: player.grid.map(card => ({ ...card }))
-        })),
-        discardPile: [...prevState.discardPile]
-      };
-      
+      const newState = { ...prevState };
       const currentPlayer = newState.players[newState.currentPlayerIndex];
       const gridPosition = prevState.selectedGridPosition;
       
-      // If card at position has a card, add it to discard pile
-      if (currentPlayer.grid[gridPosition].card) {
-        newState.discardPile.push(currentPlayer.grid[gridPosition].card);
+      // If card at position was revealed, add it to discard pile
+      if (currentPlayer.grid[gridPosition].isRevealed && currentPlayer.grid[gridPosition].card) {
+        newState.discardPile = [...newState.discardPile, currentPlayer.grid[gridPosition].card!];
       }
 
       // Place drawn card in grid
@@ -94,9 +84,9 @@ export function useGameLogic() {
         position: gridPosition
       };
 
-      // Check for three of a kind - only set extra turn if not already set
+      // Check for three of a kind
       const threeOfAKindColumns = checkThreeOfAKind(currentPlayer.grid);
-      if (threeOfAKindColumns.length > 0 && !newState.extraTurn) {
+      if (threeOfAKindColumns.length > 0) {
         newState.extraTurn = true;
       }
 
@@ -114,24 +104,21 @@ export function useGameLogic() {
     setGameState(prevState => {
       if (!prevState || !prevState.drawnCard || prevState.selectedGridPosition === null) return prevState;
 
-      const newState = {
-        ...prevState,
-        players: prevState.players.map((player, index) => ({
-          ...player,
-          grid: player.grid.map(card => ({ ...card }))
-        })),
-        discardPile: [...prevState.discardPile, prevState.drawnCard]
-      };
-      
+      const newState = { ...prevState };
       const currentPlayer = newState.players[newState.currentPlayerIndex];
       const gridPosition = prevState.selectedGridPosition;
 
-      // Reveal the grid card
-      currentPlayer.grid[gridPosition].isRevealed = true;
+      // Discard the drawn card
+      newState.discardPile = [...newState.discardPile, prevState.drawnCard];
 
-      // Check for three of a kind - only set extra turn if not already set
+      // Reveal the grid card if it wasn't already
+      if (!currentPlayer.grid[gridPosition].isRevealed) {
+        currentPlayer.grid[gridPosition].isRevealed = true;
+      }
+
+      // Check for three of a kind
       const threeOfAKindColumns = checkThreeOfAKind(currentPlayer.grid);
-      if (threeOfAKindColumns.length > 0 && !newState.extraTurn) {
+      if (threeOfAKindColumns.length > 0) {
         newState.extraTurn = true;
       }
 
@@ -144,28 +131,16 @@ export function useGameLogic() {
   }, [gameState]);
 
   const peekCard = useCallback((position: number) => {
-    if (!gameState || gameState.currentPlayerIndex !== 0) return;
+    if (!gameState || gameState.gamePhase !== 'peek') return;
 
     setGameState(prevState => {
       if (!prevState) return prevState;
 
-      const newState = {
-        ...prevState,
-        players: prevState.players.map((player, index) => ({
-          ...player,
-          grid: player.grid.map(gridCard => ({ ...gridCard }))
-        }))
-      };
-      
+      const newState = { ...prevState };
       const currentPlayer = newState.players[newState.currentPlayerIndex];
       
-      // During peek phase, reveal the card permanently
-      if (newState.gamePhase === 'peek') {
-        currentPlayer.grid[position].isRevealed = true;
-      } else if (newState.gamePhase === 'playing' && !newState.drawnCard) {
-        // During playing phase without drawn card, toggle reveal for temporary peeking
-        currentPlayer.grid[position].isRevealed = !currentPlayer.grid[position].isRevealed;
-      }
+      // Reveal the card
+      currentPlayer.grid[position].isRevealed = true;
 
       return newState;
     });
@@ -184,7 +159,7 @@ export function useGameLogic() {
         newState.roundEndTriggered = true;
       }
 
-      // If extra turn, clear it and don't advance player
+      // If extra turn, don't advance player
       if (newState.extraTurn) {
         newState.extraTurn = false;
         return newState;
@@ -195,18 +170,6 @@ export function useGameLogic() {
         newState.currentPlayerIndex, 
         newState.players.length
       );
-
-      // Check if we need to transition from peek to playing phase
-      if (newState.gamePhase === 'peek') {
-        const allPlayersFinishedPeeking = newState.players.every(player => 
-          hasPlayerFinishedPeeking(player)
-        );
-        
-        if (allPlayersFinishedPeeking) {
-          newState.gamePhase = 'playing';
-          newState.currentPlayerIndex = 0; // Start with first player (human)
-        }
-      }
 
       return newState;
     });
@@ -227,10 +190,6 @@ export function useGameLogic() {
         peekCard(position);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
-      // After AI finishes peeking, end their turn
-      setTimeout(() => {
-        endTurn();
-      }, 500);
     } else if (gameState.gamePhase === 'playing') {
       // AI playing phase
       const decision = makeAIDecision(gameState, aiPlayer);

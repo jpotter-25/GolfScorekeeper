@@ -13,8 +13,6 @@ interface GameTableProps {
   onKeepDrawnCard: () => void;
   onKeepRevealedCard: () => void;
   onPeekCard: (position: number) => void;
-  idleTimeRemaining?: number;
-  isIdle?: boolean;
 }
 
 export default function GameTable({
@@ -23,9 +21,7 @@ export default function GameTable({
   onSelectGridPosition,
   onKeepDrawnCard,
   onKeepRevealedCard,
-  onPeekCard,
-  idleTimeRemaining = 25,
-  isIdle = false
+  onPeekCard
 }: GameTableProps) {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const opponents = gameState.players.filter((_, index) => index !== gameState.currentPlayerIndex);
@@ -81,8 +77,8 @@ export default function GameTable({
                 <div className="absolute inset-0 bg-black bg-opacity-10 rounded-lg transform translate-x-0.5 translate-y-0.5"></div>
               </div>
               
-              {/* Only show drawn card overlay when it's the current player's turn and they have a drawn card */}
-              {gameState.drawnCard && isPlayerTurn && (
+              {/* Active drawn card overlay */}
+              {gameState.drawnCard && (
                 <div className="absolute inset-0 bg-white rounded-lg border-2 border-highlight-blue flex items-center justify-center text-black font-bold text-lg" data-testid="card-drawn">
                   {getCardDisplayValue(gameState.drawnCard)}
                 </div>
@@ -108,22 +104,13 @@ export default function GameTable({
         </div>
       </div>
 
-      {/* Player's Grid - Always show the human player (index 0) */}
+      {/* Player's Grid */}
       <PlayerGrid
         player={gameState.players[0]}
-        isCurrentPlayer={gameState.currentPlayerIndex === 0}
+        isCurrentPlayer={isPlayerTurn}
         selectedPosition={gameState.selectedGridPosition}
-        onCardClick={
-          gameState.currentPlayerIndex === 0 ? (
-            gameState.gamePhase === 'peek' ? onPeekCard :
-            gameState.gamePhase === 'playing' ? (
-              gameState.drawnCard ? onSelectGridPosition : onPeekCard
-            ) : undefined
-          ) : undefined
-        }
-        idleTimeRemaining={idleTimeRemaining}
-        isIdle={isIdle}
-        showIdleTimer={gameState.gameMode === 'online' && gameState.currentPlayerIndex === 0}
+        onCardClick={gameState.gamePhase === 'peek' ? onPeekCard : 
+                    (gameState.drawnCard ? onSelectGridPosition : undefined)}
       />
 
       {/* Game Actions */}
