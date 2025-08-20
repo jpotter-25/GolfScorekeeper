@@ -171,6 +171,18 @@ export function useGameLogic() {
         newState.players.length
       );
 
+      // Check if we need to transition from peek to playing phase
+      if (newState.gamePhase === 'peek') {
+        const allPlayersFinishedPeeking = newState.players.every(player => 
+          hasPlayerFinishedPeeking(player)
+        );
+        
+        if (allPlayersFinishedPeeking) {
+          newState.gamePhase = 'playing';
+          newState.currentPlayerIndex = 0; // Start with first player
+        }
+      }
+
       return newState;
     });
   }, [gameState]);

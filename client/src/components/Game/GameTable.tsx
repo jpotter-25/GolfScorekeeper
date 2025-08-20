@@ -13,6 +13,8 @@ interface GameTableProps {
   onKeepDrawnCard: () => void;
   onKeepRevealedCard: () => void;
   onPeekCard: (position: number) => void;
+  idleTimeRemaining?: number;
+  isIdle?: boolean;
 }
 
 export default function GameTable({
@@ -21,7 +23,9 @@ export default function GameTable({
   onSelectGridPosition,
   onKeepDrawnCard,
   onKeepRevealedCard,
-  onPeekCard
+  onPeekCard,
+  idleTimeRemaining = 25,
+  isIdle = false
 }: GameTableProps) {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const opponents = gameState.players.filter((_, index) => index !== gameState.currentPlayerIndex);
@@ -111,6 +115,9 @@ export default function GameTable({
         selectedPosition={gameState.selectedGridPosition}
         onCardClick={gameState.gamePhase === 'peek' ? onPeekCard : 
                     (gameState.drawnCard ? onSelectGridPosition : undefined)}
+        idleTimeRemaining={idleTimeRemaining}
+        isIdle={isIdle}
+        showIdleTimer={gameState.gameMode === 'online' && isPlayerTurn}
       />
 
       {/* Game Actions */}

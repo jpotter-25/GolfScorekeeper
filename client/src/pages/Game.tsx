@@ -13,6 +13,9 @@ export default function Game() {
   const [, setLocation] = useLocation();
   const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [showGameResults, setShowGameResults] = useState(false);
+  const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
+  const [idleTimeRemaining, setIdleTimeRemaining] = useState(25);
+  const [isIdle, setIsIdle] = useState(false);
   const {
     gameState,
     isProcessing,
@@ -38,11 +41,18 @@ export default function Game() {
     startGame(settings);
   }, [startGame]);
 
-  // Handle AI turns
+  // Handle AI turns and idle timer
   useEffect(() => {
     if (!gameState || isProcessing) return;
 
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    const isPlayerTurn = gameState.currentPlayerIndex === 0;
+    
+    // Clear any existing idle timer
+    if (idleTimer) {
+      clearInterval(idleTimer);
+      setIdleTimer(null);
+    }
     
     if (currentPlayer.isAI && gameState.gamePhase !== 'game-end') {
       const timer = setTimeout(() => {
@@ -50,8 +60,44 @@ export default function Game() {
       }, 1000);
       
       return () => clearTimeout(timer);
+    } else if (isPlayerTurn && (gameState.gamePhase === 'playing' || gameState.gamePhase === 'peek') && gameState.gameMode === 'online') {
+      // Start idle timer for human player in online mode
+      setIdleTimeRemaining(gameState.gamePhase === 'peek' ? 15 : 25);
+      setIsIdle(false);
+      
+      const timer = setInterval(() => {
+        setIdleTimeRemaining(prev => {
+          if (prev <= 1) {
+            // Time's up - trigger autoplay
+            setIsIdle(true);
+            if (gameState.gamePhase === 'peek') {
+              autoPlayPeek();
+            } else {
+              autoPlayTurn();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      setIdleTimer(timer);
+      
+      return () => {
+        clearInterval(timer);
+        setIdleTimer(null);
+      };
     }
-  }, [gameState, isProcessing, processAITurn]);
+  }, [gameState, isProcessing, processAITurn, idleTimer]);
+
+  // Cleanup idle timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (idleTimer) {
+        clearInterval(idleTimer);
+      }
+    };
+  }, [idleTimer]);
 
   // Update scores and check for round/game end
   useEffect(() => {
@@ -83,13 +129,20 @@ export default function Game() {
   const handlePeekCard = (position: number) => {
     if (!gameState) return;
     
+    // Reset idle timer when player takes action
+    if (idleTimer) {
+      clearInterval(idleTimer);
+      setIdleTimer(null);
+      setIsIdle(false);
+    }
+    
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     const revealedCount = currentPlayer.grid.filter(card => card.isRevealed).length;
     
     if (revealedCount < 2) {
       peekCard(position);
       
-      // Check if peek phase is complete
+      // Check if peek phase is complete for this player
       if (revealedCount === 1) {
         setTimeout(() => {
           endTurn();
@@ -98,7 +151,34 @@ export default function Game() {
     }
   };
 
+  const handleDrawCard = (source: 'draw' | 'discard') => {
+    // Reset idle timer when player takes action
+    if (idleTimer) {
+      clearInterval(idleTimer);
+      setIdleTimer(null);
+      setIsIdle(false);
+    }
+    drawCard(source);
+  };
+
+  const handleSelectPosition = (position: number) => {
+    // Reset idle timer when player takes action
+    if (idleTimer) {
+      clearInterval(idleTimer);
+      setIdleTimer(null);
+      setIsIdle(false);
+    }
+    selectGridPosition(position);
+  };
+
   const handleCardAction = (action: 'keep-drawn' | 'keep-revealed') => {
+    // Reset idle timer when player takes action
+    if (idleTimer) {
+      clearInterval(idleTimer);
+      setIdleTimer(null);
+      setIsIdle(false);
+    }
+    
     if (action === 'keep-drawn') {
       keepDrawnCard();
     } else {
@@ -113,6 +193,59 @@ export default function Game() {
   const backToMenu = () => {
     resetGame();
     setLocation('/');
+  };
+
+  const autoPlayPeek = () => {
+    if (!gameState) return;
+    
+    const currentPlayer = gameState.players[0];
+    const unrevealedPositions = currentPlayer.grid
+      .map((card, index) => ({ card, index }))
+      .filter(({ card }) => !card.isRevealed)
+      .map(({ index }) => index);
+    
+    // Reveal 2 random cards
+    const revealedCount = currentPlayer.grid.filter(card => card.isRevealed).length;
+    const toReveal = Math.min(2 - revealedCount, unrevealedPositions.length);
+    
+    for (let i = 0; i < toReveal; i++) {
+      const randomIndex = Math.floor(Math.random() * unrevealedPositions.length);
+      const position = unrevealedPositions.splice(randomIndex, 1)[0];
+      setTimeout(() => peekCard(position), i * 500);
+    }
+    
+    if (revealedCount + toReveal >= 2) {
+      setTimeout(() => endTurn(), toReveal * 500 + 500);
+    }
+  };
+  
+  const autoPlayTurn = () => {
+    if (!gameState || gameState.currentPlayerIndex !== 0) return;
+    
+    const currentPlayer = gameState.players[0];
+    
+    // Simple autoplay logic - draw from pile and replace random card
+    setTimeout(() => {
+      drawCard('draw');
+    }, 500);
+    
+    setTimeout(() => {
+      const randomPosition = Math.floor(Math.random() * 9);
+      selectGridPosition(randomPosition);
+    }, 1000);
+    
+    setTimeout(() => {
+      // Randomly decide to keep drawn or revealed card
+      if (Math.random() > 0.5) {
+        keepDrawnCard();
+      } else {
+        keepRevealedCard();
+      }
+    }, 1500);
+    
+    setTimeout(() => {
+      endTurn();
+    }, 2000);
   };
 
   const playAgain = () => {
@@ -147,11 +280,13 @@ export default function Game() {
       <div className="flex-1 p-4 overflow-hidden">
         <GameTable
           gameState={gameState}
-          onDrawCard={drawCard}
-          onSelectGridPosition={selectGridPosition}
+          onDrawCard={handleDrawCard}
+          onSelectGridPosition={handleSelectPosition}
           onKeepDrawnCard={() => handleCardAction('keep-drawn')}
           onKeepRevealedCard={() => handleCardAction('keep-revealed')}
           onPeekCard={handlePeekCard}
+          idleTimeRemaining={idleTimeRemaining}
+          isIdle={isIdle}
         />
       </div>
 
