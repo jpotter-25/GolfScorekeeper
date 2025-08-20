@@ -207,53 +207,74 @@ export function useGameLogic() {
 
     setIsProcessing(true);
 
-    // Simulate thinking time
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // Simulate thinking time
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-    if (gameState.gamePhase === 'peek') {
-      // AI peek phase - find the AI player's index
-      const aiPlayerIndex = gameState.players.findIndex(p => p.id === aiPlayer.id);
-      const currentRevealedCount = aiPlayer.grid.filter(card => card.isRevealed).length;
-      
-      // Only peek cards if the AI hasn't finished peeking yet
-      if (currentRevealedCount < 2) {
-        const peekPositions = selectAIPeekCards(aiPlayer).slice(0, 2 - currentRevealedCount);
+      if (gameState.gamePhase === 'peek') {
+        // AI peek phase - find the AI player's index
+        const aiPlayerIndex = gameState.players.findIndex(p => p.id === aiPlayer.id);
+        const currentRevealedCount = aiPlayer.grid.filter(card => card.isRevealed).length;
         
-        for (const position of peekPositions) {
-          peekCard(position, aiPlayerIndex);
-          await new Promise(resolve => setTimeout(resolve, 500));
+        // Only peek cards if the AI hasn't finished peeking yet
+        if (currentRevealedCount < 2) {
+          const peekPositions = selectAIPeekCards(aiPlayer).slice(0, 2 - currentRevealedCount);
+          
+          for (const position of peekPositions) {
+            peekCard(position, aiPlayerIndex);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
+        
+        // End turn after peeking
+        setTimeout(() => endTurn(), 500);
+      } else if (gameState.gamePhase === 'playing') {
+        // AI playing phase
+        const decision = makeAIDecision(gameState, aiPlayer);
+        
+        // Draw card first
+        drawCard(decision.action === 'draw-from-discard' ? 'discard' : 'draw');
+        
+        // Wait for card to be drawn and state to update, then continue with turn
+        setTimeout(async () => {
+          setGameState(currentState => {
+            if (!currentState || !currentState.drawnCard) return currentState;
+            
+            const drawnCard = currentState.drawnCard;
+            const gridPosition = decision.gridPosition ?? selectAIGridPosition(aiPlayer, drawnCard);
+            
+            // Select grid position and reveal card if needed
+            const newState = { ...currentState };
+            newState.selectedGridPosition = gridPosition;
+            
+            // Reveal the grid card if it's not already revealed
+            const currentPlayer = newState.players[newState.currentPlayerIndex];
+            if (!currentPlayer.grid[gridPosition].isRevealed) {
+              currentPlayer.grid[gridPosition].isRevealed = true;
+            }
+            
+            // Make placement decision
+            const shouldKeepDrawn = makeAIPlacementDecision(newState, currentPlayer, drawnCard, gridPosition);
+            
+            setTimeout(() => {
+              if (shouldKeepDrawn) {
+                keepDrawnCard();
+              } else {
+                keepRevealedCard();
+              }
+              
+              setTimeout(() => endTurn(), 800);
+            }, 1000);
+            
+            return newState;
+          });
+        }, 800);
       }
-    } else if (gameState.gamePhase === 'playing') {
-      // AI playing phase
-      const decision = makeAIDecision(gameState, aiPlayer);
-      
-      // Draw card
-      drawCard(decision.action === 'draw-from-discard' ? 'discard' : 'draw');
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      // Select grid position
-      const drawnCard = gameState.drawnCard;
-      if (drawnCard) {
-        const gridPosition = decision.gridPosition ?? selectAIGridPosition(aiPlayer, drawnCard);
-        selectGridPosition(gridPosition);
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Make placement decision
-        const shouldKeepDrawn = makeAIPlacementDecision(gameState, aiPlayer, drawnCard, gridPosition);
-        if (shouldKeepDrawn) {
-          keepDrawnCard();
-        } else {
-          keepRevealedCard();
-        }
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
-      endTurn();
+    } finally {
+      // Clear processing flag after a delay to ensure all actions complete
+      setTimeout(() => setIsProcessing(false), 3000);
     }
-
-    setIsProcessing(false);
-  }, [gameState, isProcessing, peekCard, drawCard, selectGridPosition, keepDrawnCard, keepRevealedCard, endTurn]);
+  }, [gameState, isProcessing, peekCard, drawCard, selectGridPosition, keepDrawnCard, keepRevealedCard, endTurn, setGameState]);
 
   const resetGame = useCallback(() => {
     setGameState(null);
