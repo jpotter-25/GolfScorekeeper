@@ -49,7 +49,8 @@ export function createPlayerGrid(): GridCard[] {
   return Array.from({ length: 9 }, (_, index) => ({
     card: null,
     isRevealed: false,
-    position: index
+    position: index,
+    isDisabled: false
   }));
 }
 
@@ -157,12 +158,13 @@ export function processThreeOfAKind(grid: GridCard[], discardPile: Card[]): { up
           updatedDiscardPile.push(item.card);
         });
         
-        // Clear the column positions
+        // Permanently disable the column positions
         columnPositions.forEach(pos => {
           updatedGrid[pos] = {
             card: null,
-            isRevealed: false,
-            position: pos
+            isRevealed: true, // Keep revealed to show disabled state
+            position: pos,
+            isDisabled: true // Mark as permanently disabled
           };
         });
       }
@@ -203,7 +205,7 @@ export function calculatePlayerScore(grid: GridCard[]): number {
 // Check if round should end
 export function shouldEndRound(players: Player[]): boolean {
   return players.some(player => 
-    player.grid.every(gridCard => gridCard.isRevealed)
+    player.grid.every(gridCard => gridCard.isRevealed || gridCard.isDisabled)
   );
 }
 

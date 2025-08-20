@@ -8,6 +8,7 @@ export interface GridCard {
   card: Card | null;
   isRevealed: boolean;
   position: number; // 0-8 for 3x3 grid
+  isDisabled?: boolean; // True when position is permanently cleared from three-of-a-kind
 }
 
 export interface Player {

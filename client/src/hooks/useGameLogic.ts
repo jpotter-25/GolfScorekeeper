@@ -58,12 +58,18 @@ export function useGameLogic() {
     setGameState(prevState => {
       if (!prevState) return prevState;
       
+      const currentPlayer = prevState.players[prevState.currentPlayerIndex];
+      
+      // Prevent selecting disabled positions
+      if (currentPlayer.grid[position].isDisabled) {
+        return prevState;
+      }
+      
       const newState = { ...prevState };
       newState.selectedGridPosition = position;
       
       // If we're in playing phase and the card at this position is not revealed, reveal it
       if (newState.gamePhase === 'playing' && newState.drawnCard) {
-        const currentPlayer = newState.players[newState.currentPlayerIndex];
         if (!currentPlayer.grid[position].isRevealed) {
           currentPlayer.grid[position].isRevealed = true;
         }
@@ -88,11 +94,12 @@ export function useGameLogic() {
         newState.discardPile = [...newState.discardPile, currentPlayer.grid[gridPosition].card!];
       }
 
-      // Place drawn card in grid
+      // Place drawn card in grid (preserve isDisabled state)
       currentPlayer.grid[gridPosition] = {
         card: prevState.drawnCard,
         isRevealed: true,
-        position: gridPosition
+        position: gridPosition,
+        isDisabled: currentPlayer.grid[gridPosition].isDisabled || false
       };
 
       // Process three of a kind

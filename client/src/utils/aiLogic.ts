@@ -74,7 +74,7 @@ function findBestGridPosition(player: Player, cardValue: number): number {
   // Find the WORST revealed card that's worse than our new card
   for (let i = 0; i < player.grid.length; i++) {
     const gridCard = player.grid[i];
-    if (gridCard.isRevealed && gridCard.card) {
+    if (gridCard.isRevealed && gridCard.card && !gridCard.isDisabled) {
       const currentValue = getCardValue(gridCard.card);
       // Only consider replacing if the current card is worse than what we're placing
       if (currentValue > cardValue && currentValue > worstValue) {
@@ -87,7 +87,7 @@ function findBestGridPosition(player: Player, cardValue: number): number {
   // If no good revealed position and our card is very good, try unrevealed positions
   if (bestPosition === -1 && (cardValue <= 1 || cardValue === -5)) {
     for (let i = 0; i < player.grid.length; i++) {
-      if (!player.grid[i].isRevealed) {
+      if (!player.grid[i].isRevealed && !player.grid[i].isDisabled) {
         bestPosition = i;
         break;
       }
@@ -98,10 +98,10 @@ function findBestGridPosition(player: Player, cardValue: number): number {
 }
 
 export function selectAIPeekCards(player: Player): number[] {
-  // AI peeks at random positions that haven't been revealed yet
+  // AI peeks at random positions that haven't been revealed yet and aren't disabled
   const positions = [];
   const availablePositions = Array.from({ length: 9 }, (_, i) => i)
-    .filter(pos => !player.grid[pos].isRevealed);
+    .filter(pos => !player.grid[pos].isRevealed && !player.grid[pos].isDisabled);
   
   const cardsToReveal = Math.min(2, availablePositions.length);
   
@@ -123,7 +123,7 @@ export function selectAIGridPosition(player: Player, drawnCard: Card): number {
   // Find the WORST revealed card that we can improve upon
   for (let i = 0; i < player.grid.length; i++) {
     const gridCard = player.grid[i];
-    if (gridCard.isRevealed && gridCard.card) {
+    if (gridCard.isRevealed && gridCard.card && !gridCard.isDisabled) {
       const currentValue = getCardValue(gridCard.card);
       // Only consider positions where we'd improve the score
       if (drawnValue < currentValue && currentValue > worstValueFound) {
@@ -142,7 +142,7 @@ export function selectAIGridPosition(player: Player, drawnCard: Card): number {
   if (drawnValue <= 4 || drawnValue === -5 || drawnValue === 0) {
     const unrevealedPositions = player.grid
       .map((gridCard, index) => ({ gridCard, index }))
-      .filter(({ gridCard }) => !gridCard.isRevealed)
+      .filter(({ gridCard }) => !gridCard.isRevealed && !gridCard.isDisabled)
       .map(({ index }) => index);
     
     if (unrevealedPositions.length > 0) {
@@ -150,6 +150,16 @@ export function selectAIGridPosition(player: Player, drawnCard: Card): number {
     }
   }
   
-  // Fallback to random position if we have no better choice
-  return Math.floor(Math.random() * 9);
+  // Fallback to random position if we have no better choice, avoiding disabled positions
+  const availablePositions = player.grid
+    .map((gridCard, index) => ({ gridCard, index }))
+    .filter(({ gridCard }) => !gridCard.isDisabled)
+    .map(({ index }) => index);
+  
+  if (availablePositions.length > 0) {
+    return availablePositions[Math.floor(Math.random() * availablePositions.length)];
+  }
+  
+  // If all positions are somehow disabled (edge case), return 0
+  return 0;
 }

@@ -54,6 +54,7 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
             isHighlighted={isPositionInThreeOfAKind(index)}
             highlightColor="green"
             size="small"
+            isDisabled={gridCard.isDisabled}
             data-testid={`card-opponent-${player.id}-${index}`}
           />
         ))}

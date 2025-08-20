@@ -67,7 +67,8 @@ export default function PlayerGrid({
             isHighlighted={isPositionInThreeOfAKind(index)}
             highlightColor="green"
             size="large"
-            onClick={onCardClick ? () => onCardClick(index) : undefined}
+            isDisabled={gridCard.isDisabled}
+            onClick={onCardClick && !gridCard.isDisabled ? () => onCardClick(index) : undefined}
             data-testid={`card-${player.id}-${index}`}
           />
         ))}
