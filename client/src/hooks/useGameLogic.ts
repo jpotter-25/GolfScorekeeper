@@ -241,23 +241,28 @@ export function useGameLogic() {
             if (!currentState || !currentState.drawnCard) return currentState;
             
             const drawnCard = currentState.drawnCard;
-            const gridPosition = decision.gridPosition ?? selectAIGridPosition(aiPlayer, drawnCard);
-            
             const newState = { ...currentState };
             const currentPlayer = newState.players[newState.currentPlayerIndex];
+            
+            // Use current player state for grid position selection
+            const gridPosition = decision.gridPosition ?? selectAIGridPosition(currentPlayer, drawnCard);
+            
+            // Store the original card at this position before any changes
+            const originalCard = currentPlayer.grid[gridPosition].card;
+            const wasRevealed = currentPlayer.grid[gridPosition].isRevealed;
             
             // Reveal the grid card if it's not already revealed
             if (!currentPlayer.grid[gridPosition].isRevealed) {
               currentPlayer.grid[gridPosition].isRevealed = true;
             }
             
-            // Make placement decision
+            // Make placement decision using the updated current player state
             const shouldKeepDrawn = makeAIPlacementDecision(newState, currentPlayer, drawnCard, gridPosition);
             
             if (shouldKeepDrawn) {
-              // Keep drawn card - place it in grid, discard grid card if it was revealed
-              if (currentPlayer.grid[gridPosition].card && currentPlayer.grid[gridPosition].isRevealed) {
-                newState.discardPile = [...newState.discardPile, currentPlayer.grid[gridPosition].card!];
+              // Keep drawn card - place it in grid, discard the original grid card if it exists
+              if (originalCard && (wasRevealed || currentPlayer.grid[gridPosition].isRevealed)) {
+                newState.discardPile = [...newState.discardPile, originalCard];
               }
               currentPlayer.grid[gridPosition] = {
                 card: drawnCard,
