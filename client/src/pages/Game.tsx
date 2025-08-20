@@ -60,35 +60,10 @@ export default function Game() {
       }, 1000);
       
       return () => clearTimeout(timer);
-    } else if (isPlayerTurn && (gameState.gamePhase === 'playing' || gameState.gamePhase === 'peek') && gameState.gameMode === 'online') {
-      // Start idle timer for human player in online mode
-      setIdleTimeRemaining(gameState.gamePhase === 'peek' ? 15 : 25);
-      setIsIdle(false);
-      
-      const timer = setInterval(() => {
-        setIdleTimeRemaining(prev => {
-          if (prev <= 1) {
-            // Time's up - trigger autoplay
-            setIsIdle(true);
-            if (gameState.gamePhase === 'peek') {
-              autoPlayPeek();
-            } else {
-              autoPlayTurn();
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-      setIdleTimer(timer);
-      
-      return () => {
-        clearInterval(timer);
-        setIdleTimer(null);
-      };
+    // Only start idle timer for online mode (disabled for now to prevent auto-play)
+    // Human players should manually take their actions in solo/pass-play modes
     }
-  }, [gameState, isProcessing, processAITurn, idleTimer]);
+  }, [gameState, isProcessing, processAITurn]);
 
   // Cleanup idle timer on component unmount
   useEffect(() => {

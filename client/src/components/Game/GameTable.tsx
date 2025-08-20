@@ -46,15 +46,6 @@ export default function GameTable({
 
   const canDrawCard = gameState.gamePhase === 'playing' && isPlayerTurn && !gameState.drawnCard;
   const canMakeChoice = gameState.drawnCard && gameState.selectedGridPosition !== null;
-  
-  // Debug logging
-  console.log('GameTable render:', {
-    gamePhase: gameState.gamePhase,
-    currentPlayerIndex: gameState.currentPlayerIndex,
-    isPlayerTurn,
-    canDrawCard,
-    hasDrawnCard: !!gameState.drawnCard
-  });
 
   return (
     <div className="h-full max-w-6xl mx-auto">
@@ -90,8 +81,8 @@ export default function GameTable({
                 <div className="absolute inset-0 bg-black bg-opacity-10 rounded-lg transform translate-x-0.5 translate-y-0.5"></div>
               </div>
               
-              {/* Active drawn card overlay */}
-              {gameState.drawnCard && (
+              {/* Only show drawn card overlay when it's the current player's turn and they have a drawn card */}
+              {gameState.drawnCard && isPlayerTurn && (
                 <div className="absolute inset-0 bg-white rounded-lg border-2 border-highlight-blue flex items-center justify-center text-black font-bold text-lg" data-testid="card-drawn">
                   {getCardDisplayValue(gameState.drawnCard)}
                 </div>
