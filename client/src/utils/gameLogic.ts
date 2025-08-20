@@ -65,19 +65,25 @@ export function initializeGame(settings: GameSettings): GameState {
       id: `player-${i}`,
       name: i === 0 ? 'You' : isAI ? `AI Player ${i}` : `Player ${i + 1}`,
       isAI,
-      grid: createPlayerGrid(),
+      grid: createPlayerGrid(), // Each player gets their own unique grid
       roundScore: 0,
       totalScore: 0,
       isActive: i === 0,
-      avatar: i === 0 ? 'P1' : 'AI'
+      avatar: isAI ? `A${i}` : `P${i + 1}`
     });
   }
 
-  // Deal cards to players (9 cards each)
+  // Deal cards to players (9 cards each) - ensure each player gets different cards
   let deckIndex = 0;
-  for (const player of players) {
-    for (let i = 0; i < 9; i++) {
-      player.grid[i].card = deck[deckIndex++];
+  for (let playerIndex = 0; playerIndex < players.length; playerIndex++) {
+    const player = players[playerIndex];
+    for (let cardIndex = 0; cardIndex < 9; cardIndex++) {
+      // Create a completely new grid card object for each position
+      player.grid[cardIndex] = {
+        card: deck[deckIndex++],
+        isRevealed: false,
+        position: cardIndex
+      };
     }
   }
 

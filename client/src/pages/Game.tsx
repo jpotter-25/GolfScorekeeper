@@ -127,7 +127,7 @@ export default function Game() {
   }, [gameState]);
 
   const handlePeekCard = (position: number) => {
-    if (!gameState) return;
+    if (!gameState || gameState.gamePhase !== 'peek') return;
     
     // Reset idle timer when player takes action
     if (idleTimer) {
@@ -139,11 +139,12 @@ export default function Game() {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     const revealedCount = currentPlayer.grid.filter(card => card.isRevealed).length;
     
-    if (revealedCount < 2) {
+    if (revealedCount < 2 && !currentPlayer.grid[position].isRevealed) {
       peekCard(position);
       
-      // Check if peek phase is complete for this player
+      // Check if this player has now peeked 2 cards
       if (revealedCount === 1) {
+        // Player has finished peeking, advance turn after a short delay
         setTimeout(() => {
           endTurn();
         }, 500);

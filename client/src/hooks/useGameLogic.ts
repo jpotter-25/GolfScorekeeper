@@ -179,7 +179,8 @@ export function useGameLogic() {
         
         if (allPlayersFinishedPeeking) {
           newState.gamePhase = 'playing';
-          newState.currentPlayerIndex = 0; // Start with first player
+          newState.currentPlayerIndex = 0; // Start with first player (human)
+          console.log('Phase transition: peek -> playing');
         }
       }
 
@@ -198,10 +199,15 @@ export function useGameLogic() {
     if (gameState.gamePhase === 'peek') {
       // AI peek phase
       const peekPositions = selectAIPeekCards(aiPlayer);
+      console.log(`AI ${aiPlayer.id} peeking at positions:`, peekPositions);
       for (const position of peekPositions) {
         peekCard(position);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+      // After AI finishes peeking, end their turn
+      setTimeout(() => {
+        endTurn();
+      }, 500);
     } else if (gameState.gamePhase === 'playing') {
       // AI playing phase
       const decision = makeAIDecision(gameState, aiPlayer);

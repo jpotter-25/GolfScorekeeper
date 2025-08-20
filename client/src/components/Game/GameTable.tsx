@@ -108,16 +108,16 @@ export default function GameTable({
         </div>
       </div>
 
-      {/* Player's Grid */}
+      {/* Player's Grid - Always show the human player (index 0) */}
       <PlayerGrid
         player={gameState.players[0]}
-        isCurrentPlayer={isPlayerTurn}
+        isCurrentPlayer={gameState.currentPlayerIndex === 0}
         selectedPosition={gameState.selectedGridPosition}
-        onCardClick={gameState.gamePhase === 'peek' ? onPeekCard : 
-                    (gameState.drawnCard ? onSelectGridPosition : undefined)}
+        onCardClick={gameState.gamePhase === 'peek' && gameState.currentPlayerIndex === 0 ? onPeekCard : 
+                    (gameState.drawnCard && gameState.currentPlayerIndex === 0 ? onSelectGridPosition : undefined)}
         idleTimeRemaining={idleTimeRemaining}
         isIdle={isIdle}
-        showIdleTimer={gameState.gameMode === 'online' && isPlayerTurn}
+        showIdleTimer={gameState.gameMode === 'online' && gameState.currentPlayerIndex === 0}
       />
 
       {/* Game Actions */}
