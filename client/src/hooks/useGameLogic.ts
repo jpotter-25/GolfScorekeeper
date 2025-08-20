@@ -110,6 +110,11 @@ export function useGameLogic() {
         newState.extraTurn = true;
       }
 
+      // Check if round should end immediately after placing card
+      if (shouldEndRound(newState.players)) {
+        newState.roundEndTriggered = true;
+      }
+
       // Clear drawn card and selection
       newState.drawnCard = null;
       newState.selectedGridPosition = null;
@@ -144,6 +149,11 @@ export function useGameLogic() {
         newState.extraTurn = true;
       }
 
+      // Check if round should end immediately after revealing card
+      if (shouldEndRound(newState.players)) {
+        newState.roundEndTriggered = true;
+      }
+
       // Clear drawn card and selection
       newState.drawnCard = null;
       newState.selectedGridPosition = null;
@@ -162,6 +172,11 @@ export function useGameLogic() {
       
       // Simply discard the drawn card without revealing any grid cards
       newState.discardPile = [...newState.discardPile, prevState.drawnCard];
+      
+      // Check if round should end immediately (though direct discard shouldn't trigger this)
+      if (shouldEndRound(newState.players)) {
+        newState.roundEndTriggered = true;
+      }
       
       // Clear drawn card and selection
       newState.drawnCard = null;

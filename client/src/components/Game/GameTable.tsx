@@ -41,14 +41,14 @@ export default function GameTable({
     }
   };
 
-  const canDrawCard = gameState.gamePhase === 'playing' && isPlayerTurn && !gameState.drawnCard;
+  const canDrawCard = gameState.gamePhase === 'playing' && isPlayerTurn && !gameState.drawnCard && !gameState.roundEndTriggered;
   const canDrawFromDiscard = canDrawCard && !gameState.extraTurn; // Can't draw from discard during extra turn
-  const canMakeChoice = gameState.drawnCard && gameState.selectedGridPosition !== null;
+  const canMakeChoice = gameState.drawnCard && gameState.selectedGridPosition !== null && !gameState.roundEndTriggered;
   
   // Special rule: if player has only one face-down card left at start of turn, they can discard directly
   const humanPlayerFaceDownCount = humanPlayer.grid.filter(card => !card.isRevealed && !card.isDisabled).length;
-  // Only show direct discard if: has drawn card, has 1 face-down card, and no position selected yet
-  const canDiscardDirectly = gameState.drawnCard && humanPlayerFaceDownCount === 1 && isPlayerTurn && gameState.selectedGridPosition === null;
+  // Only show direct discard if: has drawn card, has 1 face-down card, no position selected yet, and round hasn't ended
+  const canDiscardDirectly = gameState.drawnCard && humanPlayerFaceDownCount === 1 && isPlayerTurn && gameState.selectedGridPosition === null && !gameState.roundEndTriggered;
 
   return (
     <div className="h-full max-w-6xl mx-auto">
@@ -123,7 +123,7 @@ export default function GameTable({
         isCurrentPlayer={isPlayerTurn}
         selectedPosition={gameState.selectedGridPosition}
         onCardClick={gameState.gamePhase === 'peek' ? onPeekCard : 
-                    (gameState.drawnCard ? onSelectGridPosition : undefined)}
+                    (gameState.drawnCard && !gameState.roundEndTriggered ? onSelectGridPosition : undefined)}
       />
 
       {/* Game Actions */}
@@ -134,11 +134,13 @@ export default function GameTable({
               <>
                 <div className="text-center text-white mb-3">
                   <div className="text-sm opacity-80">
-                    {canDiscardDirectly
-                      ? 'With only 1 face-down card left, you can discard directly or place the card'
-                      : gameState.selectedGridPosition !== null 
-                        ? 'Choose to keep the drawn card or the revealed card'
-                        : 'Select a card slot to place your drawn card'
+                    {gameState.roundEndTriggered
+                      ? 'Round ended! All players get one final turn.'
+                      : canDiscardDirectly
+                        ? 'With only 1 face-down card left, you can discard directly or place the card'
+                        : gameState.selectedGridPosition !== null 
+                          ? 'Choose to keep the drawn card or the revealed card'
+                          : 'Select a card slot to place your drawn card'
                     }
                   </div>
                 </div>
