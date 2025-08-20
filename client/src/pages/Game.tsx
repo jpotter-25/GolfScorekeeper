@@ -7,6 +7,7 @@ import GameTable from '@/components/Game/GameTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { calculatePlayerScore } from '@/utils/gameLogic';
+import { cn } from '@/lib/utils';
 
 export default function Game() {
   const [, setLocation] = useLocation();
