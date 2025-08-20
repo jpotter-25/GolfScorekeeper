@@ -236,19 +236,17 @@ export function useGameLogic() {
         drawCard(decision.action === 'draw-from-discard' ? 'discard' : 'draw');
         
         // Wait for card to be drawn and state to update, then continue with turn
-        setTimeout(async () => {
+        setTimeout(() => {
           setGameState(currentState => {
             if (!currentState || !currentState.drawnCard) return currentState;
             
             const drawnCard = currentState.drawnCard;
             const gridPosition = decision.gridPosition ?? selectAIGridPosition(aiPlayer, drawnCard);
             
-            // Select grid position and reveal card if needed
             const newState = { ...currentState };
-            newState.selectedGridPosition = gridPosition;
+            const currentPlayer = newState.players[newState.currentPlayerIndex];
             
             // Reveal the grid card if it's not already revealed
-            const currentPlayer = newState.players[newState.currentPlayerIndex];
             if (!currentPlayer.grid[gridPosition].isRevealed) {
               currentPlayer.grid[gridPosition].isRevealed = true;
             }
@@ -256,15 +254,33 @@ export function useGameLogic() {
             // Make placement decision
             const shouldKeepDrawn = makeAIPlacementDecision(newState, currentPlayer, drawnCard, gridPosition);
             
-            setTimeout(() => {
-              if (shouldKeepDrawn) {
-                keepDrawnCard();
-              } else {
-                keepRevealedCard();
+            if (shouldKeepDrawn) {
+              // Keep drawn card - place it in grid, discard grid card if it was revealed
+              if (currentPlayer.grid[gridPosition].card && currentPlayer.grid[gridPosition].isRevealed) {
+                newState.discardPile = [...newState.discardPile, currentPlayer.grid[gridPosition].card!];
               }
-              
-              setTimeout(() => endTurn(), 800);
-            }, 1000);
+              currentPlayer.grid[gridPosition] = {
+                card: drawnCard,
+                isRevealed: true,
+                position: gridPosition
+              };
+            } else {
+              // Keep revealed card - discard the drawn card
+              newState.discardPile = [...newState.discardPile, drawnCard];
+            }
+            
+            // Check for three of a kind
+            const threeOfAKindColumns = checkThreeOfAKind(currentPlayer.grid);
+            if (threeOfAKindColumns.length > 0) {
+              newState.extraTurn = true;
+            }
+            
+            // Clear drawn card and selection
+            newState.drawnCard = null;
+            newState.selectedGridPosition = null;
+            
+            // End turn after a delay
+            setTimeout(() => endTurn(), 800);
             
             return newState;
           });
