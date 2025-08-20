@@ -130,17 +130,18 @@ export function useGameLogic() {
     });
   }, [gameState]);
 
-  const peekCard = useCallback((position: number) => {
+  const peekCard = useCallback((position: number, playerIndex?: number) => {
     if (!gameState || gameState.gamePhase !== 'peek') return;
 
     setGameState(prevState => {
       if (!prevState) return prevState;
 
       const newState = { ...prevState };
-      const currentPlayer = newState.players[newState.currentPlayerIndex];
+      const targetPlayerIndex = playerIndex !== undefined ? playerIndex : newState.currentPlayerIndex;
+      const targetPlayer = newState.players[targetPlayerIndex];
       
       // Reveal the card
-      currentPlayer.grid[position].isRevealed = true;
+      targetPlayer.grid[position].isRevealed = true;
 
       return newState;
     });
@@ -154,8 +155,21 @@ export function useGameLogic() {
 
       let newState = { ...prevState };
       
-      // Check if round should end
-      if (shouldEndRound(newState.players)) {
+      // Check if we need to transition from peek to playing phase
+      if (newState.gamePhase === 'peek') {
+        const allPlayersFinishedPeeking = newState.players.every(player => 
+          hasPlayerFinishedPeeking(player)
+        );
+        
+        if (allPlayersFinishedPeeking) {
+          newState.gamePhase = 'playing';
+          newState.currentPlayerIndex = 0; // Start with player 0
+          return newState;
+        }
+      }
+      
+      // Check if round should end (only in playing phase)
+      if (newState.gamePhase === 'playing' && shouldEndRound(newState.players)) {
         newState.roundEndTriggered = true;
       }
 
@@ -184,11 +198,18 @@ export function useGameLogic() {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     if (gameState.gamePhase === 'peek') {
-      // AI peek phase
-      const peekPositions = selectAIPeekCards(aiPlayer);
-      for (const position of peekPositions) {
-        peekCard(position);
-        await new Promise(resolve => setTimeout(resolve, 500));
+      // AI peek phase - find the AI player's index
+      const aiPlayerIndex = gameState.players.findIndex(p => p.id === aiPlayer.id);
+      const currentRevealedCount = aiPlayer.grid.filter(card => card.isRevealed).length;
+      
+      // Only peek cards if the AI hasn't finished peeking yet
+      if (currentRevealedCount < 2) {
+        const peekPositions = selectAIPeekCards(aiPlayer).slice(0, 2 - currentRevealedCount);
+        
+        for (const position of peekPositions) {
+          peekCard(position, aiPlayerIndex);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
     } else if (gameState.gamePhase === 'playing') {
       // AI playing phase

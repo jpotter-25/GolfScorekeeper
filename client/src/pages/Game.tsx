@@ -45,13 +45,29 @@ export default function Game() {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     
     if (currentPlayer.isAI && gameState.gamePhase !== 'game-end') {
-      const timer = setTimeout(() => {
-        processAITurn(currentPlayer);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
+      // For peek phase, check if AI hasn't finished peeking yet
+      if (gameState.gamePhase === 'peek') {
+        const aiRevealedCount = currentPlayer.grid.filter(card => card.isRevealed).length;
+        if (aiRevealedCount < 2) {
+          const timer = setTimeout(() => {
+            processAITurn(currentPlayer);
+          }, 1000);
+          return () => clearTimeout(timer);
+        } else {
+          // AI has finished peeking, advance turn
+          const timer = setTimeout(() => {
+            endTurn();
+          }, 500);
+          return () => clearTimeout(timer);
+        }
+      } else if (gameState.gamePhase === 'playing') {
+        const timer = setTimeout(() => {
+          processAITurn(currentPlayer);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [gameState, isProcessing, processAITurn]);
+  }, [gameState, isProcessing, processAITurn, endTurn]);
 
   // Update scores and check for round/game end
   useEffect(() => {
@@ -81,15 +97,18 @@ export default function Game() {
   }, [gameState]);
 
   const handlePeekCard = (position: number) => {
-    if (!gameState) return;
+    if (!gameState || gameState.gamePhase !== 'peek') return;
     
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     const revealedCount = currentPlayer.grid.filter(card => card.isRevealed).length;
     
-    if (revealedCount < 2) {
+    // Only allow human player to peek on their turn
+    if (gameState.currentPlayerIndex !== 0) return;
+    
+    if (revealedCount < 2 && !currentPlayer.grid[position].isRevealed) {
       peekCard(position);
       
-      // Check if peek phase is complete
+      // Check if player has finished peeking
       if (revealedCount === 1) {
         setTimeout(() => {
           endTurn();

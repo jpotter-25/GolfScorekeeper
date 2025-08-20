@@ -82,12 +82,14 @@ function findBestGridPosition(player: Player, cardValue: number): number {
 }
 
 export function selectAIPeekCards(player: Player): number[] {
-  // AI peeks at random positions for now
-  // Could be enhanced with strategy later
+  // AI peeks at random positions that haven't been revealed yet
   const positions = [];
-  const availablePositions = Array.from({ length: 9 }, (_, i) => i);
+  const availablePositions = Array.from({ length: 9 }, (_, i) => i)
+    .filter(pos => !player.grid[pos].isRevealed);
   
-  for (let i = 0; i < 2; i++) {
+  const cardsToReveal = Math.min(2, availablePositions.length);
+  
+  for (let i = 0; i < cardsToReveal; i++) {
     const randomIndex = Math.floor(Math.random() * availablePositions.length);
     positions.push(availablePositions[randomIndex]);
     availablePositions.splice(randomIndex, 1);
