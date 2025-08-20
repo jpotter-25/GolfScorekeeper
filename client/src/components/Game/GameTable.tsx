@@ -42,6 +42,7 @@ export default function GameTable({
   };
 
   const canDrawCard = gameState.gamePhase === 'playing' && isPlayerTurn && !gameState.drawnCard;
+  const canDrawFromDiscard = canDrawCard && !gameState.extraTurn; // Can't draw from discard during extra turn
   const canMakeChoice = gameState.drawnCard && gameState.selectedGridPosition !== null;
 
   return (
@@ -94,13 +95,19 @@ export default function GameTable({
               card={gameState.discardPile[gameState.discardPile.length - 1]}
               isRevealed={true}
               size="medium"
-              onClick={canDrawCard ? () => onDrawCard('discard') : undefined}
+              onClick={canDrawFromDiscard ? () => onDrawCard('discard') : undefined}
               className={cn(
-                canDrawCard && 'cursor-pointer hover:border-highlight-blue',
-                !canDrawCard && 'opacity-50 cursor-not-allowed'
+                canDrawFromDiscard && 'cursor-pointer hover:border-highlight-blue',
+                !canDrawFromDiscard && 'opacity-50 cursor-not-allowed',
+                gameState.extraTurn && 'opacity-30' // Extra visual indication during extra turn
               )}
               data-testid="button-discard-pile"
             />
+            {gameState.extraTurn && (
+              <div className="text-xs text-yellow-400 mt-1 font-medium">
+                Extra Turn: Draw Pile Only
+              </div>
+            )}
           </div>
         </div>
       </div>

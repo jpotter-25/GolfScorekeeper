@@ -8,6 +8,13 @@ export interface AIDecision {
 }
 
 export function makeAIDecision(gameState: GameState, aiPlayer: Player): AIDecision {
+  // During extra turn, AI must draw from draw pile only
+  if (gameState.extraTurn) {
+    return {
+      action: 'draw-from-pile'
+    };
+  }
+  
   const discardCard = gameState.discardPile[gameState.discardPile.length - 1];
   const discardValue = getCardValue(discardCard);
   

@@ -128,6 +128,50 @@ export function checkThreeOfAKind(grid: GridCard[]): number[] {
   return threeOfAKindColumns;
 }
 
+// Process three of a kind: discard matching cards and clear the column
+export function processThreeOfAKind(grid: GridCard[], discardPile: Card[]): { updatedGrid: GridCard[], updatedDiscardPile: Card[], hasThreeOfAKind: boolean } {
+  const columns = [
+    [0, 3, 6], // Column 1
+    [1, 4, 7], // Column 2
+    [2, 5, 8]  // Column 3
+  ];
+
+  let updatedGrid = [...grid];
+  let updatedDiscardPile = [...discardPile];
+  let hasThreeOfAKind = false;
+
+  for (let colIndex = 0; colIndex < columns.length; colIndex++) {
+    const columnPositions = columns[colIndex];
+    const columnCards = columnPositions
+      .filter(pos => updatedGrid[pos].isRevealed && updatedGrid[pos].card)
+      .map(pos => ({ pos, card: updatedGrid[pos].card! }));
+
+    if (columnCards.length === 3) {
+      const values = columnCards.map(item => item.card.value);
+      if (values[0] === values[1] && values[1] === values[2]) {
+        // Three of a kind found! Discard cards and clear column
+        hasThreeOfAKind = true;
+        
+        // Add cards to discard pile
+        columnCards.forEach(item => {
+          updatedDiscardPile.push(item.card);
+        });
+        
+        // Clear the column positions
+        columnPositions.forEach(pos => {
+          updatedGrid[pos] = {
+            card: null,
+            isRevealed: false,
+            position: pos
+          };
+        });
+      }
+    }
+  }
+
+  return { updatedGrid, updatedDiscardPile, hasThreeOfAKind };
+}
+
 // Calculate player score
 export function calculatePlayerScore(grid: GridCard[]): number {
   const threeOfAKindColumns = checkThreeOfAKind(grid);

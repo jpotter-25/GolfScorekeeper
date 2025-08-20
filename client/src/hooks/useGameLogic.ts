@@ -4,6 +4,7 @@ import {
   initializeGame, 
   reshuffleIfNeeded, 
   checkThreeOfAKind, 
+  processThreeOfAKind,
   calculatePlayerScore,
   shouldEndRound,
   getNextPlayerIndex,
@@ -93,9 +94,11 @@ export function useGameLogic() {
         position: gridPosition
       };
 
-      // Check for three of a kind
-      const threeOfAKindColumns = checkThreeOfAKind(currentPlayer.grid);
-      if (threeOfAKindColumns.length > 0) {
+      // Process three of a kind
+      const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
+      if (threeOfAKindResult.hasThreeOfAKind) {
+        currentPlayer.grid = threeOfAKindResult.updatedGrid;
+        newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;
       }
 
@@ -125,9 +128,11 @@ export function useGameLogic() {
         currentPlayer.grid[gridPosition].isRevealed = true;
       }
 
-      // Check for three of a kind
-      const threeOfAKindColumns = checkThreeOfAKind(currentPlayer.grid);
-      if (threeOfAKindColumns.length > 0) {
+      // Process three of a kind
+      const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
+      if (threeOfAKindResult.hasThreeOfAKind) {
+        currentPlayer.grid = threeOfAKindResult.updatedGrid;
+        newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;
       }
 
@@ -274,9 +279,11 @@ export function useGameLogic() {
               newState.discardPile = [...newState.discardPile, drawnCard];
             }
             
-            // Check for three of a kind
-            const threeOfAKindColumns = checkThreeOfAKind(currentPlayer.grid);
-            if (threeOfAKindColumns.length > 0) {
+            // Process three of a kind
+            const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
+            if (threeOfAKindResult.hasThreeOfAKind) {
+              currentPlayer.grid = threeOfAKindResult.updatedGrid;
+              newState.discardPile = threeOfAKindResult.updatedDiscardPile;
               newState.extraTurn = true;
             }
             
