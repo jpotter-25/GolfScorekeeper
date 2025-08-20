@@ -55,10 +55,19 @@ export function useGameLogic() {
   const selectGridPosition = useCallback((position: number) => {
     setGameState(prevState => {
       if (!prevState) return prevState;
-      return {
-        ...prevState,
-        selectedGridPosition: position
-      };
+      
+      const newState = { ...prevState };
+      newState.selectedGridPosition = position;
+      
+      // If we're in playing phase and the card at this position is not revealed, reveal it
+      if (newState.gamePhase === 'playing' && newState.drawnCard) {
+        const currentPlayer = newState.players[newState.currentPlayerIndex];
+        if (!currentPlayer.grid[position].isRevealed) {
+          currentPlayer.grid[position].isRevealed = true;
+        }
+      }
+      
+      return newState;
     });
   }, []);
 
