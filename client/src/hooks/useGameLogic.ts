@@ -8,7 +8,8 @@ import {
   calculatePlayerScore,
   shouldEndRound,
   getNextPlayerIndex,
-  hasPlayerFinishedPeeking
+  hasPlayerFinishedPeeking,
+  getCardValue
 } from '@/utils/gameLogic';
 import { 
   makeAIDecision, 
@@ -144,6 +145,25 @@ export function useGameLogic() {
     });
   }, [gameState]);
 
+  const directDiscardCard = useCallback(() => {
+    if (!gameState || !gameState.drawnCard) return;
+
+    setGameState(prevState => {
+      if (!prevState || !prevState.drawnCard) return prevState;
+
+      const newState = { ...prevState };
+      
+      // Simply discard the drawn card without revealing any grid cards
+      newState.discardPile = [...newState.discardPile, prevState.drawnCard];
+      
+      // Clear drawn card and selection
+      newState.drawnCard = null;
+      newState.selectedGridPosition = null;
+
+      return newState;
+    });
+  }, [gameState]);
+
   const peekCard = useCallback((position: number, playerIndex?: number) => {
     if (!gameState || gameState.gamePhase !== 'peek') return;
 
@@ -249,6 +269,21 @@ export function useGameLogic() {
             const newState = { ...currentState };
             const currentPlayer = newState.players[newState.currentPlayerIndex];
             
+            // Check if AI has only one face-down card left
+            const faceDownCount = currentPlayer.grid.filter(card => !card.isRevealed).length;
+            
+            if (faceDownCount === 1) {
+              // AI can choose to directly discard if the drawn card is bad
+              const drawnValue = getCardValue(drawnCard);
+              if (drawnValue >= 7) { // Bad card (7, 8, 9, 10, J, Q), just discard it
+                newState.discardPile = [...newState.discardPile, drawnCard];
+                newState.drawnCard = null;
+                newState.selectedGridPosition = null;
+                setTimeout(() => endTurn(), 800);
+                return newState;
+              }
+            }
+            
             // Use current player state for grid position selection
             const gridPosition = decision.gridPosition ?? selectAIGridPosition(currentPlayer, drawnCard);
             
@@ -316,6 +351,7 @@ export function useGameLogic() {
     selectGridPosition,
     keepDrawnCard,
     keepRevealedCard,
+    directDiscardCard,
     peekCard,
     endTurn,
     processAITurn,

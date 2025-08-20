@@ -21,6 +21,7 @@ export default function Game() {
     selectGridPosition,
     keepDrawnCard,
     keepRevealedCard,
+    directDiscardCard,
     peekCard,
     endTurn,
     processAITurn,
@@ -95,6 +96,17 @@ export default function Game() {
       }, 2000);
     }
   }, [gameState]);
+
+  // Handle direct discard event
+  useEffect(() => {
+    const handleDirectDiscard = () => {
+      directDiscardCard();
+      setTimeout(() => endTurn(), 1000);
+    };
+    
+    window.addEventListener('directDiscard', handleDirectDiscard);
+    return () => window.removeEventListener('directDiscard', handleDirectDiscard);
+  }, [directDiscardCard, endTurn]);
 
   const handlePeekCard = (position: number) => {
     if (!gameState || gameState.gamePhase !== 'peek') return;

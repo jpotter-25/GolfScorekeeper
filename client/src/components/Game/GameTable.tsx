@@ -44,6 +44,10 @@ export default function GameTable({
   const canDrawCard = gameState.gamePhase === 'playing' && isPlayerTurn && !gameState.drawnCard;
   const canDrawFromDiscard = canDrawCard && !gameState.extraTurn; // Can't draw from discard during extra turn
   const canMakeChoice = gameState.drawnCard && gameState.selectedGridPosition !== null;
+  
+  // Check if player has only one face-down card left
+  const humanPlayerFaceDownCount = humanPlayer.grid.filter(card => !card.isRevealed).length;
+  const canDiscardDirectly = gameState.drawnCard && humanPlayerFaceDownCount === 1 && isPlayerTurn;
 
   return (
     <div className="h-full max-w-6xl mx-auto">
@@ -129,13 +133,29 @@ export default function GameTable({
               <>
                 <div className="text-center text-white mb-3">
                   <div className="text-sm opacity-80">
-                    {gameState.selectedGridPosition !== null 
-                      ? 'Choose to keep the drawn card or the revealed card'
-                      : 'Select a card slot to place your drawn card'
+                    {canDiscardDirectly
+                      ? 'With only 1 face-down card left, you can discard directly or place the card'
+                      : gameState.selectedGridPosition !== null 
+                        ? 'Choose to keep the drawn card or the revealed card'
+                        : 'Select a card slot to place your drawn card'
                     }
                   </div>
                 </div>
                 <div className="flex justify-center space-x-4">
+                  {canDiscardDirectly && (
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        // Directly discard the drawn card without revealing anything
+                        const event = new CustomEvent('directDiscard');
+                        window.dispatchEvent(event);
+                      }}
+                      data-testid="button-direct-discard"
+                    >
+                      <i className="fas fa-trash mr-2"></i>
+                      Discard Card
+                    </Button>
+                  )}
                   <Button
                     variant="destructive"
                     onClick={onKeepRevealedCard}
@@ -143,7 +163,7 @@ export default function GameTable({
                     data-testid="button-keep-revealed"
                   >
                     <i className="fas fa-times mr-2"></i>
-                    Discard Drawn
+                    {canMakeChoice ? 'Discard Drawn' : 'Discard Drawn'}
                   </Button>
                   <Button
                     className="bg-game-gold hover:bg-yellow-500"
