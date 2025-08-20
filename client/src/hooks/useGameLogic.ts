@@ -147,11 +147,32 @@ export function useGameLogic() {
   const peekCard = useCallback((position: number) => {
     if (!gameState) return;
 
+    console.log('Peek card called:', {
+      position,
+      gamePhase: gameState.gamePhase,
+      hasDrawnCard: !!gameState.drawnCard,
+      currentPlayerIndex: gameState.currentPlayerIndex
+    });
+
     setGameState(prevState => {
       if (!prevState) return prevState;
 
-      const newState = { ...prevState };
+      // Create proper deep copy to avoid mutations
+      const newState = {
+        ...prevState,
+        players: prevState.players.map((player, index) => ({
+          ...player,
+          grid: player.grid.map(gridCard => ({ ...gridCard }))
+        }))
+      };
+      
       const currentPlayer = newState.players[newState.currentPlayerIndex];
+      
+      console.log('Before change:', {
+        position,
+        wasRevealed: currentPlayer.grid[position].isRevealed,
+        cardValue: currentPlayer.grid[position].card?.value
+      });
       
       // During peek phase, reveal the card permanently
       if (newState.gamePhase === 'peek') {
@@ -160,6 +181,12 @@ export function useGameLogic() {
         // During playing phase without drawn card, toggle reveal for temporary peeking
         currentPlayer.grid[position].isRevealed = !currentPlayer.grid[position].isRevealed;
       }
+
+      console.log('After change:', {
+        position,
+        isRevealed: currentPlayer.grid[position].isRevealed,
+        cardValue: currentPlayer.grid[position].card?.value
+      });
 
       return newState;
     });
