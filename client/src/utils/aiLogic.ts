@@ -41,34 +41,43 @@ export function makeAIPlacementDecision(
   const drawnValue = getCardValue(drawnCard);
   const gridCard = aiPlayer.grid[selectedPosition];
   
-  // If position is unrevealed, reveal it and decide
+  // If position is unrevealed, we need to decide based on card quality
   if (!gridCard.isRevealed) {
-    // Generally keep drawn card if it's good (low value)
-    return drawnValue <= 4 || drawnValue === -5; // A, 2-4, 5
+    // Keep very good cards (A=1, 5=-5, K=0)
+    if (drawnValue === 1 || drawnValue === -5 || drawnValue === 0) {
+      return true;
+    }
+    // Keep decent cards (2, 3, 4) most of the time
+    if (drawnValue <= 4) {
+      return true;
+    }
+    // Don't keep bad cards (7, 8, 9, 10, J, Q)
+    return false;
   }
   
-  // If position is revealed, compare values
+  // If position is revealed, always choose the better card
   const currentValue = gridCard.card ? getCardValue(gridCard.card) : 10;
   return drawnValue < currentValue;
 }
 
 function findBestGridPosition(player: Player, cardValue: number): number {
   let bestPosition = -1;
-  let highestCurrentValue = cardValue;
+  let worstValue = cardValue;
   
-  // Look for revealed cards with higher values to replace
+  // Find the WORST revealed card that's worse than our new card
   for (let i = 0; i < player.grid.length; i++) {
     const gridCard = player.grid[i];
     if (gridCard.isRevealed && gridCard.card) {
       const currentValue = getCardValue(gridCard.card);
-      if (currentValue > highestCurrentValue) {
-        highestCurrentValue = currentValue;
+      // Only consider replacing if the current card is worse than what we're placing
+      if (currentValue > cardValue && currentValue > worstValue) {
+        worstValue = currentValue;
         bestPosition = i;
       }
     }
   }
   
-  // If no good revealed position, look for unrevealed positions
+  // If no good revealed position and our card is very good, try unrevealed positions
   if (bestPosition === -1 && (cardValue <= 1 || cardValue === -5)) {
     for (let i = 0; i < player.grid.length; i++) {
       if (!player.grid[i].isRevealed) {
@@ -101,27 +110,39 @@ export function selectAIPeekCards(player: Player): number[] {
 export function selectAIGridPosition(player: Player, drawnCard: Card): number {
   const drawnValue = getCardValue(drawnCard);
   
-  // First, try to replace a revealed card with higher value
+  let bestPosition = -1;
+  let worstValueFound = drawnValue;
+  
+  // Find the WORST revealed card that we can improve upon
   for (let i = 0; i < player.grid.length; i++) {
     const gridCard = player.grid[i];
     if (gridCard.isRevealed && gridCard.card) {
       const currentValue = getCardValue(gridCard.card);
-      if (drawnValue < currentValue) {
-        return i;
+      // Only consider positions where we'd improve the score
+      if (drawnValue < currentValue && currentValue > worstValueFound) {
+        worstValueFound = currentValue;
+        bestPosition = i;
       }
     }
   }
   
-  // Otherwise, pick a random unrevealed position
-  const unrevealedPositions = player.grid
-    .map((gridCard, index) => ({ gridCard, index }))
-    .filter(({ gridCard }) => !gridCard.isRevealed)
-    .map(({ index }) => index);
-  
-  if (unrevealedPositions.length > 0) {
-    return unrevealedPositions[Math.floor(Math.random() * unrevealedPositions.length)];
+  // If we found a good position to replace, use it
+  if (bestPosition !== -1) {
+    return bestPosition;
   }
   
-  // Fallback to random position
+  // If the drawn card is very good (A, 2, 3, 4, 5, K), try unrevealed positions
+  if (drawnValue <= 4 || drawnValue === -5 || drawnValue === 0) {
+    const unrevealedPositions = player.grid
+      .map((gridCard, index) => ({ gridCard, index }))
+      .filter(({ gridCard }) => !gridCard.isRevealed)
+      .map(({ index }) => index);
+    
+    if (unrevealedPositions.length > 0) {
+      return unrevealedPositions[Math.floor(Math.random() * unrevealedPositions.length)];
+    }
+  }
+  
+  // Fallback to random position if we have no better choice
   return Math.floor(Math.random() * 9);
 }
