@@ -24,16 +24,17 @@ export default function GameTable({
   onPeekCard
 }: GameTableProps) {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const opponents = gameState.players.filter((_, index) => index !== gameState.currentPlayerIndex);
+  const humanPlayer = gameState.players[0];
+  const aiPlayers = gameState.players.filter((_, index) => index !== 0);
   const isPlayerTurn = gameState.currentPlayerIndex === 0;
 
-  const getOpponentLayout = () => {
-    switch (gameState.players.length) {
-      case 2:
+  const getAIPlayerLayout = () => {
+    switch (aiPlayers.length) {
+      case 1:
         return 'flex justify-center';
-      case 3:
+      case 2:
         return 'flex justify-between px-8';
-      case 4:
+      case 3:
         return 'grid grid-cols-3 gap-4 justify-items-center';
       default:
         return 'flex justify-center';
@@ -45,13 +46,13 @@ export default function GameTable({
 
   return (
     <div className="h-full max-w-6xl mx-auto">
-      {/* Opponent Grids */}
-      <div className={cn('mb-6', getOpponentLayout())} data-testid="opponent-grids">
-        {opponents.map((opponent, index) => (
+      {/* AI Player Grids - Always visible */}
+      <div className={cn('mb-6', getAIPlayerLayout())} data-testid="opponent-grids">
+        {aiPlayers.map((aiPlayer, index) => (
           <OpponentGrid
-            key={opponent.id}
-            player={opponent}
-            isCurrentPlayer={gameState.players[gameState.currentPlayerIndex].id === opponent.id}
+            key={aiPlayer.id}
+            player={aiPlayer}
+            isCurrentPlayer={gameState.players[gameState.currentPlayerIndex].id === aiPlayer.id}
             className="transform scale-75 md:scale-90"
           />
         ))}
@@ -104,9 +105,9 @@ export default function GameTable({
         </div>
       </div>
 
-      {/* Player's Grid */}
+      {/* Human Player's Grid - Always visible */}
       <PlayerGrid
-        player={gameState.players[0]}
+        player={humanPlayer}
         isCurrentPlayer={isPlayerTurn}
         selectedPosition={gameState.selectedGridPosition}
         onCardClick={gameState.gamePhase === 'peek' ? onPeekCard : 
