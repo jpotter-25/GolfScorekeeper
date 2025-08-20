@@ -26,16 +26,29 @@ export function useGameLogic() {
   }, []);
 
   const drawCard = useCallback((source: 'draw' | 'discard') => {
-    if (!gameState || gameState.drawnCard) return;
+    if (!gameState || gameState.drawnCard) {
+      console.log('Cannot draw card:', { hasGameState: !!gameState, hasDrawnCard: !!gameState?.drawnCard });
+      return;
+    }
+
+    console.log('Drawing card from:', source, 'Phase:', gameState.gamePhase, 'Current player:', gameState.currentPlayerIndex);
 
     setGameState(prevState => {
       if (!prevState) return prevState;
 
-      let newState = { ...prevState };
+      // Create deep copy to avoid mutations
+      const newState = {
+        ...prevState,
+        players: prevState.players.map(player => ({ ...player, grid: [...player.grid] })),
+        drawPile: [...prevState.drawPile],
+        discardPile: [...prevState.discardPile]
+      };
       
       if (source === 'draw') {
         if (newState.drawPile.length === 0) {
-          newState = reshuffleIfNeeded(newState);
+          const reshuffledState = reshuffleIfNeeded(newState);
+          newState.drawPile = [...reshuffledState.drawPile];
+          newState.discardPile = [...reshuffledState.discardPile];
         }
         if (newState.drawPile.length > 0) {
           newState.drawnCard = newState.drawPile[0];
@@ -48,6 +61,7 @@ export function useGameLogic() {
         }
       }
 
+      console.log('Card drawn:', newState.drawnCard?.value, newState.drawnCard?.suit);
       return newState;
     });
   }, [gameState]);
@@ -180,7 +194,11 @@ export function useGameLogic() {
         if (allPlayersFinishedPeeking) {
           newState.gamePhase = 'playing';
           newState.currentPlayerIndex = 0; // Start with first player (human)
-          console.log('Phase transition: peek -> playing');
+          console.log('Phase transition: peek -> playing', {
+            currentPlayerIndex: newState.currentPlayerIndex,
+            gamePhase: newState.gamePhase,
+            playersFinishedPeeking: newState.players.map(p => ({ id: p.id, finished: hasPlayerFinishedPeeking(p) }))
+          });
         }
       }
 

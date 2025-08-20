@@ -46,6 +46,15 @@ export default function GameTable({
 
   const canDrawCard = gameState.gamePhase === 'playing' && isPlayerTurn && !gameState.drawnCard;
   const canMakeChoice = gameState.drawnCard && gameState.selectedGridPosition !== null;
+  
+  // Debug logging
+  console.log('GameTable render:', {
+    gamePhase: gameState.gamePhase,
+    currentPlayerIndex: gameState.currentPlayerIndex,
+    isPlayerTurn,
+    canDrawCard,
+    hasDrawnCard: !!gameState.drawnCard
+  });
 
   return (
     <div className="h-full max-w-6xl mx-auto">
