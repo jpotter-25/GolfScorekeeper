@@ -45,9 +45,10 @@ export default function GameTable({
   const canDrawFromDiscard = canDrawCard && !gameState.extraTurn; // Can't draw from discard during extra turn
   const canMakeChoice = gameState.drawnCard && gameState.selectedGridPosition !== null;
   
-  // Check if player has only one face-down card left
-  const humanPlayerFaceDownCount = humanPlayer.grid.filter(card => !card.isRevealed).length;
-  const canDiscardDirectly = gameState.drawnCard && humanPlayerFaceDownCount === 1 && isPlayerTurn;
+  // Special rule: if player has only one face-down card left at start of turn, they can discard directly
+  const humanPlayerFaceDownCount = humanPlayer.grid.filter(card => !card.isRevealed && !card.isDisabled).length;
+  // Only show direct discard if: has drawn card, has 1 face-down card, and no position selected yet
+  const canDiscardDirectly = gameState.drawnCard && humanPlayerFaceDownCount === 1 && isPlayerTurn && gameState.selectedGridPosition === null;
 
   return (
     <div className="h-full max-w-6xl mx-auto">
