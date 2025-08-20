@@ -54,15 +54,15 @@ export default function Game() {
       setIdleTimer(null);
     }
     
-    if (currentPlayer.isAI && gameState.gamePhase !== 'game-end') {
+    // Only process AI turns when it's actually an AI player's turn
+    if (currentPlayer.isAI && gameState.gamePhase !== 'game-end' && gameState.currentPlayerIndex !== 0) {
       const timer = setTimeout(() => {
         processAITurn(currentPlayer);
       }, 1000);
       
       return () => clearTimeout(timer);
-    // Only start idle timer for online mode (disabled for now to prevent auto-play)
-    // Human players should manually take their actions in solo/pass-play modes
     }
+    // Human players manually take their actions
   }, [gameState, isProcessing, processAITurn]);
 
   // Cleanup idle timer on component unmount

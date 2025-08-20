@@ -114,9 +114,11 @@ export default function GameTable({
         isCurrentPlayer={gameState.currentPlayerIndex === 0}
         selectedPosition={gameState.selectedGridPosition}
         onCardClick={
-          gameState.gamePhase === 'peek' && gameState.currentPlayerIndex === 0 ? onPeekCard :
-          gameState.gamePhase === 'playing' && gameState.currentPlayerIndex === 0 ? (
-            gameState.drawnCard ? onSelectGridPosition : onPeekCard
+          gameState.currentPlayerIndex === 0 ? (
+            gameState.gamePhase === 'peek' ? onPeekCard :
+            gameState.gamePhase === 'playing' ? (
+              gameState.drawnCard ? onSelectGridPosition : onPeekCard
+            ) : undefined
           ) : undefined
         }
         idleTimeRemaining={idleTimeRemaining}
