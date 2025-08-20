@@ -26,42 +26,30 @@ export function useGameLogic() {
   }, []);
 
   const drawCard = useCallback((source: 'draw' | 'discard') => {
-    if (!gameState || gameState.drawnCard) {
-      console.log('Cannot draw card:', { hasGameState: !!gameState, hasDrawnCard: !!gameState?.drawnCard });
+    if (!gameState || gameState.drawnCard || gameState.gamePhase !== 'playing' || gameState.currentPlayerIndex !== 0) {
       return;
     }
 
-    console.log('Drawing card from:', source, 'Phase:', gameState.gamePhase, 'Current player:', gameState.currentPlayerIndex);
-
     setGameState(prevState => {
-      if (!prevState) return prevState;
+      if (!prevState || prevState.drawnCard) return prevState;
 
-      // Create deep copy to avoid mutations
-      const newState = {
-        ...prevState,
-        players: prevState.players.map(player => ({ ...player, grid: [...player.grid] })),
-        drawPile: [...prevState.drawPile],
-        discardPile: [...prevState.discardPile]
-      };
+      const newState = { ...prevState, drawPile: [...prevState.drawPile], discardPile: [...prevState.discardPile] };
       
       if (source === 'draw') {
         if (newState.drawPile.length === 0) {
-          const reshuffledState = reshuffleIfNeeded(newState);
-          newState.drawPile = [...reshuffledState.drawPile];
-          newState.discardPile = [...reshuffledState.discardPile];
+          const reshuffled = reshuffleIfNeeded(newState);
+          newState.drawPile = reshuffled.drawPile;
+          newState.discardPile = reshuffled.discardPile;
         }
         if (newState.drawPile.length > 0) {
           newState.drawnCard = newState.drawPile[0];
           newState.drawPile = newState.drawPile.slice(1);
         }
-      } else {
-        if (newState.discardPile.length > 0) {
-          newState.drawnCard = newState.discardPile[newState.discardPile.length - 1];
-          newState.discardPile = newState.discardPile.slice(0, -1);
-        }
+      } else if (source === 'discard' && newState.discardPile.length > 0) {
+        newState.drawnCard = newState.discardPile[newState.discardPile.length - 1];
+        newState.discardPile = newState.discardPile.slice(0, -1);
       }
 
-      console.log('Card drawn:', newState.drawnCard?.value, newState.drawnCard?.suit);
       return newState;
     });
   }, [gameState]);
@@ -82,13 +70,21 @@ export function useGameLogic() {
     setGameState(prevState => {
       if (!prevState || !prevState.drawnCard || prevState.selectedGridPosition === null) return prevState;
 
-      const newState = { ...prevState };
+      const newState = {
+        ...prevState,
+        players: prevState.players.map((player, index) => ({
+          ...player,
+          grid: player.grid.map(card => ({ ...card }))
+        })),
+        discardPile: [...prevState.discardPile]
+      };
+      
       const currentPlayer = newState.players[newState.currentPlayerIndex];
       const gridPosition = prevState.selectedGridPosition;
       
-      // If card at position was revealed, add it to discard pile
-      if (currentPlayer.grid[gridPosition].isRevealed && currentPlayer.grid[gridPosition].card) {
-        newState.discardPile = [...newState.discardPile, currentPlayer.grid[gridPosition].card!];
+      // If card at position has a card, add it to discard pile
+      if (currentPlayer.grid[gridPosition].card) {
+        newState.discardPile.push(currentPlayer.grid[gridPosition].card);
       }
 
       // Place drawn card in grid
@@ -98,9 +94,9 @@ export function useGameLogic() {
         position: gridPosition
       };
 
-      // Check for three of a kind
+      // Check for three of a kind - only set extra turn if not already set
       const threeOfAKindColumns = checkThreeOfAKind(currentPlayer.grid);
-      if (threeOfAKindColumns.length > 0) {
+      if (threeOfAKindColumns.length > 0 && !newState.extraTurn) {
         newState.extraTurn = true;
       }
 
@@ -118,21 +114,24 @@ export function useGameLogic() {
     setGameState(prevState => {
       if (!prevState || !prevState.drawnCard || prevState.selectedGridPosition === null) return prevState;
 
-      const newState = { ...prevState };
+      const newState = {
+        ...prevState,
+        players: prevState.players.map((player, index) => ({
+          ...player,
+          grid: player.grid.map(card => ({ ...card }))
+        })),
+        discardPile: [...prevState.discardPile, prevState.drawnCard]
+      };
+      
       const currentPlayer = newState.players[newState.currentPlayerIndex];
       const gridPosition = prevState.selectedGridPosition;
 
-      // Discard the drawn card
-      newState.discardPile = [...newState.discardPile, prevState.drawnCard];
+      // Reveal the grid card
+      currentPlayer.grid[gridPosition].isRevealed = true;
 
-      // Reveal the grid card if it wasn't already
-      if (!currentPlayer.grid[gridPosition].isRevealed) {
-        currentPlayer.grid[gridPosition].isRevealed = true;
-      }
-
-      // Check for three of a kind
+      // Check for three of a kind - only set extra turn if not already set
       const threeOfAKindColumns = checkThreeOfAKind(currentPlayer.grid);
-      if (threeOfAKindColumns.length > 0) {
+      if (threeOfAKindColumns.length > 0 && !newState.extraTurn) {
         newState.extraTurn = true;
       }
 
@@ -145,19 +144,11 @@ export function useGameLogic() {
   }, [gameState]);
 
   const peekCard = useCallback((position: number) => {
-    if (!gameState) return;
-
-    console.log('Peek card called:', {
-      position,
-      gamePhase: gameState.gamePhase,
-      hasDrawnCard: !!gameState.drawnCard,
-      currentPlayerIndex: gameState.currentPlayerIndex
-    });
+    if (!gameState || gameState.currentPlayerIndex !== 0) return;
 
     setGameState(prevState => {
       if (!prevState) return prevState;
 
-      // Create proper deep copy to avoid mutations
       const newState = {
         ...prevState,
         players: prevState.players.map((player, index) => ({
@@ -168,12 +159,6 @@ export function useGameLogic() {
       
       const currentPlayer = newState.players[newState.currentPlayerIndex];
       
-      console.log('Before change:', {
-        position,
-        wasRevealed: currentPlayer.grid[position].isRevealed,
-        cardValue: currentPlayer.grid[position].card?.value
-      });
-      
       // During peek phase, reveal the card permanently
       if (newState.gamePhase === 'peek') {
         currentPlayer.grid[position].isRevealed = true;
@@ -181,12 +166,6 @@ export function useGameLogic() {
         // During playing phase without drawn card, toggle reveal for temporary peeking
         currentPlayer.grid[position].isRevealed = !currentPlayer.grid[position].isRevealed;
       }
-
-      console.log('After change:', {
-        position,
-        isRevealed: currentPlayer.grid[position].isRevealed,
-        cardValue: currentPlayer.grid[position].card?.value
-      });
 
       return newState;
     });
@@ -205,7 +184,7 @@ export function useGameLogic() {
         newState.roundEndTriggered = true;
       }
 
-      // If extra turn, don't advance player
+      // If extra turn, clear it and don't advance player
       if (newState.extraTurn) {
         newState.extraTurn = false;
         return newState;
@@ -226,11 +205,6 @@ export function useGameLogic() {
         if (allPlayersFinishedPeeking) {
           newState.gamePhase = 'playing';
           newState.currentPlayerIndex = 0; // Start with first player (human)
-          console.log('Phase transition: peek -> playing', {
-            currentPlayerIndex: newState.currentPlayerIndex,
-            gamePhase: newState.gamePhase,
-            playersFinishedPeeking: newState.players.map(p => ({ id: p.id, finished: hasPlayerFinishedPeeking(p) }))
-          });
         }
       }
 
@@ -249,7 +223,6 @@ export function useGameLogic() {
     if (gameState.gamePhase === 'peek') {
       // AI peek phase
       const peekPositions = selectAIPeekCards(aiPlayer);
-      console.log(`AI ${aiPlayer.id} peeking at positions:`, peekPositions);
       for (const position of peekPositions) {
         peekCard(position);
         await new Promise(resolve => setTimeout(resolve, 500));
