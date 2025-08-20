@@ -188,6 +188,10 @@ export function useGameLogic() {
         return newState;
       }
 
+      // Clear any drawn card and selection when advancing to next player
+      newState.drawnCard = null;
+      newState.selectedGridPosition = null;
+
       // Advance to next player
       newState.currentPlayerIndex = getNextPlayerIndex(
         newState.currentPlayerIndex, 
