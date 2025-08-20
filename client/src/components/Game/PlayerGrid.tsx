@@ -109,7 +109,10 @@ export default function PlayerGrid({
             isHighlighted={isPositionInThreeOfAKind(index)}
             highlightColor="green"
             size="large"
-            onClick={onCardClick ? () => onCardClick(index) : undefined}
+            onClick={onCardClick ? () => {
+              // Allow clicking any card during playing phase for peeking/selection
+              onCardClick(index);
+            } : undefined}
             data-testid={`card-${player.id}-${index}`}
           />
         ))}

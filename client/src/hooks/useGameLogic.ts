@@ -145,7 +145,7 @@ export function useGameLogic() {
   }, [gameState]);
 
   const peekCard = useCallback((position: number) => {
-    if (!gameState || gameState.gamePhase !== 'peek') return;
+    if (!gameState) return;
 
     setGameState(prevState => {
       if (!prevState) return prevState;
@@ -153,8 +153,13 @@ export function useGameLogic() {
       const newState = { ...prevState };
       const currentPlayer = newState.players[newState.currentPlayerIndex];
       
-      // Reveal the card
-      currentPlayer.grid[position].isRevealed = true;
+      // During peek phase, reveal the card permanently
+      if (newState.gamePhase === 'peek') {
+        currentPlayer.grid[position].isRevealed = true;
+      } else if (newState.gamePhase === 'playing' && !newState.drawnCard) {
+        // During playing phase without drawn card, toggle reveal for temporary peeking
+        currentPlayer.grid[position].isRevealed = !currentPlayer.grid[position].isRevealed;
+      }
 
       return newState;
     });

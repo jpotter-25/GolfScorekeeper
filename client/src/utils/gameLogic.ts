@@ -32,7 +32,8 @@ export function shuffleDeck(deck: Card[]): Card[] {
 }
 
 // Card value calculation
-export function getCardValue(card: Card): number {
+export function getCardValue(card: Card | null): number {
+  if (!card) return 0;
   switch (card.value) {
     case 'A': return 1;
     case '2': case '3': case '4': case '6': case '7': case '8': case '9': case '10':
