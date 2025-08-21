@@ -9,7 +9,10 @@ import {
   shouldEndRound,
   getNextPlayerIndex,
   hasPlayerFinishedPeeking,
-  getCardValue
+  getCardValue,
+  createPlayerGrid,
+  createDeck,
+  shuffleDeck
 } from '@/utils/gameLogic';
 import { 
   makeAIDecision, 
@@ -26,6 +29,53 @@ export function useGameLogic() {
     const newGameState = initializeGame(settings);
     setGameState(newGameState);
   }, []);
+
+  const startNextRound = useCallback(() => {
+    if (!gameState) return;
+
+    setGameState(prevState => {
+      if (!prevState) return prevState;
+
+      // Calculate and add final scores for the round
+      const newState = { ...prevState };
+      newState.players.forEach(player => {
+        player.roundScore = calculatePlayerScore(player.grid);
+        player.totalScore += player.roundScore;
+      });
+
+      // Reset for next round
+      newState.currentRound += 1;
+      newState.roundEndTriggered = false;
+      newState.roundEndingPlayer = undefined;
+      newState.currentPlayerIndex = 0;
+      newState.gamePhase = 'peek';
+      newState.drawnCard = null;
+      newState.selectedGridPosition = null;
+      newState.extraTurn = false;
+
+      // Create new deck and deal cards
+      const deck = createDeck();
+      let deckIndex = 0;
+
+      // Reset all players' grids and scores
+      newState.players.forEach(player => {
+        player.grid = createPlayerGrid();
+        player.roundScore = 0;
+        player.isActive = player.id === 'player-0';
+
+        // Deal 9 cards to each player
+        for (let i = 0; i < 9; i++) {
+          player.grid[i].card = deck[deckIndex++];
+        }
+      });
+
+      // Set up new draw and discard piles
+      newState.drawPile = deck.slice(deckIndex + 1);
+      newState.discardPile = [deck[deckIndex]];
+
+      return newState;
+    });
+  }, [gameState]);
 
   const drawCard = useCallback((source: 'draw' | 'discard') => {
     if (!gameState || gameState.drawnCard) return;
@@ -113,6 +163,7 @@ export function useGameLogic() {
       // Check if round should end immediately after placing card
       if (shouldEndRound(newState.players)) {
         newState.roundEndTriggered = true;
+        newState.roundEndingPlayer = newState.currentPlayerIndex;
       }
 
       // Clear drawn card and selection
@@ -152,6 +203,7 @@ export function useGameLogic() {
       // Check if round should end immediately after revealing card
       if (shouldEndRound(newState.players)) {
         newState.roundEndTriggered = true;
+        newState.roundEndingPlayer = newState.currentPlayerIndex;
       }
 
       // Clear drawn card and selection
@@ -227,6 +279,17 @@ export function useGameLogic() {
       // Check if round should end (only in playing phase)
       if (newState.gamePhase === 'playing' && shouldEndRound(newState.players)) {
         newState.roundEndTriggered = true;
+        newState.roundEndingPlayer = newState.currentPlayerIndex;
+      }
+
+      // If round ended, check if all other players have had their final turn
+      if (newState.roundEndTriggered && newState.roundEndingPlayer !== undefined) {
+        // Check if we've cycled back to the player who triggered the round end
+        // If so, the round is complete
+        if (newState.currentPlayerIndex === newState.roundEndingPlayer) {
+          // Don't advance further, round should end
+          return newState;
+        }
       }
 
       // If extra turn, don't advance player
@@ -369,6 +432,7 @@ export function useGameLogic() {
     gameState,
     isProcessing,
     startGame,
+    startNextRound,
     drawCard,
     selectGridPosition,
     keepDrawnCard,

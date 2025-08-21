@@ -34,6 +34,7 @@ export interface GameState {
   selectedGridPosition: number | null;
   gameMode: 'solo' | 'pass-play' | 'online';
   roundEndTriggered: boolean;
+  roundEndingPlayer?: number; // Index of player who triggered round end
   extraTurn: boolean;
 }
 

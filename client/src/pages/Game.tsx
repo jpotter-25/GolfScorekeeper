@@ -17,6 +17,7 @@ export default function Game() {
     gameState,
     isProcessing,
     startGame,
+    startNextRound,
     drawCard,
     selectGridPosition,
     keepDrawnCard,
@@ -83,11 +84,7 @@ export default function Game() {
     if (gameState.roundEndTriggered && gameState.currentRound < gameState.totalRounds) {
       // End round, start next
       setTimeout(() => {
-        gameState.players.forEach(player => {
-          player.totalScore += player.roundScore;
-          player.roundScore = 0;
-        });
-        // TODO: Start next round
+        startNextRound();
       }, 2000);
     } else if (gameState.roundEndTriggered && gameState.currentRound >= gameState.totalRounds) {
       // Game end
