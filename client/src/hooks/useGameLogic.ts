@@ -52,6 +52,7 @@ export function useGameLogic() {
       newState.drawnCard = null;
       newState.selectedGridPosition = null;
       newState.extraTurn = false;
+      newState.hasRevealedCardThisTurn = false;
 
       // Create new deck and deal cards
       const deck = createDeck();
@@ -115,6 +116,19 @@ export function useGameLogic() {
         return prevState;
       }
       
+      // During playing phase, only allow revelation if:
+      // 1. Player has drawn a card
+      // 2. No card has been revealed this turn yet
+      // 3. The position is not already revealed
+      if (prevState.gamePhase === 'playing') {
+        if (!prevState.drawnCard) {
+          return prevState; // Can't select position without drawing first
+        }
+        if (prevState.hasRevealedCardThisTurn && !currentPlayer.grid[position].isRevealed) {
+          return prevState; // Already revealed a card this turn, can't reveal another
+        }
+      }
+      
       const newState = { ...prevState };
       newState.selectedGridPosition = position;
       
@@ -122,6 +136,7 @@ export function useGameLogic() {
       if (newState.gamePhase === 'playing' && newState.drawnCard) {
         if (!currentPlayer.grid[position].isRevealed) {
           currentPlayer.grid[position].isRevealed = true;
+          newState.hasRevealedCardThisTurn = true;
         }
       }
       
@@ -169,6 +184,7 @@ export function useGameLogic() {
       // Clear drawn card and selection
       newState.drawnCard = null;
       newState.selectedGridPosition = null;
+      newState.hasRevealedCardThisTurn = false;
 
       return newState;
     });
@@ -207,6 +223,7 @@ export function useGameLogic() {
       // Clear drawn card and selection
       newState.drawnCard = null;
       newState.selectedGridPosition = null;
+      newState.hasRevealedCardThisTurn = false;
 
       return newState;
     });
@@ -231,6 +248,7 @@ export function useGameLogic() {
       // Clear drawn card and selection
       newState.drawnCard = null;
       newState.selectedGridPosition = null;
+      newState.hasRevealedCardThisTurn = false;
 
       return newState;
     });
@@ -299,6 +317,7 @@ export function useGameLogic() {
       // Clear any drawn card and selection when advancing to next player
       newState.drawnCard = null;
       newState.selectedGridPosition = null;
+      newState.hasRevealedCardThisTurn = false;
 
       // Advance to next player
       newState.currentPlayerIndex = getNextPlayerIndex(

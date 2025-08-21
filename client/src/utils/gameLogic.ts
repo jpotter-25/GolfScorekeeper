@@ -98,7 +98,8 @@ export function initializeGame(settings: GameSettings): GameState {
     selectedGridPosition: null,
     gameMode: settings.mode,
     roundEndTriggered: false,
-    extraTurn: false
+    extraTurn: false,
+    hasRevealedCardThisTurn: false
   };
 }
 

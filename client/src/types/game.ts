@@ -36,6 +36,7 @@ export interface GameState {
   roundEndTriggered: boolean;
   roundEndingPlayer?: number; // Index of player who triggered round end
   extraTurn: boolean;
+  hasRevealedCardThisTurn: boolean;
 }
 
 export interface GameSettings {
