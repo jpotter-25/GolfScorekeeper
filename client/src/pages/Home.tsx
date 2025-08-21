@@ -170,6 +170,7 @@ export default function Home() {
             </div>
             <Separator />
             <Button 
+              onClick={handleLogout}
               variant="destructive" 
               className="w-full mt-6"
               data-testid="button-logout"
