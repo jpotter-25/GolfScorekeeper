@@ -1,17 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import type { GameStats, GameHistory } from "@shared/schema";
 
 export function useUserStats() {
-  return useQuery({
+  return useQuery<GameStats>({
     queryKey: ["/api/user/stats"],
     retry: false,
   });
 }
 
 export function useUserHistory(limit = 10) {
-  return useQuery({
+  return useQuery<GameHistory[]>({
     queryKey: ["/api/user/history", limit],
     retry: false,
   });
