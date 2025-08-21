@@ -53,7 +53,7 @@ export default function GameSetup() {
         <Button 
           variant="ghost" 
           onClick={() => setLocation('/')}
-          className="text-white text-xl hover:text-game-gold transition-colors"
+          className="text-white text-xl hover:text-blue-400 transition-colors"
           data-testid="button-back"
         >
           <i className="fas fa-arrow-left"></i>
@@ -75,7 +75,7 @@ export default function GameSetup() {
                   className={cn(
                     'py-3 px-4 rounded-lg font-medium transition-all',
                     settings.playerCount === count
-                      ? 'bg-game-gold bg-opacity-80 text-white'
+                      ? 'bg-blue-600 text-white border-2 border-blue-500'
                       : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
                   )}
                   data-testid={`button-players-${count}`}
@@ -97,7 +97,7 @@ export default function GameSetup() {
                   className={cn(
                     'py-3 px-4 rounded-lg font-medium transition-all',
                     settings.rounds === rounds
-                      ? 'bg-game-gold bg-opacity-80 text-white'
+                      ? 'bg-blue-600 text-white border-2 border-blue-500'
                       : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
                   )}
                   data-testid={`button-rounds-${rounds}`}
@@ -111,7 +111,7 @@ export default function GameSetup() {
           {/* Start Game */}
           <Button 
             onClick={startGame}
-            className="w-full bg-game-gold hover:bg-yellow-500 text-white font-bold py-4 px-6 rounded-xl text-lg transition-all duration-200"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl text-lg transition-all duration-200"
             data-testid="button-start-game"
           >
             Start Game

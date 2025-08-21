@@ -36,13 +36,13 @@ export default function Home() {
           className="flex items-center space-x-4 hover:bg-white hover:bg-opacity-10 rounded-lg p-2 transition-all"
           data-testid="button-profile"
         >
-          <div className="w-12 h-12 bg-game-gold rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500">
             <i className="fas fa-user text-white text-xl"></i>
           </div>
           <div className="text-white">
             <div className="font-semibold">{userStats.username}</div>
             <div className="text-sm opacity-80">Level {userStats.level} • {userStats.experience.toLocaleString()} XP</div>
-            <div className="text-sm text-game-gold font-medium">{userStats.currency} coins</div>
+            <div className="text-sm text-yellow-300 font-medium">{userStats.currency} coins</div>
           </div>
         </button>
         
@@ -70,7 +70,7 @@ export default function Home() {
             data-testid="button-solo-mode"
           >
             <div className="flex items-center space-x-4">
-              <i className="fas fa-robot text-game-gold text-xl"></i>
+              <i className="fas fa-robot text-blue-400 text-xl"></i>
               <span className="font-semibold">Solo vs AI</span>
             </div>
             <i className="fas fa-chevron-right opacity-60"></i>
@@ -82,7 +82,7 @@ export default function Home() {
             data-testid="button-pass-play-mode"
           >
             <div className="flex items-center space-x-4">
-              <i className="fas fa-users text-game-gold text-xl"></i>
+              <i className="fas fa-users text-blue-400 text-xl"></i>
               <span className="font-semibold">Pass & Play</span>
             </div>
             <i className="fas fa-chevron-right opacity-60"></i>
@@ -95,7 +95,7 @@ export default function Home() {
             disabled
           >
             <div className="flex items-center space-x-4">
-              <i className="fas fa-wifi text-game-gold text-xl"></i>
+              <i className="fas fa-wifi text-blue-400 text-xl"></i>
               <span className="font-semibold">Online Multiplayer</span>
             </div>
             <i className="fas fa-chevron-right opacity-60"></i>
@@ -103,7 +103,7 @@ export default function Home() {
 
           <Button 
             onClick={() => setShowHowToPlay(true)}
-            className="w-full bg-game-gold hover:bg-yellow-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200"
             data-testid="button-how-to-play"
           >
             <i className="fas fa-question-circle mr-2"></i>

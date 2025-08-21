@@ -56,7 +56,7 @@
   /* Golf 9 Theme Colors */
   --game-green: hsl(154 100% 16%);
   --game-felt: hsl(154 42% 20%);
-  --game-gold: hsl(45 96% 53%);
+  --game-gold: hsl(210 87% 48%); /* Changed to blue for better contrast */
   --game-cream: hsl(37 25% 98%);
   --card-back: hsl(225 83% 53%);
   --highlight-blue: hsl(217 91% 60%);
