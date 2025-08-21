@@ -39,6 +39,14 @@ export function useGameLogic() {
       // Calculate and add final scores for the round
       const newState = { ...prevState };
       newState.players.forEach(player => {
+        // Reveal all remaining unrevealed cards at round end
+        player.grid.forEach(gridCard => {
+          if (!gridCard.isRevealed && gridCard.card && !gridCard.isDisabled) {
+            gridCard.isRevealed = true;
+          }
+        });
+        
+        // Calculate and add round score to total
         player.roundScore = calculatePlayerScore(player.grid);
         player.totalScore += player.roundScore;
       });
@@ -179,6 +187,15 @@ export function useGameLogic() {
       if (shouldEndRound(newState.players)) {
         newState.roundEndTriggered = true;
         newState.roundEndingPlayer = newState.currentPlayerIndex;
+        
+        // Reveal all remaining unrevealed cards when round ends
+        newState.players.forEach(player => {
+          player.grid.forEach(gridCard => {
+            if (!gridCard.isRevealed && gridCard.card && !gridCard.isDisabled) {
+              gridCard.isRevealed = true;
+            }
+          });
+        });
       }
 
       // Clear drawn card and selection
@@ -218,6 +235,15 @@ export function useGameLogic() {
       if (shouldEndRound(newState.players)) {
         newState.roundEndTriggered = true;
         newState.roundEndingPlayer = newState.currentPlayerIndex;
+        
+        // Reveal all remaining unrevealed cards when round ends
+        newState.players.forEach(player => {
+          player.grid.forEach(gridCard => {
+            if (!gridCard.isRevealed && gridCard.card && !gridCard.isDisabled) {
+              gridCard.isRevealed = true;
+            }
+          });
+        });
       }
 
       // Clear drawn card and selection
@@ -296,6 +322,15 @@ export function useGameLogic() {
       if (newState.gamePhase === 'playing' && shouldEndRound(newState.players)) {
         newState.roundEndTriggered = true;
         newState.roundEndingPlayer = newState.currentPlayerIndex;
+        
+        // Reveal all remaining unrevealed cards when round ends
+        newState.players.forEach(player => {
+          player.grid.forEach(gridCard => {
+            if (!gridCard.isRevealed && gridCard.card && !gridCard.isDisabled) {
+              gridCard.isRevealed = true;
+            }
+          });
+        });
       }
 
       // If round ended, check if all other players have had their final turn
@@ -424,9 +459,25 @@ export function useGameLogic() {
               newState.extraTurn = true;
             }
             
+            // Check if round should end immediately after AI action
+            if (shouldEndRound(newState.players)) {
+              newState.roundEndTriggered = true;
+              newState.roundEndingPlayer = newState.currentPlayerIndex;
+              
+              // Reveal all remaining unrevealed cards when round ends
+              newState.players.forEach(player => {
+                player.grid.forEach(gridCard => {
+                  if (!gridCard.isRevealed && gridCard.card && !gridCard.isDisabled) {
+                    gridCard.isRevealed = true;
+                  }
+                });
+              });
+            }
+            
             // Clear drawn card and selection
             newState.drawnCard = null;
             newState.selectedGridPosition = null;
+            newState.hasRevealedCardThisTurn = false;
             
             // End turn after a delay
             setTimeout(() => endTurn(), 800);

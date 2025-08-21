@@ -40,7 +40,7 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
         </div>
         <div className="text-game-cream text-sm">
           Score: <span className="font-semibold" data-testid={`text-opponent-score-${player.id}`}>
-            {player.roundScore}
+            {player.totalScore}
           </span>
         </div>
       </div>
