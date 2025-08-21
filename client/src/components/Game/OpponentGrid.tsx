@@ -26,7 +26,15 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
 
   return (
     <div className={cn('opponent-grid', className)} data-testid={`opponent-grid-${player.id}`}>
-      <div className="text-center mb-3 relative">
+      <div className="text-center mb-3">
+        {/* Playing indicator with reserved space to avoid layout shift */}
+        <div className="h-4 flex items-center justify-center mb-1">
+          {isCurrentPlayer && (
+            <div className="bg-game-gold bg-opacity-90 text-white px-2 py-0.5 rounded-full text-xs font-medium">
+              Playing
+            </div>
+          )}
+        </div>
         <div className="flex items-center justify-center space-x-2">
           <div className={cn(
             'w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold',
@@ -36,12 +44,6 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
           </div>
           <div className="text-white font-medium">{player.name}</div>
         </div>
-        {/* Playing indicator positioned absolutely to avoid layout shift */}
-        {isCurrentPlayer && (
-          <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 bg-game-gold bg-opacity-90 text-white px-2 py-0.5 rounded-full text-xs font-medium">
-            Playing
-          </div>
-        )}
         <div className="text-game-cream text-sm">
           <div>Round: <span className="font-semibold" data-testid={`text-opponent-round-score-${player.id}`}>
             {currentRoundScore}
