@@ -24,10 +24,19 @@ export default function Home() {
     window.location.href = "/api/logout";
   };
 
+  // Show loading state until user data is available
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   // Calculate user display data
-  const displayName = user?.firstName 
+  const displayName = user.firstName 
     ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
-    : user?.email?.split('@')[0] 
+    : user.email?.split('@')[0] 
     ? user.email.split('@')[0] 
     : 'Player';
 
@@ -45,7 +54,7 @@ export default function Home() {
           data-testid="button-profile"
         >
           <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500">
-            {user?.profileImageUrl ? (
+            {user.profileImageUrl ? (
               <img 
                 src={user.profileImageUrl} 
                 alt="Profile" 
@@ -57,8 +66,8 @@ export default function Home() {
           </div>
           <div className="text-white">
             <div className="font-semibold">{displayName}</div>
-            <div className="text-sm opacity-80">Level {user?.level || 1} • {(user?.experience || 0).toLocaleString()} XP</div>
-            <div className="text-sm text-yellow-300 font-medium">{user?.currency || 0} coins</div>
+            <div className="text-sm opacity-80">Level {user.level || 1} • {(user.experience || 0).toLocaleString()} XP</div>
+            <div className="text-sm text-yellow-300 font-medium">{user.currency || 0} coins</div>
           </div>
         </button>
         
@@ -199,11 +208,11 @@ export default function Home() {
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-gray-900">{user?.level || 1}</div>
+                <div className="text-2xl font-bold text-gray-900">{user.level || 1}</div>
                 <div className="text-sm text-gray-600">Level</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-blue-600">{user?.currency || 0}</div>
+                <div className="text-2xl font-bold text-blue-600">{user.currency || 0}</div>
                 <div className="text-sm text-gray-600">Coins</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg text-center">
@@ -220,10 +229,10 @@ export default function Home() {
             <div>
               <div className="flex justify-between text-sm text-gray-600 mb-2">
                 <span>Experience</span>
-                <span>{(user?.experience || 0).toLocaleString()} / {((user?.level || 1) * 100).toLocaleString()} XP</span>
+                <span>{(user.experience || 0).toLocaleString()} / {((user.level || 1) * 100).toLocaleString()} XP</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
-                <div className="bg-game-gold h-3 rounded-full" style={{ width: `${(userStats.experience / 3000) * 100}%` }}></div>
+                <div className="bg-blue-600 h-3 rounded-full" style={{ width: `${((user.experience || 0) / ((user.level || 1) * 100)) * 100}%` }}></div>
               </div>
             </div>
             
