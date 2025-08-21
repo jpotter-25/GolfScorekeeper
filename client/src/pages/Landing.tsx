@@ -81,14 +81,10 @@ export default function Landing() {
 
               <div className="mt-4 text-center">
                 <p className="text-gray-300 text-xs mb-2">Available sign-in options:</p>
-                <div className="flex justify-center space-x-3 text-gray-400">
+                <div className="flex justify-center space-x-4 text-gray-400">
                   <div className="flex items-center space-x-1">
                     <i className="fab fa-google text-sm"></i>
                     <span className="text-xs">Google</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <i className="fab fa-github text-sm"></i>
-                    <span className="text-xs">GitHub</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <i className="fab fa-apple text-sm"></i>
@@ -97,6 +93,10 @@ export default function Landing() {
                   <div className="flex items-center space-x-1">
                     <i className="fas fa-envelope text-sm"></i>
                     <span className="text-xs">Email</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <i className="fas fa-user text-sm"></i>
+                    <span className="text-xs">Replit</span>
                   </div>
                 </div>
               </div>
