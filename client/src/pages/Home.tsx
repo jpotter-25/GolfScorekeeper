@@ -3,6 +3,8 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserStats } from '@/hooks/useUserProgression';
 import HowToPlay from '@/components/Game/HowToPlay';
 
 export default function Home() {
@@ -11,21 +13,27 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   
-  // Mock user data - in real app this would come from API/context
-  const [userStats] = useState({
-    username: 'Player',
-    level: 12,
-    experience: 2450,
-    currency: 1250,
-    gamesPlayed: 47,
-    gamesWon: 23,
-    winRate: 49,
-    totalScore: 15420
-  });
+  const { user } = useAuth();
+  const { data: userStats } = useUserStats();
 
   const selectMode = (mode: 'solo' | 'pass-play' | 'online') => {
     setLocation(`/setup?mode=${mode}`);
   };
+
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
+
+  // Calculate user display data
+  const displayName = user?.firstName 
+    ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
+    : user?.email?.split('@')[0] 
+    ? user.email.split('@')[0] 
+    : 'Player';
+
+  const winRate = userStats?.gamesPlayed 
+    ? Math.round((userStats.gamesWon / userStats.gamesPlayed) * 100) 
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt">
@@ -37,12 +45,20 @@ export default function Home() {
           data-testid="button-profile"
         >
           <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500">
-            <i className="fas fa-user text-white text-xl"></i>
+            {user?.profileImageUrl ? (
+              <img 
+                src={user.profileImageUrl} 
+                alt="Profile" 
+                className="w-full h-full rounded-full object-cover"
+              />
+            ) : (
+              <i className="fas fa-user text-white text-xl"></i>
+            )}
           </div>
           <div className="text-white">
-            <div className="font-semibold">{userStats.username}</div>
-            <div className="text-sm opacity-80">Level {userStats.level} • {userStats.experience.toLocaleString()} XP</div>
-            <div className="text-sm text-yellow-300 font-medium">{userStats.currency} coins</div>
+            <div className="font-semibold">{displayName}</div>
+            <div className="text-sm opacity-80">Level {user?.level || 1} • {(user?.experience || 0).toLocaleString()} XP</div>
+            <div className="text-sm text-yellow-300 font-medium">{user?.currency || 0} coins</div>
           </div>
         </button>
         
@@ -183,19 +199,19 @@ export default function Home() {
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-gray-900">{userStats.level}</div>
+                <div className="text-2xl font-bold text-gray-900">{user?.level || 1}</div>
                 <div className="text-sm text-gray-600">Level</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-game-gold">{userStats.currency}</div>
+                <div className="text-2xl font-bold text-blue-600">{user?.currency || 0}</div>
                 <div className="text-sm text-gray-600">Coins</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-gray-900">{userStats.gamesPlayed}</div>
+                <div className="text-2xl font-bold text-gray-900">{userStats?.gamesPlayed || 0}</div>
                 <div className="text-sm text-gray-600">Games Played</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-green-600">{userStats.winRate}%</div>
+                <div className="text-2xl font-bold text-green-600">{winRate}%</div>
                 <div className="text-sm text-gray-600">Win Rate</div>
               </div>
             </div>
@@ -204,7 +220,7 @@ export default function Home() {
             <div>
               <div className="flex justify-between text-sm text-gray-600 mb-2">
                 <span>Experience</span>
-                <span>{userStats.experience.toLocaleString()} / 3,000 XP</span>
+                <span>{(user?.experience || 0).toLocaleString()} / {((user?.level || 1) * 100).toLocaleString()} XP</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div className="bg-game-gold h-3 rounded-full" style={{ width: `${(userStats.experience / 3000) * 100}%` }}></div>
