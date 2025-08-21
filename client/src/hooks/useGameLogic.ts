@@ -118,12 +118,8 @@ export function useGameLogic() {
       const newState = { ...prevState };
       newState.selectedGridPosition = position;
       
-      // If we're in playing phase and the card at this position is not revealed, reveal it
-      if (newState.gamePhase === 'playing' && newState.drawnCard) {
-        if (!currentPlayer.grid[position].isRevealed) {
-          currentPlayer.grid[position].isRevealed = true;
-        }
-      }
+      // During playing phase, do NOT automatically reveal cards
+      // Revelation only happens when the player confirms their choice via keepDrawnCard or keepRevealedCard
       
       return newState;
     });
@@ -144,7 +140,7 @@ export function useGameLogic() {
         newState.discardPile = [...newState.discardPile, currentPlayer.grid[gridPosition].card!];
       }
 
-      // Place drawn card in grid (preserve isDisabled state)
+      // Place drawn card in grid and reveal this position (preserve isDisabled state)
       currentPlayer.grid[gridPosition] = {
         card: prevState.drawnCard,
         isRevealed: true,
@@ -187,7 +183,7 @@ export function useGameLogic() {
       // Discard the drawn card
       newState.discardPile = [...newState.discardPile, prevState.drawnCard];
 
-      // Reveal the grid card if it wasn't already
+      // Reveal the grid card (this is the only time we reveal a card during playing phase)
       if (!currentPlayer.grid[gridPosition].isRevealed) {
         currentPlayer.grid[gridPosition].isRevealed = true;
       }

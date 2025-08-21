@@ -123,7 +123,7 @@ export default function GameTable({
         isCurrentPlayer={isPlayerTurn}
         selectedPosition={gameState.selectedGridPosition}
         onCardClick={gameState.gamePhase === 'peek' ? onPeekCard : 
-                    (gameState.drawnCard && !gameState.roundEndTriggered ? onSelectGridPosition : undefined)}
+                    (gameState.gamePhase === 'playing' && gameState.drawnCard && !gameState.roundEndTriggered ? onSelectGridPosition : undefined)}
       />
 
       {/* Game Actions */}
@@ -140,7 +140,7 @@ export default function GameTable({
                         ? 'With only 1 face-down card left, you can discard directly or place the card'
                         : gameState.selectedGridPosition !== null 
                           ? 'Choose to keep the drawn card or the revealed card'
-                          : 'Select a card slot to place your drawn card'
+                          : 'Select a card slot to place your drawn card (you can only reveal one card per turn)'
                     }
                   </div>
                 </div>
