@@ -63,7 +63,7 @@ export default function Landing() {
             <CardContent className="p-8">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Ready to Play?</h2>
-                <p className="text-gray-200">Sign in with your Replit account to get started</p>
+                <p className="text-gray-200">Choose your preferred sign-in method</p>
               </div>
 
               <Button 
@@ -73,11 +73,33 @@ export default function Landing() {
               >
                 <div className="flex items-center justify-center space-x-3">
                   <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
-                    <i className="fas fa-code text-blue-600 text-sm"></i>
+                    <i className="fas fa-sign-in-alt text-blue-600 text-sm"></i>
                   </div>
-                  <span>Continue with Replit</span>
+                  <span>Sign In</span>
                 </div>
               </Button>
+
+              <div className="mt-4 text-center">
+                <p className="text-gray-300 text-xs mb-2">Available sign-in options:</p>
+                <div className="flex justify-center space-x-3 text-gray-400">
+                  <div className="flex items-center space-x-1">
+                    <i className="fab fa-google text-sm"></i>
+                    <span className="text-xs">Google</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <i className="fab fa-github text-sm"></i>
+                    <span className="text-xs">GitHub</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <i className="fab fa-apple text-sm"></i>
+                    <span className="text-xs">Apple</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <i className="fas fa-envelope text-sm"></i>
+                    <span className="text-xs">Email</span>
+                  </div>
+                </div>
+              </div>
               
               <div className="mt-6 text-center">
                 <p className="text-gray-200 text-sm mb-3">What you'll get:</p>
@@ -103,7 +125,7 @@ export default function Landing() {
 
               <div className="mt-6 pt-4 border-t border-white border-opacity-30">
                 <p className="text-center text-gray-300 text-xs">
-                  Secure authentication powered by Replit
+                  Enterprise-grade security • No credit card required
                 </p>
               </div>
             </CardContent>
