@@ -51,7 +51,7 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
         </div>
       </div>
       
-      <div className="grid grid-cols-3 gap-1 w-24">
+      <div className="grid grid-cols-3 gap-2 w-36">
         {player.grid.map((gridCard, index) => (
           <Card
             key={index}
@@ -59,7 +59,7 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
             isRevealed={gridCard.isRevealed}
             isHighlighted={isPositionInThreeOfAKind(index)}
             highlightColor="green"
-            size="small"
+            size="medium"
             isDisabled={gridCard.isDisabled}
             data-testid={`card-opponent-${player.id}-${index}`}
           />

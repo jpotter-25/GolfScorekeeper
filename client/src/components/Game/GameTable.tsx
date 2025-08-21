@@ -59,7 +59,7 @@ export default function GameTable({
             key={aiPlayer.id}
             player={aiPlayer}
             isCurrentPlayer={gameState.players[gameState.currentPlayerIndex].id === aiPlayer.id}
-            className="transform scale-75 md:scale-90"
+            className=""
           />
         ))}
       </div>
