@@ -184,7 +184,8 @@ export function useGameLogic() {
       }
 
       // Check if round should end immediately after placing card
-      if (shouldEndRound(newState.players)) {
+      // BUT if player got three-of-a-kind, they get extra turn even if all cards are revealed
+      if (shouldEndRound(newState.players) && !newState.extraTurn) {
         newState.roundEndTriggered = true;
         newState.roundEndingPlayer = newState.currentPlayerIndex;
         
@@ -232,7 +233,8 @@ export function useGameLogic() {
       }
 
       // Check if round should end immediately after revealing card
-      if (shouldEndRound(newState.players)) {
+      // BUT if player got three-of-a-kind, they get extra turn even if all cards are revealed
+      if (shouldEndRound(newState.players) && !newState.extraTurn) {
         newState.roundEndTriggered = true;
         newState.roundEndingPlayer = newState.currentPlayerIndex;
         
@@ -319,7 +321,8 @@ export function useGameLogic() {
       }
       
       // Check if round should end (only in playing phase)
-      if (newState.gamePhase === 'playing' && shouldEndRound(newState.players)) {
+      // BUT if player got three-of-a-kind, they get extra turn even if all cards are revealed
+      if (newState.gamePhase === 'playing' && shouldEndRound(newState.players) && !newState.extraTurn) {
         newState.roundEndTriggered = true;
         newState.roundEndingPlayer = newState.currentPlayerIndex;
         
@@ -460,7 +463,8 @@ export function useGameLogic() {
             }
             
             // Check if round should end immediately after AI action
-            if (shouldEndRound(newState.players)) {
+            // BUT if AI got three-of-a-kind, they get extra turn even if all cards are revealed
+            if (shouldEndRound(newState.players) && !newState.extraTurn) {
               newState.roundEndTriggered = true;
               newState.roundEndingPlayer = newState.currentPlayerIndex;
               

@@ -42,9 +42,12 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
           )}
         </div>
         <div className="text-game-cream text-sm">
-          Score: <span className="font-semibold" data-testid={`text-opponent-score-${player.id}`}>
+          <div>Round: <span className="font-semibold" data-testid={`text-opponent-round-score-${player.id}`}>
             {currentRoundScore}
-          </span>
+          </span></div>
+          <div>Total: <span className="font-semibold" data-testid={`text-opponent-total-score-${player.id}`}>
+            {player.totalScore}
+          </span></div>
         </div>
       </div>
       
