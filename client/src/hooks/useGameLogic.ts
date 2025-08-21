@@ -118,8 +118,12 @@ export function useGameLogic() {
       const newState = { ...prevState };
       newState.selectedGridPosition = position;
       
-      // During playing phase, do NOT automatically reveal cards
-      // Revelation only happens when the player confirms their choice via keepDrawnCard or keepRevealedCard
+      // During playing phase with a drawn card, reveal the selected card so player can make informed decision
+      if (newState.gamePhase === 'playing' && newState.drawnCard) {
+        if (!currentPlayer.grid[position].isRevealed) {
+          currentPlayer.grid[position].isRevealed = true;
+        }
+      }
       
       return newState;
     });
@@ -183,10 +187,8 @@ export function useGameLogic() {
       // Discard the drawn card
       newState.discardPile = [...newState.discardPile, prevState.drawnCard];
 
-      // Reveal the grid card (this is the only time we reveal a card during playing phase)
-      if (!currentPlayer.grid[gridPosition].isRevealed) {
-        currentPlayer.grid[gridPosition].isRevealed = true;
-      }
+      // The grid card should already be revealed from selectGridPosition
+      // No need to reveal again here
 
       // Process three of a kind
       const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
