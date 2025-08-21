@@ -8,6 +8,65 @@ Golf 9 is a multiplayer card game application built with React and Express. Play
 
 Preferred communication style: Simple, everyday language.
 
+## Product Roadmap to Market
+
+### Current Status: MVP Game Logic Complete
+- Core game mechanics and AI fully functional
+- UI/UX for game play complete with proper contrast
+- Database integration ready
+
+### Phase 1: User System & Progression (2-3 weeks)
+1. **Authentication System**
+   - Google OAuth integration
+   - Facebook OAuth integration  
+   - Email/password authentication
+   - User profile creation and management
+
+2. **Currency & XP Systems**
+   - Coins earned per game completion
+   - XP progression based on performance
+   - Level-up rewards and unlocks
+   - In-game shop for cosmetics
+
+3. **Statistics & Profile**
+   - Comprehensive game statistics tracking
+   - Player profile editing capabilities
+   - Achievement system
+   - Leaderboards
+
+### Phase 2: Enhanced Experience (1-2 weeks)
+4. **Settings & Accessibility**
+   - Sound effects for game actions
+   - Vibration feedback for mobile
+   - Audio preferences and volume controls
+   - Visual accessibility options
+
+5. **Cosmetic System**
+   - Card back designs
+   - Avatar customization
+   - Table themes
+   - Equipment/unlock system
+
+### Phase 3: Online Multiplayer (2-3 weeks)
+6. **Real-time Multiplayer**
+   - WebSocket-based game rooms
+   - Matchmaking system
+   - Friend system and invites
+   - Spectator mode
+
+7. **Social Features**
+   - Chat system
+   - Friend challenges
+   - Tournament mode
+   - Social sharing
+
+### Requirements Summary:
+- **APIs Needed**: Google OAuth, Facebook OAuth, (optional: Apple, Discord)
+- **Infrastructure**: Real-time WebSocket server, push notifications
+- **Database**: User profiles, game history, statistics, cosmetics
+- **Audio Assets**: Sound effects library
+- **Legal**: Privacy policy, terms of service for app stores
+
 ## System Architecture
 
 ### Frontend Architecture
