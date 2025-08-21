@@ -35,14 +35,14 @@ export default function PlayerGrid({
       <div className="mb-4">
         <div className="flex items-center justify-center space-x-3 mb-2">
           <div className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold',
-            player.isAI ? 'bg-red-500' : 'bg-game-gold'
+            'w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold border-2',
+            player.isAI ? 'bg-red-500 border-red-400' : 'bg-blue-600 border-blue-500'
           )}>
             {player.avatar}
           </div>
           <div className="text-white font-semibold">{player.name}</div>
           {isCurrentPlayer && (
-            <div className="bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm">
+            <div className="bg-green-600 text-white px-3 py-1 rounded-full text-sm border border-green-500">
               Your Turn
             </div>
           )}

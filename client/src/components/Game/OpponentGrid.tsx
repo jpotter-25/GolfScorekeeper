@@ -30,7 +30,7 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
         {/* Playing indicator with reserved space to avoid layout shift */}
         <div className="h-4 flex items-center justify-center mb-1">
           {isCurrentPlayer && (
-            <div className="bg-game-gold bg-opacity-90 text-white px-2 py-0.5 rounded-full text-xs font-medium">
+            <div className="bg-green-600 text-white px-2 py-0.5 rounded-full text-xs font-medium border border-green-500">
               Playing
             </div>
           )}
