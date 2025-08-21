@@ -1,5 +1,5 @@
 import { Player } from '@/types/game';
-import { checkThreeOfAKind } from '@/utils/gameLogic';
+import { checkThreeOfAKind, calculatePlayerScore } from '@/utils/gameLogic';
 import Card from './Card';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +21,9 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
     return threeOfAKindColumns.includes(column);
   };
 
+  // Calculate current round score based on revealed cards
+  const currentRoundScore = calculatePlayerScore(player.grid);
+
   return (
     <div className={cn('opponent-grid', className)} data-testid={`opponent-grid-${player.id}`}>
       <div className="text-center mb-3">
@@ -40,7 +43,7 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
         </div>
         <div className="text-game-cream text-sm">
           Score: <span className="font-semibold" data-testid={`text-opponent-score-${player.id}`}>
-            {player.totalScore}
+            {currentRoundScore}
           </span>
         </div>
       </div>
