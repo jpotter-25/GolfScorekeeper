@@ -8,6 +8,12 @@ import professionalAvatar from "@assets/generated_images/Professional_Business_A
 import gamingAvatar from "@assets/generated_images/Gaming_Enthusiast_Avatar_6f97dd65.png";
 import elegantAvatar from "@assets/generated_images/Elegant_Premium_Avatar_db98b5b8.png";
 import mysteriousAvatar from "@assets/generated_images/Mysterious_Shadow_Avatar_9d70c2ca.png";
+import golferAvatar from "@assets/generated_images/Professional_Golfer_Avatar_52698db1.png";
+import beachAvatar from "@assets/generated_images/Beach_Vacation_Avatar_19a231ab.png";
+import pokerAvatar from "@assets/generated_images/Poker_Player_Avatar_692713df.png";
+import femaleProAvatar from "@assets/generated_images/Professional_Female_Avatar_ce38d866.png";
+import americanFlagAvatar from "@assets/generated_images/American_Flag_Avatar_88ae7301.png";
+import femaleGamerAvatar from "@assets/generated_images/Female_Gamer_Avatar_d7259774.png";
 
 // Asset mapping for cosmetics
 export const cosmeticAssets: Record<string, string> = {
@@ -20,6 +26,12 @@ export const cosmeticAssets: Record<string, string> = {
   "gaming_avatar": gamingAvatar,
   "elegant_avatar": elegantAvatar,
   "mysterious_avatar": mysteriousAvatar,
+  "golfer_avatar": golferAvatar,
+  "beach_avatar": beachAvatar,
+  "poker_avatar": pokerAvatar,
+  "female_pro_avatar": femaleProAvatar,
+  "american_flag_avatar": americanFlagAvatar,
+  "female_gamer_avatar": femaleGamerAvatar,
 };
 
 // Helper function to get asset URL

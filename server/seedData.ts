@@ -137,6 +137,66 @@ export async function seedCosmetics() {
       unlockLevel: 25,
       imageUrl: "@assets/generated_images/Mysterious_Shadow_Avatar_9d70c2ca.png"
     },
+    {
+      id: "golfer_avatar",
+      type: "avatar",
+      name: "Pro Golfer",
+      description: "Classic golf professional with club",
+      rarity: "common",
+      cost: 25,
+      unlockLevel: 3,
+      imageUrl: "@assets/generated_images/Professional_Golfer_Avatar_52698db1.png"
+    },
+    {
+      id: "beach_avatar",
+      type: "avatar",
+      name: "Beach Vibes",
+      description: "Tropical vacation style with sunglasses",
+      rarity: "rare",
+      cost: 80,
+      unlockLevel: 7,
+      imageUrl: "@assets/generated_images/Beach_Vacation_Avatar_19a231ab.png"
+    },
+    {
+      id: "poker_avatar",
+      type: "avatar",
+      name: "Casino Player",
+      description: "Sophisticated poker professional",
+      rarity: "rare",
+      cost: 120,
+      unlockLevel: 12,
+      imageUrl: "@assets/generated_images/Poker_Player_Avatar_692713df.png"
+    },
+    {
+      id: "female_pro_avatar",
+      type: "avatar",
+      name: "Executive Lady",
+      description: "Confident businesswoman leader",
+      rarity: "rare",
+      cost: 90,
+      unlockLevel: 8,
+      imageUrl: "@assets/generated_images/Professional_Female_Avatar_ce38d866.png"
+    },
+    {
+      id: "american_flag_avatar",
+      type: "avatar",
+      name: "Patriot",
+      description: "American flag themed avatar",
+      rarity: "epic",
+      cost: 250,
+      unlockLevel: 18,
+      imageUrl: "@assets/generated_images/American_Flag_Avatar_88ae7301.png"
+    },
+    {
+      id: "female_gamer_avatar",
+      type: "avatar",
+      name: "Gamer Girl",
+      description: "Female gaming enthusiast with headset",
+      rarity: "rare",
+      cost: 110,
+      unlockLevel: 11,
+      imageUrl: "@assets/generated_images/Female_Gamer_Avatar_d7259774.png"
+    },
     // Table themes
     {
       id: "green_felt",
