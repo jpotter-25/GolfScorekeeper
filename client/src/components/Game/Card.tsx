@@ -78,26 +78,8 @@ export default function Card({
     const cardBackStyle = getCardBackStyle();
     const cardBackAsset = getCosmeticAsset(cardBackStyle.cosmeticId || 'classic_blue');
     
-    // If we have a card back asset, render it as the complete card (no overlay)
-    if (cardBackAsset) {
-      return (
-        <img 
-          src={cardBackAsset} 
-          alt="Card back"
-          className={cn(
-            'rounded-xl object-cover cursor-pointer transition-all',
-            getSizeClasses(),
-            getHighlightClasses(),
-            onClick && !isDisabled && 'hover:scale-105',
-            className
-          )}
-          onClick={!isDisabled ? onClick : undefined}
-          data-testid={testId}
-        />
-      );
-    }
+
     
-    // Fallback styling when no asset is available
     return (
       <div
         className={cn(
@@ -110,26 +92,36 @@ export default function Card({
         onClick={!isDisabled ? onClick : undefined}
         data-testid={testId}
       >
-        {/* Fallback pattern */}
-        <div 
-          className="absolute inset-0 rounded-xl"
-          style={{
-            background: cardBackStyle.background,
-            border: cardBackStyle.border
-          }}
-        />
-        {cardBackStyle.pattern !== 'none' && (
-          <div 
-            className="absolute inset-0 rounded-xl"
-            style={{ background: cardBackStyle.pattern }}
+        {cardBackAsset ? (
+          <img 
+            src={cardBackAsset} 
+            alt="Card back"
+            className="w-full h-full object-cover rounded-xl"
           />
+        ) : (
+          <>
+            {/* Fallback pattern */}
+            <div 
+              className="absolute inset-0"
+              style={{
+                background: cardBackStyle.background,
+                border: cardBackStyle.border
+              }}
+            />
+            {cardBackStyle.pattern !== 'none' && (
+              <div 
+                className="absolute inset-0"
+                style={{ background: cardBackStyle.pattern }}
+              />
+            )}
+            
+            {/* Card back design */}
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="text-lg font-bold mb-1">♠</div>
+              <div className="text-xs font-semibold opacity-80">Golf 9</div>
+            </div>
+          </>
         )}
-        
-        {/* Card back design */}
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="text-lg font-bold mb-1">♠</div>
-          <div className="text-xs font-semibold opacity-80">Golf 9</div>
-        </div>
       </div>
     );
   }
