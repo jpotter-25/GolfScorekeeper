@@ -27,7 +27,7 @@ import {
   type InsertGameRoom,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -192,23 +192,14 @@ export class DatabaseStorage implements IStorage {
     // Get the cosmetic type
     const [cosmetic] = await db.select().from(cosmetics).where(eq(cosmetics.id, cosmeticId));
     if (cosmetic) {
-      // First unequip all cosmetics of the same type
-      const userCosmeticsOfType = await db
-        .select()
-        .from(userCosmetics)
-        .innerJoin(cosmetics, eq(userCosmetics.cosmeticId, cosmetics.id))
+      // First, unequip all cosmetics of the same type for this user
+      await db
+        .update(userCosmetics)
+        .set({ equipped: false })
         .where(and(
           eq(userCosmetics.userId, userId),
-          eq(cosmetics.type, cosmetic.type)
+          sql`${userCosmetics.cosmeticId} IN (SELECT id FROM ${cosmetics} WHERE type = ${cosmetic.type})`
         ));
-      
-      // Unequip all cosmetics of this type
-      for (const uc of userCosmeticsOfType) {
-        await db
-          .update(userCosmetics)
-          .set({ equipped: false })
-          .where(eq(userCosmetics.id, uc.user_cosmetics.id));
-      }
       
       // Then equip the selected one
       await db
