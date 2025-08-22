@@ -190,10 +190,11 @@ export function useGameLogic() {
       // Process three of a kind
       const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
       if (threeOfAKindResult.hasThreeOfAKind) {
-        console.log('THREE OF A KIND DETECTED in keepDrawnCard - Setting extraTurn = true');
+        console.log('🎰 THREE OF A KIND DETECTED in keepDrawnCard - Setting extraTurn = true');
         currentPlayer.grid = threeOfAKindResult.updatedGrid;
         newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;
+        console.log('📌 extraTurn flag is now:', newState.extraTurn);
       }
 
       // Check if round should end immediately after placing card
@@ -362,6 +363,7 @@ export function useGameLogic() {
 
       // If extra turn, don't advance player
       if (newState.extraTurn) {
+        console.log('🎯 Extra turn detected in endTurn - staying with same player, clearing extraTurn flag');
         newState.extraTurn = false;
         return newState;
       }

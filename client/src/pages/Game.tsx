@@ -133,9 +133,16 @@ export default function Game() {
       keepRevealedCard();
     }
     
+    // Wait longer for state updates, then check if extra turn was granted
     setTimeout(() => {
+      // Access the latest game state via a closure
+      if (gameState?.extraTurn) {
+        console.log('🚫 Skipping endTurn because extraTurn is active');
+        return;
+      }
+      console.log('✅ No extra turn, calling endTurn normally');
       endTurn();
-    }, 1000);
+    }, 1500); // Increased delay to allow state updates to process
   };
 
   const backToMenu = () => {
