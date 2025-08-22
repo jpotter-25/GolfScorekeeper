@@ -89,8 +89,20 @@ export function useGameLogic() {
   const drawCard = useCallback((source: 'draw' | 'discard') => {
     if (!gameState || gameState.drawnCard) return;
 
+    // Prevent drawing from discard during extra turn
+    if (source === 'discard' && gameState.extraTurn) {
+      console.log('BLOCKED: Cannot draw from discard during extra turn');
+      return;
+    }
+
     setGameState(prevState => {
       if (!prevState) return prevState;
+
+      // Double-check the extra turn restriction in state update
+      if (source === 'discard' && prevState.extraTurn) {
+        console.log('BLOCKED: Cannot draw from discard during extra turn (state check)');
+        return prevState;
+      }
 
       let newState = { ...prevState };
       
@@ -178,6 +190,7 @@ export function useGameLogic() {
       // Process three of a kind
       const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
       if (threeOfAKindResult.hasThreeOfAKind) {
+        console.log('THREE OF A KIND DETECTED in keepDrawnCard - Setting extraTurn = true');
         currentPlayer.grid = threeOfAKindResult.updatedGrid;
         newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;
