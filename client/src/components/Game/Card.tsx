@@ -94,12 +94,13 @@ export default function Card({
       >
         {cardBackAsset ? (
           <div 
-            className="w-full h-full"
+            className="w-full h-full rounded-xl"
             style={{
               backgroundImage: `url(${cardBackAsset})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat'
+              backgroundRepeat: 'no-repeat',
+              clipPath: 'inset(0 round 12px)'
             }}
           />
         ) : (
