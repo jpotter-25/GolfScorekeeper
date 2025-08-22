@@ -240,6 +240,7 @@ export function useGameLogic() {
       // Process three of a kind
       const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
       if (threeOfAKindResult.hasThreeOfAKind) {
+        console.log('THREE OF A KIND DETECTED in keepRevealedCard - Setting extraTurn = true');
         currentPlayer.grid = threeOfAKindResult.updatedGrid;
         newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;

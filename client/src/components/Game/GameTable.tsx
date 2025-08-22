@@ -1,3 +1,4 @@
+import React from 'react';
 import { GameState } from '@/types/game';
 import { getCardDisplayValue } from '@/utils/gameLogic';
 import PlayerGrid from './PlayerGrid';
@@ -43,6 +44,15 @@ export default function GameTable({
 
   const canDrawCard = gameState.gamePhase === 'playing' && isPlayerTurn && !gameState.drawnCard && !gameState.roundEndTriggered;
   const canDrawFromDiscard = canDrawCard && !gameState.extraTurn; // Can't draw from discard during extra turn
+  
+  // Debug logging
+  React.useEffect(() => {
+    if (gameState.extraTurn) {
+      console.log('EXTRA TURN ACTIVE - Discard pile should be disabled');
+      console.log('canDrawFromDiscard:', canDrawFromDiscard);
+      console.log('gameState.extraTurn:', gameState.extraTurn);
+    }
+  }, [gameState.extraTurn, canDrawFromDiscard]);
   const canMakeChoice = gameState.drawnCard && gameState.selectedGridPosition !== null && !gameState.roundEndTriggered;
   
   // Special rule: if player has only one face-down card left at start of turn, they can discard directly
@@ -104,7 +114,7 @@ export default function GameTable({
               className={cn(
                 canDrawFromDiscard && 'cursor-pointer hover:border-highlight-blue',
                 !canDrawFromDiscard && 'opacity-30 cursor-not-allowed',
-                gameState.extraTurn && 'opacity-20 grayscale border-red-500 border-2' // Strong visual indication during extra turn
+                gameState.extraTurn && 'opacity-20 grayscale border-red-500 border-2 pointer-events-none' // Strong visual indication during extra turn
               )}
               data-testid="button-discard-pile"
             />
