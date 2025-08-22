@@ -2,6 +2,7 @@ import { Player } from '@/types/game';
 import { checkThreeOfAKind } from '@/utils/gameLogic';
 import Card from './Card';
 import { cn } from '@/lib/utils';
+import { useCosmetics } from '@/hooks/useCosmetics';
 
 interface PlayerGridProps {
   player: Player;
@@ -19,6 +20,7 @@ export default function PlayerGrid({
   className 
 }: PlayerGridProps) {
   const threeOfAKindColumns = checkThreeOfAKind(player.grid);
+  const { getAvatarUrl } = useCosmetics();
   
   const getColumnForPosition = (position: number): number => {
     return position % 3;
@@ -35,10 +37,24 @@ export default function PlayerGrid({
       <div className="mb-4">
         <div className="flex items-center justify-center space-x-3 mb-2">
           <div className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold border-2',
+            'w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold border-2 overflow-hidden',
             player.isAI ? 'bg-red-500 border-red-400' : 'bg-blue-600 border-blue-500'
           )}>
-            {player.avatar}
+            {(() => {
+              if (!player.isAI) {
+                const avatarUrl = getAvatarUrl();
+                if (avatarUrl) {
+                  return (
+                    <img 
+                      src={avatarUrl} 
+                      alt="Player Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  );
+                }
+              }
+              return player.avatar;
+            })()}
           </div>
           <div className="text-white font-semibold">{player.name}</div>
           {isCurrentPlayer && (

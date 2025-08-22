@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { getCosmeticAsset } from '@/utils/cosmeticAssets';
 
 interface CosmeticWithDetails {
   id: string;
+  cosmeticId: string;
   name: string;
   type: string;
   equipped: boolean;
@@ -76,8 +78,13 @@ export function useCosmetics() {
   };
 
   const getAvatarUrl = () => {
-    const avatar = equippedAvatar;
-    return avatar?.imageUrl || '/default-avatar.png';
+    if (equippedAvatar) {
+      const assetUrl = getCosmeticAsset(equippedAvatar.cosmeticId);
+      if (assetUrl) {
+        return assetUrl;
+      }
+    }
+    return null; // Return null if no equipped avatar or asset found
   };
 
   return {

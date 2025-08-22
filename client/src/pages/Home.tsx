@@ -101,16 +101,35 @@ export default function Home() {
           className="flex items-center space-x-4 hover:bg-white hover:bg-opacity-10 rounded-lg p-2 transition-all"
           data-testid="button-profile"
         >
-          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500">
-            {user.profileImageUrl ? (
-              <img 
-                src={user.profileImageUrl} 
-                alt="Profile" 
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              <i className="fas fa-user text-white text-xl"></i>
-            )}
+          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 overflow-hidden">
+            {(() => {
+              const equippedAvatar = userCosmetics.find(cosmetic => 
+                cosmetic.type === 'avatar' && cosmetic.equipped
+              );
+              if (equippedAvatar) {
+                const assetUrl = getCosmeticAsset(equippedAvatar.cosmeticId);
+                if (assetUrl) {
+                  return (
+                    <img 
+                      src={assetUrl} 
+                      alt={equippedAvatar.name}
+                      className="w-full h-full object-cover"
+                    />
+                  );
+                }
+              }
+              // Fallback to Replit profile image or generic icon
+              if (user.profileImageUrl) {
+                return (
+                  <img 
+                    src={user.profileImageUrl} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                  />
+                );
+              }
+              return <i className="fas fa-user text-white text-xl"></i>;
+            })()}
           </div>
           <div className="text-white">
             <div className="font-semibold">{displayName}</div>
