@@ -40,12 +40,25 @@ export default function Settings() {
     },
   });
 
+  // Debounce volume changes to prevent excessive API calls
+  const [volumeTimeout, setVolumeTimeout] = useState<NodeJS.Timeout | null>(null);
+
   const handleSettingChange = (key: keyof UpdateUserSettings, value: any) => {
     updateSettingsMutation.mutate({ [key]: value });
   };
 
   const handleVolumeChange = (key: 'soundVolume' | 'musicVolume', value: number[]) => {
-    handleSettingChange(key, value[0]);
+    // Clear existing timeout
+    if (volumeTimeout) {
+      clearTimeout(volumeTimeout);
+    }
+    
+    // Set new timeout to debounce the API call
+    const timeout = setTimeout(() => {
+      handleSettingChange(key, value[0]);
+    }, 300); // Wait 300ms after user stops dragging
+    
+    setVolumeTimeout(timeout);
   };
 
   if (isLoading) {
@@ -126,15 +139,15 @@ export default function Settings() {
                   <Volume2 className="w-5 h-5 text-game-gold" />
                   Audio Settings
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-slate-300">
                   Control sound effects, music, and volume levels
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="sound-enabled">Sound Effects</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label htmlFor="sound-enabled" className="text-white">Sound Effects</Label>
+                    <p className="text-sm text-slate-400">
                       Play sounds for card flips, matches, and game actions
                     </p>
                   </div>
@@ -148,7 +161,7 @@ export default function Settings() {
 
                 {settings.soundEnabled && (
                   <div className="space-y-2">
-                    <Label>Sound Volume: {settings.soundVolume}%</Label>
+                    <Label className="text-white">Sound Volume: {settings.soundVolume}%</Label>
                     <Slider
                       value={[settings.soundVolume ?? 50]}
                       onValueChange={(value) => handleVolumeChange('soundVolume', value)}
@@ -164,8 +177,8 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="music-enabled">Background Music</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label htmlFor="music-enabled" className="text-white">Background Music</Label>
+                    <p className="text-sm text-slate-400">
                       Play ambient music during gameplay
                     </p>
                   </div>
@@ -179,7 +192,7 @@ export default function Settings() {
 
                 {settings.musicEnabled && (
                   <div className="space-y-2">
-                    <Label>Music Volume: {settings.musicVolume}%</Label>
+                    <Label className="text-white">Music Volume: {settings.musicVolume}%</Label>
                     <Slider
                       value={[settings.musicVolume ?? 30]}
                       onValueChange={(value) => handleVolumeChange('musicVolume', value)}
@@ -201,15 +214,15 @@ export default function Settings() {
                   <Accessibility className="w-5 h-5 text-game-gold" />
                   Accessibility Settings
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-slate-300">
                   Customize the interface for better accessibility
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="reduced-motion">Reduce Motion</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label htmlFor="reduced-motion" className="text-white">Reduce Motion</Label>
+                    <p className="text-sm text-slate-400">
                       Minimize animations and transitions
                     </p>
                   </div>
@@ -223,8 +236,8 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="high-contrast">High Contrast</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label htmlFor="high-contrast" className="text-white">High Contrast</Label>
+                    <p className="text-sm text-slate-400">
                       Increase contrast for better visibility
                     </p>
                   </div>
@@ -238,8 +251,8 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="large-text">Large Text</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label htmlFor="large-text" className="text-white">Large Text</Label>
+                    <p className="text-sm text-slate-400">
                       Increase text size for better readability
                     </p>
                   </div>
@@ -253,8 +266,8 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="vibration-enabled">Haptic Feedback</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label htmlFor="vibration-enabled" className="text-white">Haptic Feedback</Label>
+                    <p className="text-sm text-slate-400">
                       Vibration feedback on mobile devices
                     </p>
                   </div>
@@ -276,15 +289,15 @@ export default function Settings() {
                   <Gamepad2 className="w-5 h-5 text-game-gold" />
                   Gameplay Settings
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-slate-300">
                   Customize game behavior and assistance
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="auto-end-turn">Auto End Turn</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label htmlFor="auto-end-turn" className="text-white">Auto End Turn</Label>
+                    <p className="text-sm text-slate-400">
                       Automatically end turn when no actions available
                     </p>
                   </div>
@@ -298,8 +311,8 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="show-hints">Show Hints</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label htmlFor="show-hints" className="text-white">Show Hints</Label>
+                    <p className="text-sm text-slate-400">
                       Display helpful tips and suggestions during gameplay
                     </p>
                   </div>
@@ -321,15 +334,15 @@ export default function Settings() {
                   <Eye className="w-5 h-5 text-game-gold" />
                   Visual Preferences
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-slate-300">
                   Coming soon: Card backs, table themes, and more customization options
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="text-center py-8">
-                  <div className="text-muted-foreground mb-4">
-                    <Eye className="w-12 h-12 mx-auto mb-2" />
-                    <p>Visual customization options are being developed</p>
+                  <div className="text-slate-400 mb-4">
+                    <Eye className="w-12 h-12 mx-auto mb-2 text-game-gold" />
+                    <p className="text-white">Visual customization options are being developed</p>
                     <p className="text-sm">Check back soon for card backs, table themes, and more!</p>
                   </div>
                 </div>
