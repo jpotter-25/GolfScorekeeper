@@ -105,33 +105,49 @@ export default function Cosmetics() {
   }
 
   return (
-    <div className="min-h-screen bg-game-felt p-4">
+    <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt p-4">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Cosmetics Store</h1>
-            <p className="text-white opacity-80">Customize your Golf 9 experience</p>
+            <h1 className="text-4xl font-bold text-transparent bg-gradient-to-r from-game-gold to-yellow-300 bg-clip-text mb-2 flex items-center gap-3">
+              <div className="w-12 h-12 bg-game-gold/20 rounded-full flex items-center justify-center">
+                <Palette className="w-6 h-6 text-game-gold" />
+              </div>
+              Cosmetics Store
+            </h1>
+            <p className="text-slate-200 opacity-90 text-lg">Customize your Golf 9 experience</p>
           </div>
           {user && (
-            <div className="flex items-center gap-2 bg-black bg-opacity-30 rounded-lg px-4 py-2">
-              <Coins className="w-5 h-5 text-yellow-500" />
-              <span className="text-white font-bold">{user.currency ?? 0}</span>
-              <span className="text-white opacity-80">coins</span>
+            <div className="flex items-center gap-3 bg-slate-800/80 backdrop-blur-sm px-6 py-3 rounded-xl border-2 border-game-gold/30 shadow-lg">
+              <div className="w-8 h-8 bg-game-gold/20 rounded-full flex items-center justify-center">
+                <Coins className="w-5 h-5 text-game-gold" />
+              </div>
+              <span className="text-white font-bold text-lg">{user.currency ?? 0}</span>
+              <span className="text-slate-300">coins</span>
             </div>
           )}
         </div>
 
         <Tabs value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as any)}>
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="card_back" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-3 mb-6 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 p-1 rounded-xl">
+            <TabsTrigger 
+              value="card_back" 
+              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
+            >
               <Palette className="w-4 h-4" />
               Card Backs
             </TabsTrigger>
-            <TabsTrigger value="table_theme" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="table_theme" 
+              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
+            >
               <Gem className="w-4 h-4" />
               Table Themes
             </TabsTrigger>
-            <TabsTrigger value="avatar" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="avatar" 
+              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
+            >
               <Crown className="w-4 h-4" />
               Avatars
             </TabsTrigger>
@@ -152,15 +168,15 @@ export default function Cosmetics() {
                   <Card 
                     key={cosmetic.id} 
                     className={cn(
-                      "relative overflow-hidden transition-all hover:scale-105",
-                      cosmetic.equipped && "ring-2 ring-highlight-blue"
+                      "relative overflow-hidden transition-all hover:scale-105 bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700/50 hover:border-game-gold/50 shadow-lg hover:shadow-xl hover:shadow-game-gold/20",
+                      cosmetic.equipped && "ring-2 ring-game-gold shadow-game-gold/30"
                     )}
                   >
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <Badge 
                           className={cn(
-                            "flex items-center gap-1 text-xs text-white",
+                            "flex items-center gap-1 text-xs text-white border-0 shadow-md",
                             getRarityColor(cosmetic.rarity)
                           )}
                         >
@@ -168,14 +184,14 @@ export default function Cosmetics() {
                           {cosmetic.rarity}
                         </Badge>
                         {cosmetic.equipped && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge className="text-xs bg-game-gold text-slate-900 border-0 shadow-md">
                             <Check className="w-3 h-3 mr-1" />
                             Equipped
                           </Badge>
                         )}
                       </div>
-                      <CardTitle className="text-lg">{cosmetic.name}</CardTitle>
-                      <CardDescription className="text-sm">
+                      <CardTitle className="text-lg text-white font-bold">{cosmetic.name}</CardTitle>
+                      <CardDescription className="text-sm text-slate-300">
                         {cosmetic.description}
                       </CardDescription>
                     </CardHeader>
@@ -201,7 +217,7 @@ export default function Cosmetics() {
 
                       <div className="space-y-2">
                         {!canUnlock(cosmetic.unlockLevel ?? 1) ? (
-                          <Button disabled className="w-full" data-testid={`button-locked-${cosmetic.id}`}>
+                          <Button disabled className="w-full bg-slate-700 text-slate-400 border-slate-600" data-testid={`button-locked-${cosmetic.id}`}>
                             <Lock className="w-4 h-4 mr-2" />
                             Requires Level {cosmetic.unlockLevel}
                           </Button>
@@ -209,15 +225,19 @@ export default function Cosmetics() {
                           <Button
                             onClick={() => purchaseMutation.mutate(cosmetic.id)}
                             disabled={!canAfford(cosmetic.cost) || purchaseMutation.isPending}
-                            className="w-full"
-                            variant={canAfford(cosmetic.cost) ? "default" : "destructive"}
+                            className={cn(
+                              "w-full transition-all duration-200",
+                              canAfford(cosmetic.cost) 
+                                ? "bg-gradient-to-r from-game-gold to-yellow-400 hover:from-yellow-400 hover:to-game-gold text-slate-900 font-bold shadow-lg hover:shadow-xl hover:shadow-game-gold/30" 
+                                : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                            )}
                             data-testid={`button-purchase-${cosmetic.id}`}
                           >
                             <Coins className="w-4 h-4 mr-2" />
                             {canAfford(cosmetic.cost) ? `Buy for ${cosmetic.cost}` : 'Not enough coins'}
                           </Button>
                         ) : cosmetic.equipped ? (
-                          <Button disabled className="w-full" variant="outline">
+                          <Button disabled className="w-full bg-game-gold text-slate-900 font-bold border-0">
                             <Check className="w-4 h-4 mr-2" />
                             Currently Equipped
                           </Button>
@@ -225,7 +245,7 @@ export default function Cosmetics() {
                           <Button
                             onClick={() => equipMutation.mutate(cosmetic.id)}
                             disabled={equipMutation.isPending}
-                            className="w-full"
+                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200"
                             data-testid={`button-equip-${cosmetic.id}`}
                           >
                             Equip
@@ -243,9 +263,10 @@ export default function Cosmetics() {
         <div className="mt-8 text-center">
           <Button 
             onClick={() => window.history.back()} 
-            variant="outline"
+            className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200 px-8 py-3"
             data-testid="button-back"
           >
+            <i className="fas fa-arrow-left mr-2"></i>
             Back to Game
           </Button>
         </div>

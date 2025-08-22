@@ -73,38 +73,57 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-game-felt p-4">
+    <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-          <p className="text-white opacity-80">Customize your Golf 9 experience</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-transparent bg-gradient-to-r from-game-gold to-yellow-300 bg-clip-text mb-2 flex items-center gap-3">
+              <div className="w-12 h-12 bg-game-gold/20 rounded-full flex items-center justify-center">
+                <i className="fas fa-cog text-game-gold text-xl"></i>
+              </div>
+              Settings
+            </h1>
+            <p className="text-slate-200 opacity-90 text-lg">Customize your Golf 9 experience</p>
+          </div>
         </div>
 
         <Tabs defaultValue="audio" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="audio" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 p-1 rounded-xl">
+            <TabsTrigger 
+              value="audio" 
+              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
+            >
               <Volume2 className="w-4 h-4" />
               Audio
             </TabsTrigger>
-            <TabsTrigger value="accessibility" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="accessibility" 
+              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
+            >
               <Accessibility className="w-4 h-4" />
               Accessibility
             </TabsTrigger>
-            <TabsTrigger value="gameplay" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="gameplay" 
+              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
+            >
               <Gamepad2 className="w-4 h-4" />
               Gameplay
             </TabsTrigger>
-            <TabsTrigger value="visual" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="visual" 
+              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
+            >
               <Eye className="w-4 h-4" />
               Visual
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="audio">
-            <Card>
+            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Volume2 className="w-5 h-5" />
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Volume2 className="w-5 h-5 text-game-gold" />
                   Audio Settings
                 </CardTitle>
                 <CardDescription>
@@ -176,10 +195,10 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="accessibility">
-            <Card>
+            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Accessibility className="w-5 h-5" />
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Accessibility className="w-5 h-5 text-game-gold" />
                   Accessibility Settings
                 </CardTitle>
                 <CardDescription>
@@ -251,10 +270,10 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="gameplay">
-            <Card>
+            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Gamepad2 className="w-5 h-5" />
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Gamepad2 className="w-5 h-5 text-game-gold" />
                   Gameplay Settings
                 </CardTitle>
                 <CardDescription>
@@ -296,10 +315,10 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="visual">
-            <Card>
+            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-game-gold" />
                   Visual Preferences
                 </CardTitle>
                 <CardDescription>
@@ -322,9 +341,10 @@ export default function Settings() {
         <div className="mt-8 text-center">
           <Button 
             onClick={() => window.history.back()} 
-            variant="outline"
+            className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200 px-8 py-3"
             data-testid="button-back"
           >
+            <i className="fas fa-arrow-left mr-2"></i>
             Back to Game
           </Button>
         </div>

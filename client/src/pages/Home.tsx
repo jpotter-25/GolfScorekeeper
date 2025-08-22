@@ -86,8 +86,7 @@ export default function Home() {
         <div className="flex gap-3">
           <Button 
             onClick={() => setLocation('/cosmetics')}
-            variant="outline"
-            className="text-white border-white hover:bg-white hover:text-black"
+            className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
             data-testid="button-cosmetics"
           >
             <i className="fas fa-palette mr-2"></i>
@@ -95,8 +94,7 @@ export default function Home() {
           </Button>
           <Button 
             onClick={() => setLocation('/settings')}
-            variant="outline"
-            className="text-white border-white hover:bg-white hover:text-black"
+            className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
             data-testid="button-settings"
           >
             <i className="fas fa-cog mr-2"></i>
@@ -104,7 +102,7 @@ export default function Home() {
           </Button>
           <button 
             onClick={handleLogout}
-            className="text-white text-2xl hover:text-red-500 transition-colors" 
+            className="bg-slate-800/80 backdrop-blur-sm border-2 border-red-400/50 text-red-400 hover:bg-red-900/30 hover:border-red-400 hover:shadow-lg hover:shadow-red-400/20 transition-all duration-200 px-4 py-2 rounded-lg" 
             data-testid="button-logout"
           >
             <i className="fas fa-sign-out-alt"></i>
@@ -176,35 +174,38 @@ export default function Home() {
       
       {/* Settings Dialog */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">Settings</DialogTitle>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-game-gold to-yellow-300 bg-clip-text text-transparent">Settings</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center space-x-3">
-                <i className="fas fa-volume-up text-gray-600"></i>
-                <span className="text-gray-700">Sound Effects</span>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between py-4 px-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 bg-game-gold/20 rounded-full flex items-center justify-center">
+                  <i className="fas fa-volume-up text-game-gold"></i>
+                </div>
+                <span className="text-slate-200 font-medium">Sound Effects</span>
               </div>
-              <div className="w-12 h-6 bg-game-gold rounded-full relative cursor-pointer">
-                <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
-              </div>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center space-x-3">
-                <i className="fas fa-mobile-alt text-gray-600"></i>
-                <span className="text-gray-700">Vibration</span>
-              </div>
-              <div className="w-12 h-6 bg-gray-300 rounded-full relative cursor-pointer">
-                <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+              <div className="w-14 h-7 bg-game-gold rounded-full relative cursor-pointer shadow-inner">
+                <div className="absolute right-1 top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-200"></div>
               </div>
             </div>
-            <Separator />
+            
+            <div className="flex items-center justify-between py-4 px-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 bg-slate-600/50 rounded-full flex items-center justify-center">
+                  <i className="fas fa-mobile-alt text-slate-400"></i>
+                </div>
+                <span className="text-slate-200 font-medium">Vibration</span>
+              </div>
+              <div className="w-14 h-7 bg-slate-600 rounded-full relative cursor-pointer shadow-inner">
+                <div className="absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-200"></div>
+              </div>
+            </div>
+            
             <Button 
               onClick={handleLogout}
-              variant="destructive" 
-              className="w-full mt-6"
+              className="w-full mt-6 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
               data-testid="button-logout"
             >
               <i className="fas fa-sign-out-alt mr-2"></i>
@@ -216,10 +217,10 @@ export default function Home() {
       
       {/* Profile Dialog */}
       <Dialog open={showProfile} onOpenChange={setShowProfile}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">Player Profile</DialogTitle>
-            <DialogDescription className="text-gray-600">
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-game-gold to-yellow-300 bg-clip-text text-transparent">Player Profile</DialogTitle>
+            <DialogDescription className="text-slate-300">
               View your stats, progress, and equipped cosmetics
             </DialogDescription>
           </DialogHeader>
@@ -247,32 +248,32 @@ export default function Home() {
             
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-gray-900">{user.level || 1}</div>
-                <div className="text-sm text-gray-600">Level</div>
+              <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 p-4 rounded-xl text-center border border-slate-600/30">
+                <div className="text-2xl font-bold text-game-gold">{user.level || 1}</div>
+                <div className="text-sm text-slate-300">Level</div>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-blue-600">{user.currency || 0}</div>
-                <div className="text-sm text-gray-600">Coins</div>
+              <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 p-4 rounded-xl text-center border border-slate-600/30">
+                <div className="text-2xl font-bold text-yellow-400">{user.currency || 0}</div>
+                <div className="text-sm text-slate-300">Coins</div>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-gray-900">{userStats?.gamesPlayed || 0}</div>
-                <div className="text-sm text-gray-600">Games Played</div>
+              <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 p-4 rounded-xl text-center border border-slate-600/30">
+                <div className="text-2xl font-bold text-blue-400">{userStats?.gamesPlayed || 0}</div>
+                <div className="text-sm text-slate-300">Games Played</div>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-green-600">{winRate}%</div>
-                <div className="text-sm text-gray-600">Win Rate</div>
+              <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 p-4 rounded-xl text-center border border-slate-600/30">
+                <div className="text-2xl font-bold text-green-400">{winRate}%</div>
+                <div className="text-sm text-slate-300">Win Rate</div>
               </div>
             </div>
             
             {/* Experience Progress */}
-            <div>
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>Experience</span>
+            <div className="bg-gradient-to-r from-slate-700/30 to-slate-800/30 p-4 rounded-xl border border-slate-600/30">
+              <div className="flex justify-between text-sm text-slate-300 mb-3">
+                <span className="font-medium">Experience</span>
                 <span>{(user.experience || 0).toLocaleString()} / {((user.level || 1) * 100).toLocaleString()} XP</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div className="bg-blue-600 h-3 rounded-full" style={{ width: `${((user.experience || 0) / ((user.level || 1) * 100)) * 100}%` }}></div>
+              <div className="w-full bg-slate-700 rounded-full h-4 shadow-inner">
+                <div className="bg-gradient-to-r from-game-gold to-yellow-400 h-4 rounded-full shadow-lg transition-all duration-500" style={{ width: `${((user.experience || 0) / ((user.level || 1) * 100)) * 100}%` }}></div>
               </div>
             </div>
             
