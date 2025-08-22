@@ -1,6 +1,7 @@
 import { Card as CardType } from '@/types/game';
 import { getCardDisplayValue } from '@/utils/gameLogic';
 import { cn } from '@/lib/utils';
+import { useCosmetics } from '@/hooks/useCosmetics';
 
 interface CardProps {
   card?: CardType | null;
@@ -27,6 +28,7 @@ export default function Card({
   className,
   'data-testid': testId
 }: CardProps) {
+  const { getCardBackStyle } = useCosmetics();
   const getSizeClasses = () => {
     switch (size) {
       case 'small':
@@ -72,19 +74,36 @@ export default function Card({
   }
 
   if (!isRevealed || !card) {
+    const cardBackStyle = getCardBackStyle();
     return (
       <div
         className={cn(
-          'bg-card-back rounded-xl flex items-center justify-center text-white cursor-pointer hover:border-highlight-blue transition-all',
+          'rounded-xl flex items-center justify-center text-white cursor-pointer transition-all relative overflow-hidden',
           getSizeClasses(),
           getHighlightClasses(),
           onClick && !isDisabled && 'hover:scale-105',
           className
         )}
+        style={{
+          background: cardBackStyle.background,
+          border: cardBackStyle.border
+        }}
         onClick={!isDisabled ? onClick : undefined}
         data-testid={testId}
       >
-        <div className="text-xs opacity-80">?</div>
+        {/* Pattern overlay */}
+        {cardBackStyle.pattern !== 'none' && (
+          <div 
+            className="absolute inset-0"
+            style={{ background: cardBackStyle.pattern }}
+          />
+        )}
+        
+        {/* Card back design */}
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="text-lg font-bold mb-1">♠</div>
+          <div className="text-xs font-semibold opacity-80">Golf 9</div>
+        </div>
       </div>
     );
   }

@@ -6,6 +6,7 @@ import OpponentGrid from './OpponentGrid';
 import Card from './Card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useCosmetics } from '@/hooks/useCosmetics';
 
 interface GameTableProps {
   gameState: GameState;
@@ -29,6 +30,7 @@ export default function GameTable({
   onTurnStart
 }: GameTableProps) {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  const { getTableThemeStyle } = useCosmetics();
   
   // Handle different game modes
   let humanPlayer, aiPlayers, isPlayerTurn;
@@ -79,8 +81,16 @@ export default function GameTable({
   // Only show direct discard if: has drawn card, has 1 face-down card, no position selected yet, and round hasn't ended
   const canDiscardDirectly = gameState.drawnCard && humanPlayerFaceDownCount === 1 && isPlayerTurn && gameState.selectedGridPosition === null && !gameState.roundEndTriggered;
 
+  const tableThemeStyle = getTableThemeStyle();
+  
   return (
-    <div className="h-full max-w-6xl mx-auto relative">
+    <div 
+      className="h-full max-w-6xl mx-auto relative rounded-lg overflow-hidden"
+      style={{
+        background: tableThemeStyle.background,
+        backgroundImage: tableThemeStyle.texture !== 'none' ? tableThemeStyle.texture : undefined
+      }}
+    >
       {/* Opponent Player Grids - Other players in pass-and-play or AI players in solo */}
       <div className={cn('mb-6', getOpponentPlayerLayout())} data-testid="opponent-grids">
         {aiPlayers.map((aiPlayer, index) => (

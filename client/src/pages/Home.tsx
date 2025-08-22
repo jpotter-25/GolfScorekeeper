@@ -8,7 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStats } from '@/hooks/useUserProgression';
 import HowToPlay from '@/components/Game/HowToPlay';
-import type { UserCosmeticWithDetails } from '@shared/schema';
+interface CosmeticWithDetails {
+  id: string;
+  name: string;
+  type: string;
+  equipped: boolean;
+}
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -19,7 +24,7 @@ export default function Home() {
   const { user } = useAuth();
   const { data: userStats } = useUserStats();
   
-  const { data: userCosmetics = [] } = useQuery<UserCosmeticWithDetails[]>({
+  const { data: userCosmetics = [] } = useQuery<CosmeticWithDetails[]>({
     queryKey: ["/api/user/cosmetics"],
   });
 
