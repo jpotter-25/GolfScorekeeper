@@ -190,52 +190,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/cosmetics/purchase', isAuthenticated, async (req: any, res) => {
+  app.post('/api/cosmetics/:cosmeticId/purchase', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { cosmeticId } = req.body;
-
+      const { cosmeticId } = req.params;
+      
       // Get cosmetic details
-      const cosmetics = await storage.getAllCosmetics();
-      const cosmetic = cosmetics.find(c => c.id === cosmeticId);
+      const allCosmetics = await storage.getAllCosmetics();
+      const cosmetic = allCosmetics.find(c => c.id === cosmeticId);
+      
       if (!cosmetic) {
         return res.status(404).json({ message: "Cosmetic not found" });
       }
-
-      // Check if user has enough currency
+      
+      // Check if user can afford it
       const user = await storage.getUser(userId);
-      if (!user || (user.currency || 0) < cosmetic.cost) {
-        return res.status(400).json({ message: "Insufficient currency" });
+      if (!user || (user.currency ?? 0) < cosmetic.cost) {
+        return res.status(400).json({ message: "Insufficient coins" });
       }
-
-      // Check if user already owns this cosmetic
+      
+      // Check if user meets level requirement
+      if ((user.level ?? 1) < (cosmetic.unlockLevel ?? 1)) {
+        return res.status(400).json({ message: "Level requirement not met" });
+      }
+      
+      // Check if already owned
       const userCosmetics = await storage.getUserCosmetics(userId);
       if (userCosmetics.some(uc => uc.cosmeticId === cosmeticId)) {
         return res.status(400).json({ message: "Already owned" });
       }
-
+      
       // Purchase cosmetic
       await storage.spendCurrency(userId, cosmetic.cost);
-      const purchasedCosmetic = await storage.purchaseCosmetic({
+      const userCosmetic = await storage.purchaseCosmetic({
         userId,
         cosmeticId,
-        equipped: false
       });
-
-      res.json(purchasedCosmetic);
+      
+      res.json(userCosmetic);
     } catch (error) {
       console.error("Error purchasing cosmetic:", error);
       res.status(500).json({ message: "Failed to purchase cosmetic" });
     }
   });
 
-  app.post('/api/cosmetics/equip', isAuthenticated, async (req: any, res) => {
+  app.post('/api/cosmetics/:cosmeticId/equip', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { cosmeticId } = req.body;
-
+      const { cosmeticId } = req.params;
+      
       await storage.equipCosmetic(userId, cosmeticId);
-      res.json({ message: "Cosmetic equipped successfully" });
+      res.json({ success: true });
     } catch (error) {
       console.error("Error equipping cosmetic:", error);
       res.status(500).json({ message: "Failed to equip cosmetic" });
@@ -273,93 +278,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Cosmetics routes
-  app.get('/api/cosmetics/:category?', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const category = req.params.category;
-      
-      // Get all cosmetics (filtered by category if provided)
-      const allCosmetics = await storage.getAllCosmetics();
-      const filteredCosmetics = category 
-        ? allCosmetics.filter(c => c.type === category)
-        : allCosmetics;
-      
-      // Get user's owned cosmetics
-      const userCosmetics = await storage.getUserCosmetics(userId);
-      const ownedSet = new Set(userCosmetics.map(uc => uc.cosmeticId));
-      const equippedSet = new Set(userCosmetics.filter(uc => uc.equipped).map(uc => uc.cosmeticId));
-      
-      // Combine data
-      const cosmeticsWithOwnership = filteredCosmetics.map(cosmetic => ({
-        ...cosmetic,
-        owned: ownedSet.has(cosmetic.id),
-        equipped: equippedSet.has(cosmetic.id),
-      }));
-      
-      res.json(cosmeticsWithOwnership);
-    } catch (error) {
-      console.error("Error fetching cosmetics:", error);
-      res.status(500).json({ message: "Failed to fetch cosmetics" });
-    }
-  });
-
-  app.post('/api/cosmetics/:cosmeticId/purchase', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { cosmeticId } = req.params;
-      
-      // Get cosmetic details
-      const allCosmetics = await storage.getAllCosmetics();
-      const cosmetic = allCosmetics.find(c => c.id === cosmeticId);
-      
-      if (!cosmetic) {
-        return res.status(404).json({ message: "Cosmetic not found" });
-      }
-      
-      // Check if user can afford it
-      const user = await storage.getUser(userId);
-      if (!user || (user.currency ?? 0) < cosmetic.cost) {
-        return res.status(400).json({ message: "Insufficient coins" });
-      }
-      
-      // Check if user meets level requirement
-      if ((user.level ?? 1) < cosmetic.unlockLevel) {
-        return res.status(400).json({ message: "Level requirement not met" });
-      }
-      
-      // Check if already owned
-      const userCosmetics = await storage.getUserCosmetics(userId);
-      if (userCosmetics.some(uc => uc.cosmeticId === cosmeticId)) {
-        return res.status(400).json({ message: "Already owned" });
-      }
-      
-      // Purchase cosmetic
-      await storage.spendCurrency(userId, cosmetic.cost);
-      const userCosmetic = await storage.purchaseCosmetic({
-        userId,
-        cosmeticId,
-      });
-      
-      res.json(userCosmetic);
-    } catch (error) {
-      console.error("Error purchasing cosmetic:", error);
-      res.status(500).json({ message: "Failed to purchase cosmetic" });
-    }
-  });
-
-  app.post('/api/cosmetics/:cosmeticId/equip', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { cosmeticId } = req.params;
-      
-      await storage.equipCosmetic(userId, cosmeticId);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error equipping cosmetic:", error);
-      res.status(500).json({ message: "Failed to equip cosmetic" });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;
