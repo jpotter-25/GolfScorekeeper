@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStats } from '@/hooks/useUserProgression';
 import HowToPlay from '@/components/Game/HowToPlay';
+import { getCosmeticAsset } from '@/utils/cosmeticAssets';
 interface CosmeticWithDetails {
   id: string;
   name: string;
@@ -36,6 +37,38 @@ export default function Home() {
     window.location.href = "/api/logout";
   };
 
+  // Function to render cosmetic preview images
+  const getPreviewImage = (cosmetic: CosmeticWithDetails) => {
+    const assetUrl = getCosmeticAsset(cosmetic.id);
+    if (assetUrl) {
+      return (
+        <div className="w-8 h-8 rounded border border-game-gold/50 overflow-hidden">
+          <img 
+            src={assetUrl} 
+            alt={cosmetic.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      );
+    }
+    
+    // Fallback with type-specific icons
+    const getTypeIcon = (type: string) => {
+      switch (type) {
+        case 'card_back': return 'fas fa-clone';
+        case 'table_theme': return 'fas fa-table';
+        case 'avatar': return 'fas fa-user';
+        default: return 'fas fa-palette';
+      }
+    };
+    
+    return (
+      <div className="w-8 h-8 bg-gradient-to-br from-game-gold/20 to-yellow-400/20 rounded border border-game-gold/50 flex items-center justify-center">
+        <i className={`${getTypeIcon(cosmetic.type)} text-game-gold text-sm`}></i>
+      </div>
+    );
+  };
+
   // Show loading state until user data is available
   if (!user) {
     return (
@@ -53,7 +86,7 @@ export default function Home() {
     : 'Player';
 
   const winRate = userStats?.gamesPlayed 
-    ? Math.round((userStats.gamesWon / userStats.gamesPlayed) * 100) 
+    ? Math.round(((userStats.gamesWon || 0) / userStats.gamesPlayed) * 100) 
     : 0;
 
   return (
@@ -233,6 +266,7 @@ export default function Home() {
               <Button 
                 variant="outline" 
                 size="sm"
+                className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
                 onClick={() => {
                   setShowProfile(false);
                   setLocation('/cosmetics');
@@ -280,10 +314,11 @@ export default function Home() {
             {/* Equipped Cosmetics Section */}
             <div>
               <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold text-gray-900">Equipped Items</h3>
+                <h3 className="font-semibold text-white">Equipped Items</h3>
                 <Button 
                   variant="outline" 
                   size="sm"
+                  className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
                   onClick={() => {
                     setShowProfile(false);
                     setLocation('/cosmetics');
@@ -300,17 +335,15 @@ export default function Home() {
                   {userCosmetics
                     .filter(cosmetic => cosmetic.equipped)
                     .map(cosmetic => (
-                      <div key={cosmetic.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                      <div key={cosmetic.id} className="flex items-center justify-between p-3 border border-game-gold/30 rounded-lg bg-gradient-to-r from-slate-700/30 to-slate-800/30">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded flex items-center justify-center">
-                            <i className="fas fa-palette text-white text-sm"></i>
-                          </div>
+                          {getPreviewImage(cosmetic)}
                           <div>
-                            <div className="font-medium text-gray-900">{cosmetic.name}</div>
-                            <div className="text-xs text-gray-500 capitalize">{cosmetic.type?.replace('_', ' ')}</div>
+                            <div className="font-medium text-white">{cosmetic.name}</div>
+                            <div className="text-xs text-slate-400 capitalize">{cosmetic.type?.replace('_', ' ')}</div>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs border-game-gold text-game-gold bg-game-gold/10">
                           <i className="fas fa-check mr-1"></i>
                           Equipped
                         </Badge>
@@ -318,17 +351,17 @@ export default function Home() {
                     ))}
                   
                   {userCosmetics.filter(c => c.equipped).length === 0 && (
-                    <div className="text-center py-4 text-gray-500">
-                      <i className="fas fa-palette text-2xl mb-2 opacity-50"></i>
-                      <p className="text-sm">No cosmetics equipped</p>
+                    <div className="text-center py-4 text-slate-400">
+                      <i className="fas fa-palette text-2xl mb-2 opacity-50 text-game-gold"></i>
+                      <p className="text-sm text-white">No cosmetics equipped</p>
                       <p className="text-xs">Visit the Cosmetics store to equip items</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <i className="fas fa-shopping-bag text-2xl mb-2 opacity-50"></i>
-                  <p className="text-sm">No cosmetics owned</p>
+                <div className="text-center py-4 text-slate-400">
+                  <i className="fas fa-shopping-bag text-2xl mb-2 opacity-50 text-game-gold"></i>
+                  <p className="text-sm text-white">No cosmetics owned</p>
                   <p className="text-xs">Visit the Cosmetics store to purchase items</p>
                 </div>
               )}
