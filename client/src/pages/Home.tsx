@@ -42,7 +42,7 @@ export default function Home() {
     const assetUrl = getCosmeticAsset(cosmetic.id);
     if (assetUrl) {
       return (
-        <div className="w-8 h-8 rounded border border-game-gold/50 overflow-hidden">
+        <div className="w-12 h-12 rounded-lg border border-game-gold/50 overflow-hidden shadow-lg bg-slate-700/30">
           <img 
             src={assetUrl} 
             alt={cosmetic.name}
@@ -52,7 +52,7 @@ export default function Home() {
       );
     }
     
-    // Fallback with type-specific icons
+    // Fallback with type-specific icons only when no asset is available
     const getTypeIcon = (type: string) => {
       switch (type) {
         case 'card_back': return 'fas fa-clone';
@@ -63,8 +63,8 @@ export default function Home() {
     };
     
     return (
-      <div className="w-8 h-8 bg-gradient-to-br from-game-gold/20 to-yellow-400/20 rounded border border-game-gold/50 flex items-center justify-center">
-        <i className={`${getTypeIcon(cosmetic.type)} text-game-gold text-sm`}></i>
+      <div className="w-12 h-12 bg-gradient-to-br from-slate-600/50 to-slate-700/50 rounded-lg border border-game-gold/50 flex items-center justify-center shadow-lg">
+        <i className={`${getTypeIcon(cosmetic.type)} text-game-gold text-lg`}></i>
       </div>
     );
   };
@@ -335,8 +335,8 @@ export default function Home() {
                   {userCosmetics
                     .filter(cosmetic => cosmetic.equipped)
                     .map(cosmetic => (
-                      <div key={cosmetic.id} className="flex items-center justify-between p-3 border border-game-gold/30 rounded-lg bg-gradient-to-r from-slate-700/30 to-slate-800/30">
-                        <div className="flex items-center space-x-3">
+                      <div key={cosmetic.id} className="flex items-center justify-between p-4 border border-game-gold/30 rounded-lg bg-gradient-to-r from-slate-700/30 to-slate-800/30">
+                        <div className="flex items-center space-x-4">
                           {getPreviewImage(cosmetic)}
                           <div>
                             <div className="font-medium text-white">{cosmetic.name}</div>
