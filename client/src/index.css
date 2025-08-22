@@ -5,6 +5,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Line clamp utility for consistent text heights */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 :root {
   --background: hsl(0 0% 100%);
   --foreground: hsl(210 25% 7.8431%);

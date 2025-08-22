@@ -168,11 +168,11 @@ export default function Cosmetics() {
                   <Card 
                     key={cosmetic.id} 
                     className={cn(
-                      "relative overflow-hidden transition-all hover:scale-105 bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700/50 hover:border-game-gold/50 shadow-lg hover:shadow-xl hover:shadow-game-gold/20",
+                      "relative overflow-hidden transition-all hover:scale-105 bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700/50 hover:border-game-gold/50 shadow-lg hover:shadow-xl hover:shadow-game-gold/20 flex flex-col h-full",
                       cosmetic.equipped && "ring-2 ring-game-gold shadow-game-gold/30"
                     )}
                   >
-                    <CardHeader className="pb-2">
+                    <CardHeader className="pb-2 flex-shrink-0">
                       <div className="flex items-center justify-between">
                         <Badge 
                           className={cn(
@@ -191,13 +191,13 @@ export default function Cosmetics() {
                         )}
                       </div>
                       <CardTitle className="text-lg text-white font-bold">{cosmetic.name}</CardTitle>
-                      <CardDescription className="text-sm text-slate-300">
-                        {cosmetic.description}
+                      <CardDescription className="text-sm text-slate-300 h-10 flex items-start">
+                        <span className="line-clamp-2">{cosmetic.description}</span>
                       </CardDescription>
                     </CardHeader>
                     
-                    <CardContent>
-                      <div className="aspect-square bg-gradient-to-br from-game-felt to-black rounded-lg mb-4 flex items-center justify-center">
+                    <CardContent className="flex-grow flex flex-col">
+                      <div className="aspect-square bg-gradient-to-br from-game-felt to-black rounded-lg mb-4 flex items-center justify-center flex-shrink-0">
                         {(() => {
                           const assetUrl = getCosmeticAsset(cosmetic.id);
                           return assetUrl ? (
@@ -215,7 +215,7 @@ export default function Cosmetics() {
                         })()}
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-2 mt-auto">
                         {!canUnlock(cosmetic.unlockLevel ?? 1) ? (
                           <Button disabled className="w-full bg-slate-700 text-slate-400 border-slate-600" data-testid={`button-locked-${cosmetic.id}`}>
                             <Lock className="w-4 h-4 mr-2" />
