@@ -30,7 +30,7 @@ export default function Cosmetics() {
 
   const purchaseMutation = useMutation({
     mutationFn: async (cosmeticId: string) => {
-      return apiRequest(`/api/cosmetics/${cosmeticId}/purchase`, "POST");
+      return apiRequest("POST", "/api/cosmetics/purchase", { cosmeticId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cosmetics"] });
@@ -51,7 +51,7 @@ export default function Cosmetics() {
 
   const equipMutation = useMutation({
     mutationFn: async (cosmeticId: string) => {
-      return apiRequest(`/api/cosmetics/${cosmeticId}/equip`, "POST");
+      return apiRequest("POST", "/api/cosmetics/equip", { cosmeticId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cosmetics"] });
