@@ -56,16 +56,21 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
       
       <div className="grid grid-cols-3 gap-2 w-36">
         {player.grid.map((gridCard, index) => (
-          <Card
+          <div 
             key={index}
-            card={gridCard.card}
-            isRevealed={gridCard.isRevealed}
-            isHighlighted={isPositionInThreeOfAKind(index)}
-            highlightColor="green"
-            size="medium"
-            isDisabled={gridCard.isDisabled}
-            data-testid={`card-opponent-${player.id}-${index}`}
-          />
+            className="transform transition-all duration-200 hover:scale-105"
+          >
+            <Card
+              card={gridCard.card}
+              isRevealed={gridCard.isRevealed}
+              isHighlighted={isPositionInThreeOfAKind(index)}
+              highlightColor="green"
+              size="medium"
+              isDisabled={gridCard.isDisabled}
+              className="drop-shadow-md"
+              data-testid={`card-opponent-${player.id}-${index}`}
+            />
+          </div>
         ))}
       </div>
     </div>

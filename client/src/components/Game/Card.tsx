@@ -129,13 +129,16 @@ export default function Card({
   return (
     <div
       className={cn(
-        'bg-white rounded-xl flex items-center justify-center font-bold transition-all',
+        'bg-white rounded-xl flex items-center justify-center font-bold transition-all shadow-lg ring-1 ring-black/10',
         getSizeClasses(),
         getHighlightClasses(),
         getCardColor(card),
-        onClick && !isDisabled && 'cursor-pointer hover:scale-105',
+        onClick && !isDisabled && 'cursor-pointer hover:scale-105 hover:shadow-xl',
         className
       )}
+      style={{
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)'
+      }}
       onClick={!isDisabled ? onClick : undefined}
       data-testid={testId}
     >
