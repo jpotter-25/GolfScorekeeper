@@ -91,21 +91,51 @@ export async function seedCosmetics() {
       id: "default_avatar",
       type: "avatar",
       name: "Default",
-      description: "Classic golfer avatar",
+      description: "Classic player avatar",
       rarity: "common",
       cost: 0,
       unlockLevel: 1,
       imageUrl: "/cosmetics/avatars/default.png"
     },
     {
-      id: "pro_golfer",
+      id: "professional_avatar",
       type: "avatar",
-      name: "Pro Golfer",
-      description: "Professional tournament player",
+      name: "Professional",
+      description: "Confident business professional",
       rarity: "rare",
       cost: 75,
-      unlockLevel: 8,
-      imageUrl: "/cosmetics/avatars/pro_golfer.png"
+      unlockLevel: 5,
+      imageUrl: "@assets/generated_images/Professional_Business_Avatar_8860d667.png"
+    },
+    {
+      id: "gaming_avatar",
+      type: "avatar",
+      name: "Gaming Pro",
+      description: "Elite gaming enthusiast with headphones",
+      rarity: "rare",
+      cost: 100,
+      unlockLevel: 10,
+      imageUrl: "@assets/generated_images/Gaming_Enthusiast_Avatar_6f97dd65.png"
+    },
+    {
+      id: "elegant_avatar",
+      type: "avatar",
+      name: "Elegant Gold",
+      description: "Sophisticated luxury avatar",
+      rarity: "epic",
+      cost: 200,
+      unlockLevel: 15,
+      imageUrl: "@assets/generated_images/Elegant_Premium_Avatar_db98b5b8.png"
+    },
+    {
+      id: "mysterious_avatar",
+      type: "avatar",
+      name: "Shadow Walker",
+      description: "Enigmatic hooded figure",
+      rarity: "legendary",
+      cost: 500,
+      unlockLevel: 25,
+      imageUrl: "@assets/generated_images/Mysterious_Shadow_Avatar_9d70c2ca.png"
     },
     // Table themes
     {
