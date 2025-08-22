@@ -91,7 +91,7 @@ export function useGameLogic() {
 
     // Prevent drawing from discard during extra turn
     if (source === 'discard' && gameState.extraTurn) {
-      console.log('BLOCKED: Cannot draw from discard during extra turn');
+      console.log('🚫 BLOCKED: Cannot draw from discard during extra turn');
       return;
     }
 
