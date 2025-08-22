@@ -263,8 +263,25 @@ export default function Home() {
           <div className="space-y-6">
             {/* Avatar Section */}
             <div className="text-center">
-              <div className="w-20 h-20 bg-game-gold rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="fas fa-user text-white text-3xl"></i>
+              <div className="w-20 h-20 bg-game-gold rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                {(() => {
+                  const equippedAvatar = userCosmetics.find(cosmetic => 
+                    cosmetic.type === 'avatar' && cosmetic.equipped
+                  );
+                  if (equippedAvatar) {
+                    const assetUrl = getCosmeticAsset(equippedAvatar.cosmeticId);
+                    if (assetUrl) {
+                      return (
+                        <img 
+                          src={assetUrl} 
+                          alt={equippedAvatar.name}
+                          className="w-full h-full object-cover"
+                        />
+                      );
+                    }
+                  }
+                  return <i className="fas fa-user text-white text-3xl"></i>;
+                })()}
               </div>
               <Button 
                 variant="outline" 
