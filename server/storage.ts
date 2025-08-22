@@ -6,6 +6,7 @@ import {
   userAchievements,
   cosmetics,
   userCosmetics,
+  userSettings,
   gameRooms,
   type User,
   type UpsertUser,
@@ -15,11 +16,14 @@ import {
   type UserAchievement,
   type Cosmetic,
   type UserCosmetic,
+  type UserSettings,
   type GameRoom,
   type InsertGameStats,
   type InsertGameHistory,
   type InsertUserAchievement,
   type InsertUserCosmetic,
+  type InsertUserSettings,
+  type UpdateUserSettings,
   type InsertGameRoom,
 } from "@shared/schema";
 import { db } from "./db";
@@ -52,6 +56,10 @@ export interface IStorage {
   addCurrency(userId: string, amount: number): Promise<User>;
   spendCurrency(userId: string, amount: number): Promise<User>;
   addExperience(userId: string, amount: number): Promise<User>;
+  
+  // Settings operations
+  getUserSettings(userId: string): Promise<UserSettings | undefined>;
+  upsertUserSettings(userId: string, settings: UpdateUserSettings): Promise<UserSettings>;
   
   // Game room operations
   createGameRoom(room: InsertGameRoom): Promise<GameRoom>;
@@ -220,6 +228,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  // Settings operations
+  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
+    const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    return settings;
+  }
+
+  async upsertUserSettings(userId: string, settingsData: UpdateUserSettings): Promise<UserSettings> {
+    const [settings] = await db
+      .insert(userSettings)
+      .values({ userId, ...settingsData })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: {
+          ...settingsData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return settings;
   }
 
   // Game room operations

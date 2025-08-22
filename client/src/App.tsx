@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/Home";
 import GameSetup from "@/pages/GameSetup";
 import Game from "@/pages/Game";
+import Settings from "@/pages/Settings";
+import Cosmetics from "@/pages/Cosmetics";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/not-found";
 
@@ -22,6 +24,8 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/setup" component={GameSetup} />
           <Route path="/game" component={Game} />
+          <Route path="/settings" component={Settings} />
+          <Route path="/cosmetics" component={Cosmetics} />
         </>
       )}
       <Route component={NotFound} />

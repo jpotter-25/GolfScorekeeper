@@ -123,6 +123,32 @@ export const userCosmetics = pgTable("user_cosmetics", {
   purchasedAt: timestamp("purchased_at").defaultNow(),
 });
 
+// User settings and preferences
+export const userSettings = pgTable("user_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  
+  // Audio settings
+  soundEnabled: boolean("sound_enabled").default(true),
+  musicEnabled: boolean("music_enabled").default(true),
+  soundVolume: integer("sound_volume").default(50), // 0-100
+  musicVolume: integer("music_volume").default(30), // 0-100
+  
+  // Accessibility settings
+  reducedMotion: boolean("reduced_motion").default(false),
+  highContrast: boolean("high_contrast").default(false),
+  largeText: boolean("large_text").default(false),
+  
+  // Haptic feedback
+  vibrationEnabled: boolean("vibration_enabled").default(true),
+  
+  // Game preferences
+  autoEndTurn: boolean("auto_end_turn").default(false),
+  showHints: boolean("show_hints").default(true),
+  
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const gameRooms = pgTable("game_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: text("code").notNull().unique(),
@@ -174,6 +200,17 @@ export const insertUserCosmeticSchema = createInsertSchema(userCosmetics).omit({
   purchasedAt: true,
 });
 
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const updateUserSettingsSchema = createInsertSchema(userSettings).omit({
+  id: true,
+  userId: true,
+  updatedAt: true,
+}).partial();
+
 // Type exports
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -184,6 +221,7 @@ export type Achievement = typeof achievements.$inferSelect;
 export type UserAchievement = typeof userAchievements.$inferSelect;
 export type Cosmetic = typeof cosmetics.$inferSelect;
 export type UserCosmetic = typeof userCosmetics.$inferSelect;
+export type UserSettings = typeof userSettings.$inferSelect;
 
 export type InsertGameStats = z.infer<typeof insertGameStatsSchema>;
 export type InsertGameHistory = z.infer<typeof insertGameHistorySchema>;
@@ -192,3 +230,5 @@ export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 export type InsertUserAchievement = z.infer<typeof insertUserAchievementSchema>;
 export type InsertCosmetic = z.infer<typeof insertCosmeticSchema>;
 export type InsertUserCosmetic = z.infer<typeof insertUserCosmeticSchema>;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+export type UpdateUserSettings = z.infer<typeof updateUserSettingsSchema>;

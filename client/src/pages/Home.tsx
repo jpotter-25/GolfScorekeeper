@@ -71,13 +71,33 @@ export default function Home() {
           </div>
         </button>
         
-        <button 
-          onClick={() => setShowSettings(true)}
-          className="text-white text-2xl hover:text-game-gold transition-colors" 
-          data-testid="button-settings"
-        >
-          <i className="fas fa-cog"></i>
-        </button>
+        <div className="flex gap-3">
+          <Button 
+            onClick={() => setLocation('/cosmetics')}
+            variant="outline"
+            className="text-white border-white hover:bg-white hover:text-black"
+            data-testid="button-cosmetics"
+          >
+            <i className="fas fa-palette mr-2"></i>
+            Cosmetics
+          </Button>
+          <Button 
+            onClick={() => setLocation('/settings')}
+            variant="outline"
+            className="text-white border-white hover:bg-white hover:text-black"
+            data-testid="button-settings"
+          >
+            <i className="fas fa-cog mr-2"></i>
+            Settings
+          </Button>
+          <button 
+            onClick={handleLogout}
+            className="text-white text-2xl hover:text-red-500 transition-colors" 
+            data-testid="button-logout"
+          >
+            <i className="fas fa-sign-out-alt"></i>
+          </button>
+        </div>
       </header>
 
       {/* Game Logo */}
