@@ -276,7 +276,7 @@ export default function Game() {
               {/* Player name with elegant typography */}
               <div className="mb-8">
                 <div className="text-4xl font-bold bg-gradient-to-r from-game-gold to-yellow-300 bg-clip-text text-transparent mb-3">
-                  {gameState?.players[gameState?.currentPlayerIndex || 0]?.name}'s Turn
+                  {gameState?.players[gameState?.currentPlayerIndex || 0]?.name === 'You' ? 'Your Turn' : `${gameState?.players[gameState?.currentPlayerIndex || 0]?.name}'s Turn`}
                 </div>
                 <div className="text-slate-300 text-xl font-medium">
                   Round {(gameState?.currentRound || 0) + 1}
