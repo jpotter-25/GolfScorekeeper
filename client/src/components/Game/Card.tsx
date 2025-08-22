@@ -96,7 +96,7 @@ export default function Card({
           <img 
             src={cardBackAsset} 
             alt="Card back"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover rounded-xl"
           />
         ) : (
           <>
