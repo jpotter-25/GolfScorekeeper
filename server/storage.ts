@@ -86,6 +86,29 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
+    
+    // Check if user has default cosmetics, if not, give them
+    const userCosmeticsCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userCosmetics)
+      .where(eq(userCosmetics.userId, user.id));
+    
+    if (userCosmeticsCount[0].count === 0) {
+      // Give user default cosmetics (all free ones)
+      const freeCosmetics = await db
+        .select()
+        .from(cosmetics)
+        .where(eq(cosmetics.cost, 0));
+      
+      for (const cosmetic of freeCosmetics) {
+        await db.insert(userCosmetics).values({
+          userId: user.id,
+          cosmeticId: cosmetic.id,
+          equipped: true // Equip all default cosmetics
+        });
+      }
+    }
+    
     return user;
   }
 
@@ -166,19 +189,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async equipCosmetic(userId: string, cosmeticId: string): Promise<void> {
-    // First unequip all cosmetics of the same type
+    // Get the cosmetic type
     const [cosmetic] = await db.select().from(cosmetics).where(eq(cosmetics.id, cosmeticId));
     if (cosmetic) {
-      await db
-        .update(userCosmetics)
-        .set({ equipped: false })
-        .where(eq(userCosmetics.userId, userId));
+      // First unequip all cosmetics of the same type
+      const userCosmeticsOfType = await db
+        .select()
+        .from(userCosmetics)
+        .innerJoin(cosmetics, eq(userCosmetics.cosmeticId, cosmetics.id))
+        .where(and(
+          eq(userCosmetics.userId, userId),
+          eq(cosmetics.type, cosmetic.type)
+        ));
+      
+      // Unequip all cosmetics of this type
+      for (const uc of userCosmeticsOfType) {
+        await db
+          .update(userCosmetics)
+          .set({ equipped: false })
+          .where(eq(userCosmetics.id, uc.user_cosmetics.id));
+      }
       
       // Then equip the selected one
       await db
         .update(userCosmetics)
         .set({ equipped: true })
-        .where(eq(userCosmetics.cosmeticId, cosmeticId));
+        .where(and(
+          eq(userCosmetics.userId, userId),
+          eq(userCosmetics.cosmeticId, cosmeticId)
+        ));
     }
   }
 

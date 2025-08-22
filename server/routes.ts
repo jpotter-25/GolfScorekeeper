@@ -134,6 +134,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  // Cosmetics routes
+  app.get('/api/cosmetics/:category?', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const category = req.params.category;
+      
+      // Get all cosmetics (filtered by category if provided)
+      const allCosmetics = await storage.getAllCosmetics();
+      const cosmetics = category 
+        ? allCosmetics.filter(c => c.type === category)
+        : allCosmetics;
+      
+      // Get user's owned cosmetics
+      const userCosmetics = await storage.getUserCosmetics(userId);
+      
+      // Combine cosmetic data with ownership info
+      const cosmeticsWithOwnership = cosmetics.map(cosmetic => {
+        const userCosmetic = userCosmetics.find(uc => uc.cosmeticId === cosmetic.id);
+        return {
+          ...cosmetic,
+          owned: !!userCosmetic,
+          equipped: userCosmetic?.equipped || false
+        };
+      });
+      
+      res.json(cosmeticsWithOwnership);
+    } catch (error) {
+      console.error("Error fetching cosmetics:", error);
+      res.status(500).json({ message: "Failed to fetch cosmetics" });
+    }
+  });
+
+  app.get('/api/user/cosmetics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userCosmetics = await storage.getUserCosmetics(userId);
+      const allCosmetics = await storage.getAllCosmetics();
+      
+      // Add cosmetic details to user cosmetics
+      const cosmeticsWithDetails = userCosmetics.map(uc => {
+        const cosmetic = allCosmetics.find(c => c.id === uc.cosmeticId);
+        return {
+          ...uc,
+          name: cosmetic?.name || '',
+          type: cosmetic?.type || '',
+          imageUrl: cosmetic?.imageUrl || ''
+        };
+      });
+      
+      res.json(cosmeticsWithDetails);
+    } catch (error) {
+      console.error("Error fetching user cosmetics:", error);
+      res.status(500).json({ message: "Failed to fetch user cosmetics" });
+    }
+  });
+
+  app.post('/api/cosmetics/purchase', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { cosmeticId } = req.body;
+
+      // Get cosmetic details
+      const cosmetics = await storage.getAllCosmetics();
+      const cosmetic = cosmetics.find(c => c.id === cosmeticId);
+      if (!cosmetic) {
+        return res.status(404).json({ message: "Cosmetic not found" });
+      }
+
+      // Check if user has enough currency
+      const user = await storage.getUser(userId);
+      if (!user || (user.currency || 0) < cosmetic.cost) {
+        return res.status(400).json({ message: "Insufficient currency" });
+      }
+
+      // Check if user already owns this cosmetic
+      const userCosmetics = await storage.getUserCosmetics(userId);
+      if (userCosmetics.some(uc => uc.cosmeticId === cosmeticId)) {
+        return res.status(400).json({ message: "Already owned" });
+      }
+
+      // Purchase cosmetic
+      await storage.spendCurrency(userId, cosmetic.cost);
+      const purchasedCosmetic = await storage.purchaseCosmetic({
+        userId,
+        cosmeticId,
+        equipped: false
+      });
+
+      res.json(purchasedCosmetic);
+    } catch (error) {
+      console.error("Error purchasing cosmetic:", error);
+      res.status(500).json({ message: "Failed to purchase cosmetic" });
+    }
+  });
+
+  app.post('/api/cosmetics/equip', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { cosmeticId } = req.body;
+
+      await storage.equipCosmetic(userId, cosmeticId);
+      res.json({ message: "Cosmetic equipped successfully" });
+    } catch (error) {
+      console.error("Error equipping cosmetic:", error);
+      res.status(500).json({ message: "Failed to equip cosmetic" });
+    }
+  });
 
   // Settings routes
   app.get('/api/user/settings', isAuthenticated, async (req: any, res) => {
