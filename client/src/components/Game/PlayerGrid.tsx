@@ -74,13 +74,7 @@ export default function PlayerGrid({
         ))}
       </div>
 
-      {/* Special Rule Indicator */}
-      {threeOfAKindColumns.length > 0 && (
-        <div className="mt-4 bg-highlight-green bg-opacity-20 text-highlight-green px-4 py-2 rounded-lg inline-block" data-testid="indicator-three-of-kind">
-          <i className="fas fa-star mr-2"></i>
-          Three of a Kind! Column Zeroed - Extra Turn
-        </div>
-      )}
+
     </div>
   );
 }
