@@ -43,14 +43,14 @@ export default function Card({
 
   const getHighlightClasses = () => {
     if (isSelected) {
-      return 'border-highlight-blue border-2';
+      return 'ring-2 ring-highlight-blue';
     }
     if (isHighlighted) {
       return highlightColor === 'green' 
-        ? 'border-highlight-green border-2 shadow-lg' 
-        : 'border-highlight-blue border-2';
+        ? 'ring-2 ring-highlight-green shadow-lg' 
+        : 'ring-2 ring-highlight-blue';
     }
-    return 'border-white border-opacity-20 border-2';
+    return 'ring-2 ring-white ring-opacity-20';
   };
 
   const getCardColor = (card: CardType) => {
@@ -64,7 +64,7 @@ export default function Card({
         className={cn(
           'bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-500 cursor-not-allowed',
           getSizeClasses(),
-          'border-gray-300 dark:border-gray-600 border-2',
+          'ring-2 ring-gray-300 dark:ring-gray-600',
           className
         )}
         data-testid={testId}
