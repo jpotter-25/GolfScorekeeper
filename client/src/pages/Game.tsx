@@ -14,6 +14,8 @@ export default function Game() {
   const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [showGameResults, setShowGameResults] = useState(false);
   const [skipNextEndTurn, setSkipNextEndTurn] = useState(false);
+  const [showTurnStart, setShowTurnStart] = useState(false);
+  const [lastActivePlayer, setLastActivePlayer] = useState<number | null>(null);
   const {
     gameState,
     isProcessing,
@@ -118,6 +120,22 @@ export default function Game() {
     return () => window.removeEventListener('skipEndTurn', handleSkipEndTurn);
   }, []);
 
+  // Handle pass-and-play turn transitions
+  useEffect(() => {
+    if (!gameState || gameState.gameMode !== 'pass-play') return;
+    
+    // Check if player changed and show turn start overlay
+    if (lastActivePlayer !== null && lastActivePlayer !== gameState.currentPlayerIndex) {
+      setShowTurnStart(true);
+    }
+    
+    setLastActivePlayer(gameState.currentPlayerIndex);
+  }, [gameState?.currentPlayerIndex, gameState?.gameMode, lastActivePlayer]);
+
+  const handleTurnStart = () => {
+    setShowTurnStart(false);
+  };
+
   const handlePeekCard = (position: number) => {
     if (!gameState || gameState.gamePhase !== 'peek') return;
     
@@ -205,6 +223,7 @@ export default function Game() {
           onKeepRevealedCard={() => handleCardAction('keep-revealed')}
           onPeekCard={handlePeekCard}
           onEndTurn={endTurn}
+          onTurnStart={handleTurnStart}
         />
       </div>
 
@@ -230,6 +249,25 @@ export default function Game() {
             >
               Quit to Menu
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pass-and-Play Turn Start Overlay */}
+      <Dialog open={showTurnStart} onOpenChange={() => {}}>
+        <DialogContent className="max-w-md" onClick={handleTurnStart}>
+          <div className="p-8 text-center cursor-pointer" onClick={handleTurnStart}>
+            <div className="mb-6">
+              <div className="text-3xl font-bold text-game-gold mb-2">
+                {gameState?.players[gameState?.currentPlayerIndex || 0]?.name}'s Turn
+              </div>
+              <div className="text-white text-lg">
+                Round {(gameState?.currentRound || 0) + 1}
+              </div>
+            </div>
+            <div className="text-white opacity-80 text-lg">
+              Tap anywhere to begin
+            </div>
           </div>
         </DialogContent>
       </Dialog>

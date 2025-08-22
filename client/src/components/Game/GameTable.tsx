@@ -15,6 +15,7 @@ interface GameTableProps {
   onKeepRevealedCard: () => void;
   onPeekCard: (position: number) => void;
   onEndTurn: () => void;
+  onTurnStart?: () => void;
 }
 
 export default function GameTable({
@@ -24,7 +25,8 @@ export default function GameTable({
   onKeepDrawnCard,
   onKeepRevealedCard,
   onPeekCard,
-  onEndTurn
+  onEndTurn,
+  onTurnStart
 }: GameTableProps) {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   
@@ -78,21 +80,7 @@ export default function GameTable({
   const canDiscardDirectly = gameState.drawnCard && humanPlayerFaceDownCount === 1 && isPlayerTurn && gameState.selectedGridPosition === null && !gameState.roundEndTriggered;
 
   return (
-    <div className="h-full max-w-6xl mx-auto">
-      {/* Pass-and-Play Current Player Indicator */}
-      {gameState.gameMode === 'pass-play' && (
-        <div className="text-center mb-4">
-          <div className="bg-game-gold bg-opacity-20 border border-game-gold rounded-lg p-3 inline-block">
-            <div className="text-game-gold font-bold text-lg">
-              {humanPlayer.name}'s Turn
-            </div>
-            <div className="text-white text-sm opacity-80">
-              Round {gameState.currentRound + 1} | Score: {humanPlayer.roundScore} | Total: {humanPlayer.totalScore}
-            </div>
-          </div>
-        </div>
-      )}
-
+    <div className="h-full max-w-6xl mx-auto relative">
       {/* Opponent Player Grids - Other players in pass-and-play or AI players in solo */}
       <div className={cn('mb-6', getOpponentPlayerLayout())} data-testid="opponent-grids">
         {aiPlayers.map((aiPlayer, index) => (
