@@ -11,6 +11,7 @@ import HowToPlay from '@/components/Game/HowToPlay';
 import { getCosmeticAsset } from '@/utils/cosmeticAssets';
 interface CosmeticWithDetails {
   id: string;
+  cosmeticId: string;
   name: string;
   type: string;
   equipped: boolean;
@@ -39,7 +40,9 @@ export default function Home() {
 
   // Function to render cosmetic preview images
   const getPreviewImage = (cosmetic: CosmeticWithDetails) => {
-    const assetUrl = getCosmeticAsset(cosmetic.id);
+    // Use the cosmetic ID (classic_blue, green_felt, etc.) instead of the database row ID
+    const assetUrl = getCosmeticAsset(cosmetic.cosmeticId);
+    
     if (assetUrl) {
       return (
         <div className="w-12 h-12 rounded-lg border border-game-gold/50 overflow-hidden shadow-lg bg-slate-700/30">
