@@ -41,13 +41,14 @@ export default function Game() {
     startGame(settings);
   }, [startGame]);
 
-  // Handle AI turns
+  // Handle AI turns (only in solo mode)
   useEffect(() => {
     if (!gameState || isProcessing) return;
 
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     
-    if (currentPlayer.isAI && gameState.gamePhase !== 'game-end') {
+    // Only process AI turns in solo mode
+    if (gameState.gameMode === 'solo' && currentPlayer.isAI && gameState.gamePhase !== 'game-end') {
       // For peek phase, check if AI hasn't finished peeking yet
       if (gameState.gamePhase === 'peek') {
         const aiRevealedCount = currentPlayer.grid.filter(card => card.isRevealed).length;
@@ -203,6 +204,7 @@ export default function Game() {
           onKeepDrawnCard={() => handleCardAction('keep-drawn')}
           onKeepRevealedCard={() => handleCardAction('keep-revealed')}
           onPeekCard={handlePeekCard}
+          onEndTurn={endTurn}
         />
       </div>
 

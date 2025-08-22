@@ -14,6 +14,7 @@ interface GameTableProps {
   onKeepDrawnCard: () => void;
   onKeepRevealedCard: () => void;
   onPeekCard: (position: number) => void;
+  onEndTurn: () => void;
 }
 
 export default function GameTable({
@@ -22,15 +23,31 @@ export default function GameTable({
   onSelectGridPosition,
   onKeepDrawnCard,
   onKeepRevealedCard,
-  onPeekCard
+  onPeekCard,
+  onEndTurn
 }: GameTableProps) {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const humanPlayer = gameState.players[0];
-  const aiPlayers = gameState.players.filter((_, index) => index !== 0);
-  const isPlayerTurn = gameState.currentPlayerIndex === 0;
+  
+  // Handle different game modes
+  let humanPlayer, aiPlayers, isPlayerTurn;
+  
+  if (gameState.gameMode === 'pass-play') {
+    // In pass-and-play mode, the current player is always the "human" player in main grid
+    humanPlayer = currentPlayer;
+    aiPlayers = gameState.players.filter((_, index) => index !== gameState.currentPlayerIndex);
+    isPlayerTurn = true; // Always true in pass-and-play since current player is always active
+  } else {
+    // Solo mode: Player 0 is human, others are AI
+    humanPlayer = gameState.players[0];
+    aiPlayers = gameState.players.filter((_, index) => index !== 0);
+    isPlayerTurn = gameState.currentPlayerIndex === 0;
+  }
 
-  const getAIPlayerLayout = () => {
-    switch (aiPlayers.length) {
+  const getOpponentPlayerLayout = () => {
+    const opponentCount = aiPlayers.length;
+    switch (opponentCount) {
+      case 0:
+        return 'hidden'; // No opponents to show
       case 1:
         return 'flex justify-center';
       case 2:
@@ -62,8 +79,22 @@ export default function GameTable({
 
   return (
     <div className="h-full max-w-6xl mx-auto">
-      {/* AI Player Grids - Always visible */}
-      <div className={cn('mb-6', getAIPlayerLayout())} data-testid="opponent-grids">
+      {/* Pass-and-Play Current Player Indicator */}
+      {gameState.gameMode === 'pass-play' && (
+        <div className="text-center mb-4">
+          <div className="bg-game-gold bg-opacity-20 border border-game-gold rounded-lg p-3 inline-block">
+            <div className="text-game-gold font-bold text-lg">
+              {humanPlayer.name}'s Turn
+            </div>
+            <div className="text-white text-sm opacity-80">
+              Round {gameState.currentRound + 1} | Score: {humanPlayer.roundScore} | Total: {humanPlayer.totalScore}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Opponent Player Grids - Other players in pass-and-play or AI players in solo */}
+      <div className={cn('mb-6', getOpponentPlayerLayout())} data-testid="opponent-grids">
         {aiPlayers.map((aiPlayer, index) => (
           <OpponentGrid
             key={aiPlayer.id}
@@ -190,6 +221,19 @@ export default function GameTable({
                   </Button>
                 </div>
               </>
+            )}
+            
+            {/* Pass-and-Play End Turn Button */}
+            {gameState.gameMode === 'pass-play' && !gameState.drawnCard && (
+              <div className="text-center mt-4">
+                <Button
+                  onClick={onEndTurn}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                  data-testid="button-end-turn"
+                >
+                  End Turn & Pass Device
+                </Button>
+              </div>
             )}
           </div>
         </div>
