@@ -142,8 +142,9 @@ export default function Game() {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     const revealedCount = currentPlayer.grid.filter(card => card.isRevealed).length;
     
-    // Only allow human player to peek on their turn
-    if (gameState.currentPlayerIndex !== 0) return;
+    // In solo mode, only allow human player (index 0) to peek
+    // In pass-and-play mode, allow current player to peek
+    if (gameState.gameMode === 'solo' && gameState.currentPlayerIndex !== 0) return;
     
     if (revealedCount < 2 && !currentPlayer.grid[position].isRevealed) {
       peekCard(position);
