@@ -164,7 +164,9 @@ export default function Cosmetics() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {cosmetics.map((cosmetic) => (
+                {cosmetics
+                  .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
+                  .map((cosmetic) => (
                   <Card 
                     key={cosmetic.id} 
                     className={cn(
