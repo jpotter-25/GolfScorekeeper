@@ -83,28 +83,23 @@ export default function Card({
     return (
       <div
         className={cn(
-          'rounded-xl flex items-center justify-center text-white cursor-pointer transition-all relative overflow-hidden bg-transparent',
+          'rounded-xl flex items-center justify-center text-white cursor-pointer transition-all relative overflow-hidden',
           getSizeClasses(),
           // Only show rings when selected or highlighted, not for default state
           (isSelected || isHighlighted) ? getHighlightClasses() : '',
           onClick && !isDisabled && 'hover:scale-105',
           className
         )}
+        style={cardBackAsset ? {
+          backgroundImage: `url(${cardBackAsset})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        } : {}}
         onClick={!isDisabled ? onClick : undefined}
         data-testid={testId}
       >
-        {cardBackAsset ? (
-          <div 
-            className="w-full h-full rounded-xl"
-            style={{
-              backgroundImage: `url(${cardBackAsset})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              clipPath: 'inset(0 round 12px)'
-            }}
-          />
-        ) : (
+        {!cardBackAsset && (
           <>
             {/* Fallback pattern */}
             <div 
