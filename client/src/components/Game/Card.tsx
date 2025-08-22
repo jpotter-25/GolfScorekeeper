@@ -93,10 +93,14 @@ export default function Card({
         data-testid={testId}
       >
         {cardBackAsset ? (
-          <img 
-            src={cardBackAsset} 
-            alt="Card back"
-            className="w-full h-full object-cover rounded-xl"
+          <div 
+            className="w-full h-full"
+            style={{
+              backgroundImage: `url(${cardBackAsset})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            }}
           />
         ) : (
           <>
