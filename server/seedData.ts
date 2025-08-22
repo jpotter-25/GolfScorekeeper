@@ -88,14 +88,14 @@ export async function seedCosmetics() {
     },
     // Avatars
     {
-      id: "default_avatar",
+      id: "default_avatar", 
       type: "avatar",
       name: "Default",
-      description: "Classic player avatar",
+      description: "Classic golfer avatar",
       rarity: "common",
       cost: 0,
       unlockLevel: 1,
-      imageUrl: "/cosmetics/avatars/default.png"
+      imageUrl: "@assets/generated_images/Professional_Golfer_Avatar_52698db1.png"
     },
     {
       id: "professional_avatar",
@@ -139,12 +139,12 @@ export async function seedCosmetics() {
     },
     {
       id: "golfer_avatar",
-      type: "avatar",
+      type: "avatar", 
       name: "Pro Golfer",
-      description: "Classic golf professional with club",
-      rarity: "common",
-      cost: 25,
-      unlockLevel: 3,
+      description: "Professional tournament player",
+      rarity: "rare",
+      cost: 75,
+      unlockLevel: 8,
       imageUrl: "@assets/generated_images/Professional_Golfer_Avatar_52698db1.png"
     },
     {

@@ -22,6 +22,7 @@ export const cosmeticAssets: Record<string, string> = {
   "midnight_black": midnightBlackCardBack,
   "green_felt": greenFeltTable,
   "wood_mahogany": mahoganyWoodTable,
+  "default_avatar": golferAvatar,
   "professional_avatar": professionalAvatar,
   "gaming_avatar": gamingAvatar,
   "elegant_avatar": elegantAvatar,
