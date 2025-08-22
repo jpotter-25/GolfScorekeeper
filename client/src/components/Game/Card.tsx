@@ -83,9 +83,10 @@ export default function Card({
     return (
       <div
         className={cn(
-          'rounded-xl flex items-center justify-center text-white cursor-pointer transition-all relative overflow-hidden',
+          'rounded-xl flex items-center justify-center text-white cursor-pointer transition-all relative overflow-hidden bg-transparent',
           getSizeClasses(),
-          getHighlightClasses(),
+          // Only show rings when selected or highlighted, not for default state
+          (isSelected || isHighlighted) ? getHighlightClasses() : '',
           onClick && !isDisabled && 'hover:scale-105',
           className
         )}
