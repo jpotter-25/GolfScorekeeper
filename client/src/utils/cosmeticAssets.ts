@@ -14,6 +14,7 @@ import pokerAvatar from "@assets/generated_images/Poker_Player_Avatar_692713df.p
 import femaleProAvatar from "@assets/generated_images/Professional_Female_Avatar_ce38d866.png";
 import americanFlagAvatar from "@assets/generated_images/American_Flag_Avatar_88ae7301.png";
 import femaleGamerAvatar from "@assets/generated_images/Female_Gamer_Avatar_d7259774.png";
+import defaultAvatar from "@assets/generated_images/Simple_Default_Avatar_fab5c9e0.png";
 
 // Asset mapping for cosmetics
 export const cosmeticAssets: Record<string, string> = {
@@ -22,7 +23,7 @@ export const cosmeticAssets: Record<string, string> = {
   "midnight_black": midnightBlackCardBack,
   "green_felt": greenFeltTable,
   "wood_mahogany": mahoganyWoodTable,
-  "default_avatar": golferAvatar,
+  "default_avatar": defaultAvatar,
   "professional_avatar": professionalAvatar,
   "gaming_avatar": gamingAvatar,
   "elegant_avatar": elegantAvatar,

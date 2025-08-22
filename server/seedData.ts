@@ -91,11 +91,11 @@ export async function seedCosmetics() {
       id: "default_avatar", 
       type: "avatar",
       name: "Default",
-      description: "Classic golfer avatar",
+      description: "Simple default player avatar",
       rarity: "common",
       cost: 0,
       unlockLevel: 1,
-      imageUrl: "@assets/generated_images/Professional_Golfer_Avatar_52698db1.png"
+      imageUrl: "@assets/generated_images/Simple_Default_Avatar_fab5c9e0.png"
     },
     {
       id: "professional_avatar",
