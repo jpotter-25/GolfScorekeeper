@@ -190,15 +190,11 @@ export function useGameLogic() {
       // Process three of a kind
       const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
       if (threeOfAKindResult.hasThreeOfAKind) {
-        console.log('🎰 THREE OF A KIND DETECTED in keepDrawnCard - Setting extraTurn = true');
-        console.log('🎮 Game Mode:', newState.gameMode);
         currentPlayer.grid = threeOfAKindResult.updatedGrid;
         newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;
-        console.log('📌 extraTurn flag is now:', newState.extraTurn);
         
         // Emit event to skip automatic endTurn
-        console.log('🚀 Dispatching skipEndTurn event');
         window.dispatchEvent(new CustomEvent('skipEndTurn'));
       }
 
@@ -246,14 +242,11 @@ export function useGameLogic() {
       // Process three of a kind
       const threeOfAKindResult = processThreeOfAKind(currentPlayer.grid, newState.discardPile);
       if (threeOfAKindResult.hasThreeOfAKind) {
-        console.log('🎰 THREE OF A KIND DETECTED in keepRevealedCard - Setting extraTurn = true');
-        console.log('🎮 Game Mode:', newState.gameMode);
         currentPlayer.grid = threeOfAKindResult.updatedGrid;
         newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;
         
         // Emit event to skip automatic endTurn
-        console.log('🚀 Dispatching skipEndTurn event');
         window.dispatchEvent(new CustomEvent('skipEndTurn'));
       }
 
