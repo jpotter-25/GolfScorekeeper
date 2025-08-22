@@ -195,6 +195,9 @@ export function useGameLogic() {
         newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;
         console.log('📌 extraTurn flag is now:', newState.extraTurn);
+        
+        // Emit event to skip automatic endTurn
+        window.dispatchEvent(new CustomEvent('skipEndTurn'));
       }
 
       // Check if round should end immediately after placing card
@@ -245,6 +248,9 @@ export function useGameLogic() {
         currentPlayer.grid = threeOfAKindResult.updatedGrid;
         newState.discardPile = threeOfAKindResult.updatedDiscardPile;
         newState.extraTurn = true;
+        
+        // Emit event to skip automatic endTurn
+        window.dispatchEvent(new CustomEvent('skipEndTurn'));
       }
 
       // Check if round should end immediately after revealing card

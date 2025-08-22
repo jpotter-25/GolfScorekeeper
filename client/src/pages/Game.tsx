@@ -13,6 +13,7 @@ export default function Game() {
   const [, setLocation] = useLocation();
   const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [showGameResults, setShowGameResults] = useState(false);
+  const [skipNextEndTurn, setSkipNextEndTurn] = useState(false);
   const {
     gameState,
     isProcessing,
@@ -105,6 +106,17 @@ export default function Game() {
     return () => window.removeEventListener('directDiscard', handleDirectDiscard);
   }, [directDiscardCard, endTurn]);
 
+  // Handle skip endTurn event when three-of-a-kind is detected
+  useEffect(() => {
+    const handleSkipEndTurn = () => {
+      console.log('🎯 Received skipEndTurn event - setting flag');
+      setSkipNextEndTurn(true);
+    };
+    
+    window.addEventListener('skipEndTurn', handleSkipEndTurn);
+    return () => window.removeEventListener('skipEndTurn', handleSkipEndTurn);
+  }, []);
+
   const handlePeekCard = (position: number) => {
     if (!gameState || gameState.gamePhase !== 'peek') return;
     
@@ -133,16 +145,16 @@ export default function Game() {
       keepRevealedCard();
     }
     
-    // Wait longer for state updates, then check if extra turn was granted
+    // Check if we should skip the automatic endTurn after the state updates
     setTimeout(() => {
-      // Access the latest game state via a closure
-      if (gameState?.extraTurn) {
-        console.log('🚫 Skipping endTurn because extraTurn is active');
+      if (skipNextEndTurn) {
+        console.log('🚫 Skipping endTurn because extraTurn was granted');
+        setSkipNextEndTurn(false); // Reset the flag
         return;
       }
       console.log('✅ No extra turn, calling endTurn normally');
       endTurn();
-    }, 1500); // Increased delay to allow state updates to process
+    }, 1500);
   };
 
   const backToMenu = () => {
