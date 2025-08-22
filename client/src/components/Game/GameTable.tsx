@@ -123,13 +123,13 @@ export default function GameTable({
                 className={cn(
                   'card-pile w-16 h-24 bg-card-back rounded-lg border-2 border-white border-opacity-30 cursor-pointer transition-colors',
                   canDrawCard && 'hover:border-highlight-blue',
-                  !canDrawCard && 'opacity-50 cursor-not-allowed'
+                  !canDrawCard && 'cursor-not-allowed'
                 )}
                 onClick={canDrawCard ? () => onDrawCard('draw') : undefined}
                 data-testid="button-draw-pile"
               >
-                <div className="absolute inset-0 bg-black bg-opacity-20 rounded-lg"></div>
-                <div className="absolute inset-0 bg-black bg-opacity-10 rounded-lg transform translate-x-0.5 translate-y-0.5"></div>
+                <div className="absolute inset-0 bg-black rounded-lg"></div>
+                <div className="absolute inset-0 bg-black rounded-lg transform translate-x-0.5 translate-y-0.5"></div>
               </div>
               
               {/* Active drawn card overlay */}
@@ -152,7 +152,7 @@ export default function GameTable({
               isDisabled={!canDrawFromDiscard || gameState.extraTurn}
               className={cn(
                 canDrawFromDiscard && !gameState.extraTurn && 'cursor-pointer hover:border-highlight-blue',
-                (!canDrawFromDiscard || gameState.extraTurn) && 'opacity-30 cursor-not-allowed'
+                (!canDrawFromDiscard || gameState.extraTurn) && 'cursor-not-allowed'
               )}
               data-testid="button-discard-pile"
             />
