@@ -96,21 +96,20 @@ export default function Card({
           <img 
             src={cardBackAsset} 
             alt="Card back"
-            className="w-full h-full object-cover rounded-xl"
+            className="w-full h-full object-cover"
           />
         ) : (
           <>
             {/* Fallback pattern */}
             <div 
-              className="absolute inset-0"
+              className="absolute inset-0 rounded-xl"
               style={{
-                background: cardBackStyle.background,
-                border: cardBackStyle.border
+                background: cardBackStyle.background
               }}
             />
             {cardBackStyle.pattern !== 'none' && (
               <div 
-                className="absolute inset-0"
+                className="absolute inset-0 rounded-xl"
                 style={{ background: cardBackStyle.pattern }}
               />
             )}
