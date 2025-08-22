@@ -150,87 +150,81 @@ export default function GameTable({
                     (gameState.gamePhase === 'playing' && gameState.drawnCard && !gameState.roundEndTriggered ? onSelectGridPosition : undefined)}
       />
 
-      {/* Game Actions */}
-      {gameState.gamePhase === 'playing' && (
-        <div className="bg-game-felt border-t border-white border-opacity-10 p-4 mt-6">
-          <div className="max-w-2xl mx-auto">
-            {gameState.drawnCard && (
-              <>
-                <div className="text-center text-white mb-3">
-                  <div className="text-sm opacity-80">
-                    {gameState.roundEndTriggered
-                      ? 'Round ended! All players get one final turn.'
-                      : canDiscardDirectly
-                        ? 'With only 1 face-down card left, you can discard directly or place the card'
-                        : gameState.selectedGridPosition !== null 
-                          ? 'Choose to keep the drawn card or the revealed card'
-                          : 'Select a card slot to place your drawn card (you can only reveal one card per turn)'
-                    }
-                  </div>
+      {/* Game Actions - Fixed Height Container */}
+      <div className="bg-game-felt border-t border-white border-opacity-10 p-4 mt-6 min-h-[140px]">
+        <div className="max-w-2xl mx-auto h-full flex flex-col justify-center">
+          {gameState.gamePhase === 'playing' && gameState.drawnCard && (
+            <>
+              <div className="text-center text-white mb-3">
+                <div className="text-sm opacity-80">
+                  {gameState.roundEndTriggered
+                    ? 'Round ended! All players get one final turn.'
+                    : canDiscardDirectly
+                      ? 'With only 1 face-down card left, you can discard directly or place the card'
+                      : gameState.selectedGridPosition !== null 
+                        ? 'Choose to keep the drawn card or the revealed card'
+                        : 'Select a card slot to place your drawn card (you can only reveal one card per turn)'
+                  }
                 </div>
-                <div className="flex justify-center space-x-4">
-                  {canDiscardDirectly && (
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        // Directly discard the drawn card without revealing anything
-                        const event = new CustomEvent('directDiscard');
-                        window.dispatchEvent(event);
-                      }}
-                      data-testid="button-direct-discard"
-                    >
-                      <i className="fas fa-trash mr-2"></i>
-                      Discard Card
-                    </Button>
-                  )}
+              </div>
+              <div className="flex justify-center space-x-4">
+                {canDiscardDirectly && (
                   <Button
                     variant="destructive"
-                    onClick={onKeepRevealedCard}
-                    disabled={!canMakeChoice}
-                    data-testid="button-keep-revealed"
+                    onClick={() => {
+                      // Directly discard the drawn card without revealing anything
+                      const event = new CustomEvent('directDiscard');
+                      window.dispatchEvent(event);
+                    }}
+                    data-testid="button-direct-discard"
                   >
-                    <i className="fas fa-times mr-2"></i>
-                    {canMakeChoice ? 'Discard Drawn' : 'Discard Drawn'}
+                    <i className="fas fa-trash mr-2"></i>
+                    Discard Card
                   </Button>
-                  <Button
-                    className="bg-game-gold hover:bg-yellow-500"
-                    onClick={onKeepDrawnCard}
-                    disabled={!canMakeChoice}
-                    data-testid="button-keep-drawn"
-                  >
-                    <i className="fas fa-check mr-2"></i>
-                    Keep Drawn
-                  </Button>
-                </div>
-              </>
-            )}
-            
-            {/* Pass-and-Play End Turn Button */}
-            {gameState.gameMode === 'pass-play' && !gameState.drawnCard && (
-              <div className="text-center mt-4">
+                )}
                 <Button
-                  onClick={onEndTurn}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
-                  data-testid="button-end-turn"
+                  variant="destructive"
+                  onClick={onKeepRevealedCard}
+                  disabled={!canMakeChoice}
+                  data-testid="button-keep-revealed"
                 >
-                  End Turn & Pass Device
+                  <i className="fas fa-times mr-2"></i>
+                  {canMakeChoice ? 'Discard Drawn' : 'Discard Drawn'}
+                </Button>
+                <Button
+                  className="bg-game-gold hover:bg-yellow-500"
+                  onClick={onKeepDrawnCard}
+                  disabled={!canMakeChoice}
+                  data-testid="button-keep-drawn"
+                >
+                  <i className="fas fa-check mr-2"></i>
+                  Keep Drawn
                 </Button>
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Peek Phase Instructions */}
-      {gameState.gamePhase === 'peek' && (
-        <div className="bg-game-felt border-t border-white border-opacity-10 p-4 mt-6">
-          <div className="text-center text-white">
-            <div className="text-sm opacity-80">
-              Click on 2 cards to reveal them before the game begins
+            </>
+          )}
+          
+          {gameState.gamePhase === 'playing' && gameState.gameMode === 'pass-play' && !gameState.drawnCard && (
+            <div className="text-center">
+              <Button
+                onClick={onEndTurn}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                data-testid="button-end-turn"
+              >
+                End Turn & Pass Device
+              </Button>
             </div>
-          </div>
+          )}
+
+          {gameState.gamePhase === 'peek' && (
+            <div className="text-center text-white">
+              <div className="text-sm opacity-80">
+                Click on 2 cards to reveal them before the game begins
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
