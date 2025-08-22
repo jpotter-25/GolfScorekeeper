@@ -256,6 +256,9 @@ export default function Game() {
       {/* Pass-and-Play Turn Start Overlay */}
       <Dialog open={showTurnStart} onOpenChange={() => {}}>
         <DialogContent className="max-w-md" onClick={handleTurnStart}>
+          <DialogHeader className="sr-only">
+            <DialogTitle>Player Turn</DialogTitle>
+          </DialogHeader>
           <div className="p-8 text-center cursor-pointer" onClick={handleTurnStart}>
             <div className="mb-6">
               <div className="text-3xl font-bold text-game-gold mb-2">

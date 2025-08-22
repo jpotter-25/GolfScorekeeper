@@ -70,7 +70,7 @@ export function initializeGame(settings: GameSettings): GameState {
       roundScore: 0,
       totalScore: 0,
       isActive: i === 0,
-      avatar: i === 0 ? 'P1' : 'AI'
+      avatar: i === 0 ? 'P1' : isAI ? 'AI' : `P${i + 1}`
     });
   }
 
