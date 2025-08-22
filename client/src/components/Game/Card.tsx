@@ -50,7 +50,7 @@ export default function Card({
         ? 'ring-2 ring-highlight-green shadow-lg' 
         : 'ring-2 ring-highlight-blue';
     }
-    return 'ring-2 ring-white ring-opacity-20';
+    return ''; // No ring for normal card backs
   };
 
   const getCardColor = (card: CardType) => {
