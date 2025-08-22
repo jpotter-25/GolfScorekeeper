@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStats } from '@/hooks/useUserProgression';
 import HowToPlay from '@/components/Game/HowToPlay';
+import type { UserCosmeticWithDetails } from '@shared/schema';
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -15,6 +18,10 @@ export default function Home() {
   
   const { user } = useAuth();
   const { data: userStats } = useUserStats();
+  
+  const { data: userCosmetics = [] } = useQuery<UserCosmeticWithDetails[]>({
+    queryKey: ["/api/user/cosmetics"],
+  });
 
   const selectMode = (mode: 'solo' | 'pass-play' | 'online') => {
     setLocation(`/setup?mode=${mode}`);
@@ -207,6 +214,9 @@ export default function Home() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gray-900">Player Profile</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              View your stats, progress, and equipped cosmetics
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-6">
             {/* Avatar Section */}
@@ -217,6 +227,10 @@ export default function Home() {
               <Button 
                 variant="outline" 
                 size="sm"
+                onClick={() => {
+                  setShowProfile(false);
+                  setLocation('/cosmetics');
+                }}
                 data-testid="button-change-avatar"
               >
                 <i className="fas fa-edit mr-2"></i>
@@ -257,23 +271,61 @@ export default function Home() {
               </div>
             </div>
             
-            {/* Cosmetics Section */}
+            {/* Equipped Cosmetics Section */}
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Cosmetic Items</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="border-2 border-game-gold bg-game-gold bg-opacity-10 p-3 rounded-lg text-center">
-                  <i className="fas fa-palette text-game-gold text-xl mb-1"></i>
-                  <div className="text-xs text-gray-600">Default Deck</div>
-                </div>
-                <div className="border-2 border-gray-300 bg-gray-50 p-3 rounded-lg text-center opacity-50">
-                  <i className="fas fa-lock text-gray-400 text-xl mb-1"></i>
-                  <div className="text-xs text-gray-400">Royal Deck</div>
-                </div>
-                <div className="border-2 border-gray-300 bg-gray-50 p-3 rounded-lg text-center opacity-50">
-                  <i className="fas fa-lock text-gray-400 text-xl mb-1"></i>
-                  <div className="text-xs text-gray-400">Neon Deck</div>
-                </div>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-gray-900">Equipped Items</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setShowProfile(false);
+                    setLocation('/cosmetics');
+                  }}
+                  data-testid="button-manage-cosmetics"
+                >
+                  <i className="fas fa-palette mr-2"></i>
+                  Manage
+                </Button>
               </div>
+              
+              {userCosmetics.length > 0 ? (
+                <div className="space-y-2">
+                  {userCosmetics
+                    .filter(cosmetic => cosmetic.equipped)
+                    .map(cosmetic => (
+                      <div key={cosmetic.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded flex items-center justify-center">
+                            <i className="fas fa-palette text-white text-sm"></i>
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{cosmetic.name}</div>
+                            <div className="text-xs text-gray-500 capitalize">{cosmetic.type?.replace('_', ' ')}</div>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          <i className="fas fa-check mr-1"></i>
+                          Equipped
+                        </Badge>
+                      </div>
+                    ))}
+                  
+                  {userCosmetics.filter(c => c.equipped).length === 0 && (
+                    <div className="text-center py-4 text-gray-500">
+                      <i className="fas fa-palette text-2xl mb-2 opacity-50"></i>
+                      <p className="text-sm">No cosmetics equipped</p>
+                      <p className="text-xs">Visit the Cosmetics store to equip items</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <i className="fas fa-shopping-bag text-2xl mb-2 opacity-50"></i>
+                  <p className="text-sm">No cosmetics owned</p>
+                  <p className="text-xs">Visit the Cosmetics store to purchase items</p>
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
