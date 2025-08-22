@@ -103,14 +103,14 @@ export default function GameTable({
               onClick={canDrawFromDiscard ? () => onDrawCard('discard') : undefined}
               className={cn(
                 canDrawFromDiscard && 'cursor-pointer hover:border-highlight-blue',
-                !canDrawFromDiscard && 'opacity-50 cursor-not-allowed',
-                gameState.extraTurn && 'opacity-30' // Extra visual indication during extra turn
+                !canDrawFromDiscard && 'opacity-30 cursor-not-allowed',
+                gameState.extraTurn && 'opacity-20 grayscale border-red-500 border-2' // Strong visual indication during extra turn
               )}
               data-testid="button-discard-pile"
             />
             {gameState.extraTurn && (
-              <div className="text-xs text-yellow-400 mt-1 font-medium">
-                Extra Turn: Draw Pile Only
+              <div className="text-xs text-red-400 mt-1 font-medium bg-red-900 bg-opacity-30 px-2 py-1 rounded">
+                🚫 Extra Turn: Draw Pile Only
               </div>
             )}
           </div>
