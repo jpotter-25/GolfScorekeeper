@@ -367,11 +367,11 @@ export function useGameLogic() {
         }
       }
 
-      // If extra turn, don't advance player
+      // If extra turn, clear it and continue to next player (extra turn is complete)
       if (newState.extraTurn) {
-        console.log('🎯 Extra turn detected in endTurn - staying with same player, clearing extraTurn flag');
+        console.log('🎯 Extra turn complete - clearing extraTurn flag and advancing to next player');
         newState.extraTurn = false;
-        return newState;
+        // Don't return early - let normal player advancement happen below
       }
 
       // Clear any drawn card and selection when advancing to next player
