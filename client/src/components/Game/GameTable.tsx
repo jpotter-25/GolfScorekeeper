@@ -85,6 +85,8 @@ export default function GameTable({
   const tableThemeStyle = getTableThemeStyle();
   const tableAsset = getCosmeticAsset(tableThemeStyle.cosmeticId || 'green_felt');
   
+
+  
   return (
     <div 
       className="h-full max-w-6xl mx-auto relative rounded-lg overflow-hidden"

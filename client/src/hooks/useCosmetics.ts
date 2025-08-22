@@ -9,9 +9,12 @@ interface CosmeticWithDetails {
 }
 
 export function useCosmetics() {
-  const { data: userCosmetics = [], isLoading } = useQuery<CosmeticWithDetails[]>({
+  const { data: userCosmetics = [], isLoading, error } = useQuery<CosmeticWithDetails[]>({
     queryKey: ["/api/user/cosmetics"],
+    retry: 2,
   });
+
+
 
   const getEquippedCosmetic = (type: 'card_back' | 'avatar' | 'table_theme') => {
     return userCosmetics.find(cosmetic => 
@@ -25,7 +28,7 @@ export function useCosmetics() {
 
   const getCardBackStyle = () => {
     const cardBack = equippedCardBack;
-    const cosmeticId = cardBack?.id || 'classic_blue';
+    const cosmeticId = cardBack?.cosmeticId || 'classic_blue';
     
     switch (cosmeticId) {
       case 'royal_red':
@@ -54,7 +57,7 @@ export function useCosmetics() {
 
   const getTableThemeStyle = () => {
     const tableTheme = equippedTableTheme;
-    const cosmeticId = tableTheme?.id || 'green_felt';
+    const cosmeticId = tableTheme?.cosmeticId || 'green_felt';
     
     switch (cosmeticId) {
       case 'wood_mahogany':

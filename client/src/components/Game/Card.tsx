@@ -78,6 +78,8 @@ export default function Card({
     const cardBackStyle = getCardBackStyle();
     const cardBackAsset = getCosmeticAsset(cardBackStyle.cosmeticId || 'classic_blue');
     
+
+    
     return (
       <div
         className={cn(
