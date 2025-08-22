@@ -255,26 +255,44 @@ export default function Game() {
       </Dialog>
 
       {/* Pass-and-Play Turn Start Overlay */}
-      <Dialog open={showTurnStart} onOpenChange={() => {}}>
-        <DialogContent className="max-w-md" onClick={handleTurnStart}>
-          <DialogHeader className="sr-only">
-            <DialogTitle>Player Turn</DialogTitle>
-          </DialogHeader>
-          <div className="p-8 text-center cursor-pointer" onClick={handleTurnStart}>
-            <div className="mb-6">
-              <div className="text-3xl font-bold text-game-gold mb-2">
-                {gameState?.players[gameState?.currentPlayerIndex || 0]?.name}'s Turn
+      {showTurnStart && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 cursor-pointer"
+          onClick={handleTurnStart}
+        >
+          <div className="relative">
+            {/* Animated background glow */}
+            <div className="absolute inset-0 bg-gradient-to-r from-game-gold via-yellow-400 to-game-gold rounded-2xl blur-xl opacity-30 animate-pulse"></div>
+            
+            {/* Main content card */}
+            <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-game-gold shadow-2xl p-12 text-center transform transition-all hover:scale-105">
+              {/* Crown icon */}
+              <div className="mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 bg-game-gold rounded-full flex items-center justify-center">
+                  <span className="text-2xl">👑</span>
+                </div>
               </div>
-              <div className="text-white text-lg">
-                Round {(gameState?.currentRound || 0) + 1}
+              
+              {/* Player name with elegant typography */}
+              <div className="mb-8">
+                <div className="text-4xl font-bold bg-gradient-to-r from-game-gold to-yellow-300 bg-clip-text text-transparent mb-3">
+                  {gameState?.players[gameState?.currentPlayerIndex || 0]?.name}'s Turn
+                </div>
+                <div className="text-slate-300 text-xl font-medium">
+                  Round {(gameState?.currentRound || 0) + 1}
+                </div>
               </div>
-            </div>
-            <div className="text-white opacity-80 text-lg">
-              Tap anywhere to begin
+              
+              {/* Call to action */}
+              <div className="text-slate-400 text-lg font-medium flex items-center justify-center gap-2">
+                <span className="animate-bounce">✨</span>
+                Tap anywhere to begin
+                <span className="animate-bounce">✨</span>
+              </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Game Results */}
       <Dialog open={showGameResults} onOpenChange={() => {}}>
