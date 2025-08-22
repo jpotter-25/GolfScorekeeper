@@ -147,13 +147,17 @@ export default function Game() {
     
     // Check if we should skip the automatic endTurn after the state updates
     setTimeout(() => {
-      if (skipNextEndTurn) {
-        console.log('🚫 Skipping endTurn because extraTurn was granted');
-        setSkipNextEndTurn(false); // Reset the flag
-        return;
-      }
-      console.log('✅ No extra turn, calling endTurn normally');
-      endTurn();
+      // Use a function to get the latest state at execution time
+      setSkipNextEndTurn(currentSkipFlag => {
+        if (currentSkipFlag) {
+          console.log('🚫 Skipping endTurn because extraTurn was granted');
+          return false; // Reset the flag
+        } else {
+          console.log('✅ No extra turn, calling endTurn normally');
+          endTurn();
+          return false; // Keep flag false
+        }
+      });
     }, 1500);
   };
 
