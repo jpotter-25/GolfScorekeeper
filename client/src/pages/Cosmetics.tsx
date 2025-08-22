@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import type { Cosmetic, UserCosmetic, User } from "@shared/schema";
 import { Palette, Star, Crown, Gem, Coins, Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCosmeticAsset } from "@/utils/cosmeticAssets";
 
 interface CosmeticWithOwnership extends Cosmetic {
   owned: boolean;
@@ -181,18 +182,21 @@ export default function Cosmetics() {
                     
                     <CardContent>
                       <div className="aspect-square bg-gradient-to-br from-game-felt to-black rounded-lg mb-4 flex items-center justify-center">
-                        {cosmetic.imageUrl ? (
-                          <img 
-                            src={cosmetic.imageUrl} 
-                            alt={cosmetic.name}
-                            className="w-full h-full object-cover rounded-lg"
-                          />
-                        ) : (
-                          <div className="text-white opacity-50 text-center">
-                            <Palette className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-xs">Preview Coming Soon</p>
-                          </div>
-                        )}
+                        {(() => {
+                          const assetUrl = getCosmeticAsset(cosmetic.id);
+                          return assetUrl ? (
+                            <img 
+                              src={assetUrl} 
+                              alt={cosmetic.name}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                          ) : (
+                            <div className="text-white opacity-50 text-center">
+                              <Palette className="w-8 h-8 mx-auto mb-2" />
+                              <p className="text-xs">Preview Coming Soon</p>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div className="space-y-2">

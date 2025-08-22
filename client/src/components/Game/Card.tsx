@@ -2,6 +2,7 @@ import { Card as CardType } from '@/types/game';
 import { getCardDisplayValue } from '@/utils/gameLogic';
 import { cn } from '@/lib/utils';
 import { useCosmetics } from '@/hooks/useCosmetics';
+import { getCosmeticAsset } from '@/utils/cosmeticAssets';
 
 interface CardProps {
   card?: CardType | null;
@@ -75,6 +76,8 @@ export default function Card({
 
   if (!isRevealed || !card) {
     const cardBackStyle = getCardBackStyle();
+    const cardBackAsset = getCosmeticAsset(cardBackStyle.cosmeticId || 'classic_blue');
+    
     return (
       <div
         className={cn(
@@ -84,26 +87,39 @@ export default function Card({
           onClick && !isDisabled && 'hover:scale-105',
           className
         )}
-        style={{
-          background: cardBackStyle.background,
-          border: cardBackStyle.border
-        }}
         onClick={!isDisabled ? onClick : undefined}
         data-testid={testId}
       >
-        {/* Pattern overlay */}
-        {cardBackStyle.pattern !== 'none' && (
-          <div 
-            className="absolute inset-0"
-            style={{ background: cardBackStyle.pattern }}
+        {cardBackAsset ? (
+          <img 
+            src={cardBackAsset} 
+            alt="Card back"
+            className="w-full h-full object-cover rounded-xl"
           />
+        ) : (
+          <>
+            {/* Fallback pattern */}
+            <div 
+              className="absolute inset-0"
+              style={{
+                background: cardBackStyle.background,
+                border: cardBackStyle.border
+              }}
+            />
+            {cardBackStyle.pattern !== 'none' && (
+              <div 
+                className="absolute inset-0"
+                style={{ background: cardBackStyle.pattern }}
+              />
+            )}
+            
+            {/* Card back design */}
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="text-lg font-bold mb-1">♠</div>
+              <div className="text-xs font-semibold opacity-80">Golf 9</div>
+            </div>
+          </>
         )}
-        
-        {/* Card back design */}
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="text-lg font-bold mb-1">♠</div>
-          <div className="text-xs font-semibold opacity-80">Golf 9</div>
-        </div>
       </div>
     );
   }

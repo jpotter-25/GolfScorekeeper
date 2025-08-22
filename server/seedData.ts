@@ -64,7 +64,7 @@ export async function seedCosmetics() {
       rarity: "common",
       cost: 0,
       unlockLevel: 1,
-      imageUrl: "/cosmetics/card_backs/classic_blue.png"
+      imageUrl: "@assets/generated_images/Classic_Blue_Card_Back_be4bbe28.png"
     },
     {
       id: "royal_red",
@@ -74,7 +74,7 @@ export async function seedCosmetics() {
       rarity: "rare",
       cost: 50,
       unlockLevel: 5,
-      imageUrl: "/cosmetics/card_backs/royal_red.png"
+      imageUrl: "@assets/generated_images/Royal_Red_Card_Back_aafc7f73.png"
     },
     {
       id: "midnight_black",
@@ -84,7 +84,7 @@ export async function seedCosmetics() {
       rarity: "epic",
       cost: 150,
       unlockLevel: 15,
-      imageUrl: "/cosmetics/card_backs/midnight_black.png"
+      imageUrl: "@assets/generated_images/Midnight_Black_Card_Back_37a72889.png"
     },
     // Avatars
     {
@@ -116,7 +116,7 @@ export async function seedCosmetics() {
       rarity: "common",
       cost: 0,
       unlockLevel: 1,
-      imageUrl: "/cosmetics/tables/green_felt.png"
+      imageUrl: "@assets/generated_images/Green_Felt_Table_Texture_2c002c0f.png"
     },
     {
       id: "wood_mahogany",
@@ -126,7 +126,7 @@ export async function seedCosmetics() {
       rarity: "epic",
       cost: 200,
       unlockLevel: 20,
-      imageUrl: "/cosmetics/tables/mahogany.png"
+      imageUrl: "@assets/generated_images/Mahogany_Wood_Table_47b7e302.png"
     }
   ];
 

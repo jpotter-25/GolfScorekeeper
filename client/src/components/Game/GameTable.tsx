@@ -7,6 +7,7 @@ import Card from './Card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useCosmetics } from '@/hooks/useCosmetics';
+import { getCosmeticAsset } from '@/utils/cosmeticAssets';
 
 interface GameTableProps {
   gameState: GameState;
@@ -82,11 +83,17 @@ export default function GameTable({
   const canDiscardDirectly = gameState.drawnCard && humanPlayerFaceDownCount === 1 && isPlayerTurn && gameState.selectedGridPosition === null && !gameState.roundEndTriggered;
 
   const tableThemeStyle = getTableThemeStyle();
+  const tableAsset = getCosmeticAsset(tableThemeStyle.cosmeticId || 'green_felt');
   
   return (
     <div 
       className="h-full max-w-6xl mx-auto relative rounded-lg overflow-hidden"
-      style={{
+      style={tableAsset ? {
+        backgroundImage: `url(${tableAsset})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      } : {
         background: tableThemeStyle.background,
         backgroundImage: tableThemeStyle.texture !== 'none' ? tableThemeStyle.texture : undefined
       }}
