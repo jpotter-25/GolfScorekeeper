@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Plus, GamepadIcon, Trophy, MessageCircle, UserPlus, ArrowLeft, Home } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { getCosmeticAsset } from "@/lib/cosmetics";
 
 interface GameRoom {
   id: string;
@@ -62,6 +63,12 @@ export default function Multiplayer() {
     retry: false,
   });
 
+  // Fetch user cosmetics for avatar display
+  const { data: userCosmetics = [] } = useQuery({
+    queryKey: ['/api/user/cosmetics'],
+    retry: false,
+  });
+
   // Fetch tournaments
   const { data: tournaments = [] } = useQuery<Tournament[]>({
     queryKey: ['/api/tournaments'],
@@ -71,7 +78,8 @@ export default function Multiplayer() {
   // Join betting room mutation
   const joinBettingRoomMutation = useMutation({
     mutationFn: async (betAmount: number) => {
-      return await apiRequest('/api/game-rooms/join-betting', 'POST', { betAmount });
+      const res = await apiRequest('POST', '/api/game-rooms/join-betting', { betAmount });
+      return res.json();
     },
     onSuccess: (data: any) => {
       const betAmount = data.room?.betAmount || 0;
@@ -147,6 +155,13 @@ export default function Multiplayer() {
     addFriendMutation.mutate(friendCode.toUpperCase());
   };
 
+  // Calculate user display data
+  const displayName = user?.firstName 
+    ? `${user.firstName}${user?.lastName ? ` ${user.lastName}` : ''}`
+    : user?.email?.split('@')[0] 
+    ? user.email.split('@')[0] 
+    : 'Player';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt" data-testid="multiplayer-page">
       <div className="container mx-auto p-6 space-y-6">
@@ -199,26 +214,65 @@ export default function Multiplayer() {
         </TabsList>
 
         <TabsContent value="rooms" className="space-y-6">
-          {/* User Balance */}
-          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-game-gold/20 rounded-full flex items-center justify-center">
-                    <i className="fas fa-coins text-game-gold text-xl"></i>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold text-lg">Your Balance</p>
-                    <p className="text-slate-300 text-sm">Available to bet</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-3xl font-bold text-game-gold">{userStats?.coins || 0}</p>
-                  <p className="text-slate-400 text-sm">coins</p>
-                </div>
+          {/* User Profile Header */}
+          <header className="flex justify-between items-center p-6 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl rounded-lg">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 overflow-hidden">
+                {(() => {
+                  const equippedAvatar = userCosmetics.find(cosmetic => 
+                    cosmetic.type === 'avatar' && cosmetic.equipped
+                  );
+                  if (equippedAvatar) {
+                    const assetUrl = getCosmeticAsset(equippedAvatar.cosmeticId);
+                    if (assetUrl) {
+                      return (
+                        <img 
+                          src={assetUrl} 
+                          alt={equippedAvatar.name}
+                          className="w-full h-full object-cover"
+                        />
+                      );
+                    }
+                  }
+                  // Fallback to Replit profile image or generic icon
+                  if (user.profileImageUrl) {
+                    return (
+                      <img 
+                        src={user.profileImageUrl} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    );
+                  }
+                  return <i className="fas fa-user text-white text-xl"></i>;
+                })()}
               </div>
-            </CardContent>
-          </Card>
+              <div className="text-white">
+                <div className="font-semibold">{displayName}</div>
+                <div className="text-sm opacity-80">Level {user.level || 1} • {(user.experience || 0).toLocaleString()} XP</div>
+                <div className="text-sm text-yellow-300 font-medium">{userStats?.coins || 0} coins</div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => setLocation('/cosmetics')}
+                className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
+                data-testid="button-cosmetics"
+              >
+                <i className="fas fa-palette mr-2"></i>
+                Cosmetics
+              </Button>
+              <Button 
+                onClick={() => setLocation('/settings')}
+                className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
+                data-testid="button-settings"
+              >
+                <i className="fas fa-cog mr-2"></i>
+                Settings
+              </Button>
+            </div>
+          </header>
 
           {/* Betting Brackets */}
           <div className="space-y-4">
