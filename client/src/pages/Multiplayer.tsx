@@ -155,20 +155,20 @@ export default function Multiplayer() {
         </div>
 
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30">
-          <TabsTrigger value="rooms" data-testid="tab-rooms">
+        <TabsList className="grid w-full grid-cols-4 bg-slate-800/90 backdrop-blur-sm border-2 border-game-gold/30">
+          <TabsTrigger value="rooms" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-rooms">
             <GamepadIcon className="w-4 h-4 mr-2" />
             Game Rooms
           </TabsTrigger>
-          <TabsTrigger value="friends" data-testid="tab-friends">
+          <TabsTrigger value="friends" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-friends">
             <Users className="w-4 h-4 mr-2" />
             Friends ({friends.length})
           </TabsTrigger>
-          <TabsTrigger value="tournaments" data-testid="tab-tournaments">
+          <TabsTrigger value="tournaments" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-tournaments">
             <Trophy className="w-4 h-4 mr-2" />
             Tournaments
           </TabsTrigger>
-          <TabsTrigger value="chat" data-testid="tab-chat">
+          <TabsTrigger value="chat" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-chat">
             <MessageCircle className="w-4 h-4 mr-2" />
             Global Chat
           </TabsTrigger>
@@ -183,7 +183,7 @@ export default function Multiplayer() {
                   <Plus className="w-5 h-5 text-game-gold" />
                   Create Room
                 </CardTitle>
-                <CardDescription className="text-game-cream/80">
+                <CardDescription className="text-slate-200">
                   Start a new multiplayer game session
                 </CardDescription>
               </CardHeader>
@@ -192,7 +192,7 @@ export default function Multiplayer() {
                   placeholder="Enter room name..."
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-game-gold"
+                  className="bg-slate-700/70 border-slate-500 text-white placeholder:text-slate-300 focus:border-game-gold focus:bg-slate-700/90"
                   data-testid="input-room-name"
                 />
                 <Button 
@@ -213,7 +213,7 @@ export default function Multiplayer() {
                   <GamepadIcon className="w-5 h-5 text-game-gold" />
                   Join Room
                 </CardTitle>
-                <CardDescription className="text-game-cream/80">
+                <CardDescription className="text-slate-200">
                   Enter a room code to join an existing game
                 </CardDescription>
               </CardHeader>
@@ -222,7 +222,7 @@ export default function Multiplayer() {
                   placeholder="Enter room code..."
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-game-gold font-mono text-center tracking-wider"
+                  className="bg-slate-700/70 border-slate-500 text-white placeholder:text-slate-300 focus:border-game-gold focus:bg-slate-700/90 font-mono text-center tracking-wider"
                   data-testid="input-room-code"
                 />
                 <Button 
@@ -244,7 +244,7 @@ export default function Multiplayer() {
                 <i className="fas fa-bolt text-purple-400"></i>
                 Quick Match
               </CardTitle>
-              <CardDescription className="text-game-cream/80">
+              <CardDescription className="text-slate-200">
                 Find and join a random public game instantly
               </CardDescription>
             </CardHeader>
@@ -264,7 +264,7 @@ export default function Multiplayer() {
                 <Users className="w-5 h-5 text-game-gold" />
                 Your Friends
               </CardTitle>
-              <CardDescription className="text-game-cream/80">
+              <CardDescription className="text-slate-200">
                 {friends.length === 0 
                   ? "No friends yet. Start playing to meet other players!"
                   : `You have ${friends.length} friend${friends.length === 1 ? '' : 's'}`
@@ -273,10 +273,10 @@ export default function Multiplayer() {
             </CardHeader>
             <CardContent>
               {friends.length === 0 ? (
-                <div className="text-center py-8 text-game-cream/60">
-                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50 text-game-gold" />
-                  <p>Your friends list is empty</p>
-                  <p className="text-sm">Play some games to meet other players!</p>
+                <div className="text-center py-8 text-slate-300">
+                  <Users className="w-12 h-12 mx-auto mb-4 opacity-60 text-game-gold" />
+                  <p className="text-lg">Your friends list is empty</p>
+                  <p className="text-sm text-slate-400">Play some games to meet other players!</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -294,7 +294,7 @@ export default function Multiplayer() {
                           <p className="font-medium text-white">
                             {friend.firstName} {friend.lastName}
                           </p>
-                          <p className="text-sm text-game-cream/70">
+                          <p className="text-sm text-slate-300">
                             Level {friend.level}
                           </p>
                         </div>
@@ -322,16 +322,16 @@ export default function Multiplayer() {
                 <Trophy className="w-5 h-5 text-game-gold" />
                 Active Tournaments
               </CardTitle>
-              <CardDescription className="text-game-cream/80">
+              <CardDescription className="text-slate-200">
                 Compete in organized competitions for prizes and glory
               </CardDescription>
             </CardHeader>
             <CardContent>
               {tournaments.length === 0 ? (
-                <div className="text-center py-8 text-game-cream/60">
-                  <Trophy className="w-12 h-12 mx-auto mb-4 opacity-50 text-game-gold" />
-                  <p>No active tournaments</p>
-                  <p className="text-sm">Check back later for competitive events!</p>
+                <div className="text-center py-8 text-slate-300">
+                  <Trophy className="w-12 h-12 mx-auto mb-4 opacity-60 text-game-gold" />
+                  <p className="text-lg">No active tournaments</p>
+                  <p className="text-sm text-slate-400">Check back later for competitive events!</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -374,19 +374,22 @@ export default function Multiplayer() {
         </TabsContent>
 
         <TabsContent value="chat">
-          <Card data-testid="card-global-chat">
+          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-global-chat">
             <CardHeader>
-              <CardTitle>Global Chat</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-white flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-game-gold" />
+                Global Chat
+              </CardTitle>
+              <CardDescription className="text-slate-200">
                 Chat with players from around the world
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-64 border rounded-lg p-4 bg-muted/30">
-                <div className="text-center text-muted-foreground py-20">
-                  <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Global chat coming soon!</p>
-                  <p className="text-sm">Connect with players worldwide</p>
+              <div className="h-64 border border-slate-600/50 rounded-lg p-4 bg-slate-700/30">
+                <div className="text-center text-slate-300 py-20">
+                  <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-60 text-game-gold" />
+                  <p className="text-lg">Global chat coming soon!</p>
+                  <p className="text-sm text-slate-400">Connect with players worldwide</p>
                 </div>
               </div>
             </CardContent>
