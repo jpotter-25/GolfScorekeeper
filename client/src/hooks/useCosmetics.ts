@@ -30,7 +30,7 @@ export function useCosmetics() {
 
   const getCardBackStyle = () => {
     const cardBack = equippedCardBack;
-    const cosmeticId = cardBack?.cosmeticId || 'classic_blue';
+    const cosmeticId = cardBack?.cosmeticId || 'classic_royal_blue';
     
     switch (cosmeticId) {
       case 'royal_red':
@@ -47,7 +47,7 @@ export function useCosmetics() {
           border: '2px solid #374151',
           pattern: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 50%)'
         };
-      default: // classic_blue
+      default: // classic_royal_blue
         return {
           cosmeticId,
           background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',

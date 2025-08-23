@@ -57,34 +57,154 @@ export async function seedCosmetics() {
   const cosmeticData = [
     // Card backs
     {
-      id: "classic_blue",
+      id: "classic_royal_blue",
       type: "card_back",
-      name: "Classic Blue",
-      description: "Traditional blue card back design",
+      name: "Classic Royal Blue",
+      description: "Traditional royal blue with ornate white flourishes",
       rarity: "common",
       cost: 0,
       unlockLevel: 1,
-      imageUrl: "@assets/generated_images/Classic_Blue_Card_Back_be4bbe28.png"
+      imageUrl: "@assets/generated_images/Classic_Royal_Blue_Card_e92be256.png"
     },
     {
-      id: "royal_red",
+      id: "crimson_gold_ornate",
       type: "card_back",
-      name: "Royal Red",
-      description: "Elegant red card back with golden accents",
+      name: "Crimson Gold",
+      description: "Deep crimson with gold geometric patterns",
       rarity: "rare",
       cost: 50,
-      unlockLevel: 5,
-      imageUrl: "@assets/generated_images/Royal_Red_Card_Back_aafc7f73.png"
+      unlockLevel: 3,
+      imageUrl: "@assets/generated_images/Crimson_Gold_Ornate_Card_0af373f8.png"
     },
     {
-      id: "midnight_black",
+      id: "emerald_celtic",
       type: "card_back",
-      name: "Midnight Black",
-      description: "Sleek black design for sophisticated players",
+      name: "Emerald Celtic",
+      description: "Elegant emerald green with silver Celtic knots",
+      rarity: "rare",
+      cost: 75,
+      unlockLevel: 5,
+      imageUrl: "@assets/generated_images/Emerald_Celtic_Pattern_Card_cc828358.png"
+    },
+    {
+      id: "midnight_geometric",
+      type: "card_back",
+      name: "Midnight Geometric",
+      description: "Sleek black with modern geometric silver accents",
+      rarity: "epic",
+      cost: 125,
+      unlockLevel: 8,
+      imageUrl: "@assets/generated_images/Midnight_Modern_Geometric_Card_4181dee8.png"
+    },
+    {
+      id: "purple_art_deco",
+      type: "card_back",
+      name: "Purple Art Deco",
+      description: "Deep purple with gold 1920s style flourishes",
       rarity: "epic",
       cost: 150,
+      unlockLevel: 10,
+      imageUrl: "@assets/generated_images/Purple_Art_Deco_Card_ca6e4c63.png"
+    },
+    {
+      id: "bronze_western",
+      type: "card_back",
+      name: "Bronze Western",
+      description: "Warm bronze with copper swirl western motifs",
+      rarity: "rare",
+      cost: 100,
+      unlockLevel: 7,
+      imageUrl: "@assets/generated_images/Bronze_Western_Style_Card_52c428e4.png"
+    },
+    {
+      id: "nautical_ocean",
+      type: "card_back",
+      name: "Nautical Ocean",
+      description: "Ocean blue with white wave patterns and rope borders",
+      rarity: "epic",
+      cost: 175,
+      unlockLevel: 12,
+      imageUrl: "@assets/generated_images/Nautical_Ocean_Wave_Card_2ddded57.png"
+    },
+    {
+      id: "forest_botanical",
+      type: "card_back",
+      name: "Forest Botanical",
+      description: "Forest green with gold leaf botanical motifs",
+      rarity: "epic",
+      cost: 200,
       unlockLevel: 15,
-      imageUrl: "@assets/generated_images/Midnight_Black_Card_Back_37a72889.png"
+      imageUrl: "@assets/generated_images/Forest_Botanical_Luxury_Card_ccc4668d.png"
+    },
+    {
+      id: "cyberpunk_neon",
+      type: "card_back",
+      name: "Cyberpunk Neon",
+      description: "Charcoal gray with electric blue neon circuits",
+      rarity: "legendary",
+      cost: 300,
+      unlockLevel: 18,
+      imageUrl: "@assets/generated_images/Cyberpunk_Neon_Tech_Card_59d68df2.png"
+    },
+    {
+      id: "rose_gold_marble",
+      type: "card_back",
+      name: "Rose Gold Marble",
+      description: "Rose gold with pink marble texture and geometric lines",
+      rarity: "epic",
+      cost: 180,
+      unlockLevel: 13,
+      imageUrl: "@assets/generated_images/Rose_Gold_Marble_Card_a74d530a.png"
+    },
+    {
+      id: "antique_ivory",
+      type: "card_back",
+      name: "Antique Ivory",
+      description: "Vintage ivory with sepia brown ornamental details",
+      rarity: "rare",
+      cost: 90,
+      unlockLevel: 6,
+      imageUrl: "@assets/generated_images/Antique_Ivory_Heritage_Card_863ad18a.png"
+    },
+    {
+      id: "turquoise_tribal",
+      type: "card_back",
+      name: "Turquoise Tribal",
+      description: "Vibrant turquoise with silver southwestern patterns",
+      rarity: "epic",
+      cost: 160,
+      unlockLevel: 11,
+      imageUrl: "@assets/generated_images/Turquoise_Tribal_Pattern_Card_6d3a0abd.png"
+    },
+    {
+      id: "mahogany_baroque",
+      type: "card_back",
+      name: "Mahogany Baroque",
+      description: "Deep mahogany with gold filigree baroque details",
+      rarity: "legendary",
+      cost: 350,
+      unlockLevel: 20,
+      imageUrl: "@assets/generated_images/Mahogany_Baroque_Luxury_Card_e300c138.png"
+    },
+    {
+      id: "pearl_holographic",
+      type: "card_back",
+      name: "Pearl Holographic",
+      description: "Pearl white with holographic rainbow shimmer effects",
+      rarity: "legendary",
+      cost: 400,
+      unlockLevel: 25,
+      imageUrl: "@assets/generated_images/Pearl_Holographic_Modern_Card_62ae8ace.png"
+    },
+    {
+      id: "steel_steampunk",
+      type: "card_back",
+      name: "Steel Steampunk",
+      description: "Steel gray with chrome accents and industrial gears",
+      rarity: "legendary",
+      cost: 250,
+      unlockLevel: 16,
+      imageUrl: "@assets/generated_images/Steel_Steampunk_Industrial_Card_3b92933e.png"
     },
     // Avatars
     {

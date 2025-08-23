@@ -129,7 +129,7 @@ export default function Card({
   return (
     <div
       className={cn(
-        'bg-white rounded-xl flex items-center justify-center font-bold transition-all shadow-lg ring-1 ring-black/10',
+        'bg-white/90 dark:bg-gray-100/90 rounded-xl flex items-center justify-center font-bold transition-all shadow-lg ring-1 ring-black/5',
         getSizeClasses(),
         getHighlightClasses(),
         getCardColor(card),
