@@ -50,7 +50,8 @@ export default function Card({
         ? 'border-highlight-green border-2 shadow-lg' 
         : 'border-highlight-blue border-2';
     }
-    return 'border-white border-opacity-20 border-2';
+    // Only show white border for revealed cards, not card backs
+    return isRevealed && card ? 'border-white border-opacity-20 border-2' : '';
   };
 
   const getCardColor = (card: CardType) => {
@@ -83,7 +84,7 @@ export default function Card({
     return (
       <div
         className={cn(
-          'rounded-xl flex items-center justify-center text-white cursor-pointer transition-all relative overflow-hidden',
+          'rounded-xl flex items-center justify-center text-white cursor-pointer transition-all relative overflow-hidden border-0',
           getSizeClasses(),
           getHighlightClasses(),
           onClick && !isDisabled && 'hover:scale-105',
