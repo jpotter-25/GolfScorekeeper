@@ -31,11 +31,13 @@ export default function Cosmetics() {
 
   const purchaseMutation = useMutation({
     mutationFn: async (cosmeticId: string) => {
-      return apiRequest("POST", "/api/cosmetics/purchase", { cosmeticId });
+      return apiRequest("POST", `/api/cosmetics/${cosmeticId}/purchase`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cosmetics", selectedCategory] });
+      // Invalidate all cosmetic queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/cosmetics"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/cosmetics"] });
       toast({
         title: "Purchase Successful",
         description: "Cosmetic item added to your collection!",
@@ -55,7 +57,9 @@ export default function Cosmetics() {
       return apiRequest("POST", `/api/cosmetics/${cosmeticId}/equip`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cosmetics", selectedCategory] });
+      // Invalidate all cosmetic queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/cosmetics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/cosmetics"] });
       toast({
         title: "Item Equipped",
         description: "Your cosmetic is now active!",
