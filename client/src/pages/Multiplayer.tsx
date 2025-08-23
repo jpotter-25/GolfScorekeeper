@@ -141,14 +141,21 @@ export default function Multiplayer() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6" data-testid="multiplayer-page">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-2">Multiplayer Hub</h1>
-        <p className="text-muted-foreground">Connect with friends and compete online</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt" data-testid="multiplayer-page">
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h1 className="text-5xl font-bold text-transparent bg-gradient-to-r from-game-gold to-blue-300 bg-clip-text mb-4 flex items-center justify-center gap-4">
+            <div className="w-16 h-16 bg-game-gold/20 rounded-full flex items-center justify-center">
+              <i className="fas fa-wifi text-game-gold text-2xl"></i>
+            </div>
+            Multiplayer Hub
+          </h1>
+          <p className="text-game-cream opacity-90 text-lg">Connect with friends and compete online</p>
+        </div>
 
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30">
           <TabsTrigger value="rooms" data-testid="tab-rooms">
             <GamepadIcon className="w-4 h-4 mr-2" />
             Game Rooms
@@ -170,13 +177,13 @@ export default function Multiplayer() {
         <TabsContent value="rooms" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Create Room */}
-            <Card data-testid="card-create-room">
+            <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-create-room">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plus className="w-5 h-5" />
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Plus className="w-5 h-5 text-game-gold" />
                   Create Room
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-game-cream/80">
                   Start a new multiplayer game session
                 </CardDescription>
               </CardHeader>
@@ -185,12 +192,13 @@ export default function Multiplayer() {
                   placeholder="Enter room name..."
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
+                  className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-game-gold"
                   data-testid="input-room-name"
                 />
                 <Button 
                   onClick={handleCreateRoom}
                   disabled={createRoomMutation.isPending}
-                  className="w-full"
+                  className="w-full bg-game-gold hover:bg-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                   data-testid="button-create-room"
                 >
                   {createRoomMutation.isPending ? "Creating..." : "Create Room"}
@@ -199,13 +207,13 @@ export default function Multiplayer() {
             </Card>
 
             {/* Join Room */}
-            <Card data-testid="card-join-room">
+            <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-join-room">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <GamepadIcon className="w-5 h-5" />
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <GamepadIcon className="w-5 h-5 text-game-gold" />
                   Join Room
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-game-cream/80">
                   Enter a room code to join an existing game
                 </CardDescription>
               </CardHeader>
@@ -214,12 +222,13 @@ export default function Multiplayer() {
                   placeholder="Enter room code..."
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-game-gold font-mono text-center tracking-wider"
                   data-testid="input-room-code"
                 />
                 <Button 
                   onClick={handleJoinRoom}
                   disabled={joinRoomMutation.isPending}
-                  className="w-full"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                   data-testid="button-join-room"
                 >
                   {joinRoomMutation.isPending ? "Joining..." : "Join Room"}
@@ -229,15 +238,19 @@ export default function Multiplayer() {
           </div>
 
           {/* Quick Match */}
-          <Card data-testid="card-quick-match">
+          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-purple-500/30 shadow-2xl" data-testid="card-quick-match">
             <CardHeader>
-              <CardTitle>Quick Match</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-white flex items-center gap-2">
+                <i className="fas fa-bolt text-purple-400"></i>
+                Quick Match
+              </CardTitle>
+              <CardDescription className="text-game-cream/80">
                 Find and join a random public game instantly
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button size="lg" className="w-full" data-testid="button-quick-match">
+              <Button size="lg" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200" data-testid="button-quick-match">
+                <i className="fas fa-search mr-2"></i>
                 Find Match
               </Button>
             </CardContent>
@@ -245,10 +258,13 @@ export default function Multiplayer() {
         </TabsContent>
 
         <TabsContent value="friends" className="space-y-6">
-          <Card data-testid="card-friends">
+          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-friends">
             <CardHeader>
-              <CardTitle>Your Friends</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-game-gold" />
+                Your Friends
+              </CardTitle>
+              <CardDescription className="text-game-cream/80">
                 {friends.length === 0 
                   ? "No friends yet. Start playing to meet other players!"
                   : `You have ${friends.length} friend${friends.length === 1 ? '' : 's'}`
@@ -257,8 +273,8 @@ export default function Multiplayer() {
             </CardHeader>
             <CardContent>
               {friends.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <div className="text-center py-8 text-game-cream/60">
+                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50 text-game-gold" />
                   <p>Your friends list is empty</p>
                   <p className="text-sm">Play some games to meet other players!</p>
                 </div>
@@ -267,7 +283,7 @@ export default function Multiplayer() {
                   {friends.map((friend) => (
                     <div
                       key={friend.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-center justify-between p-3 bg-slate-700/30 border border-slate-600/50 rounded-lg hover:bg-slate-700/50 transition-colors"
                       data-testid={`friend-${friend.id}`}
                     >
                       <div className="flex items-center gap-3">
@@ -275,10 +291,10 @@ export default function Multiplayer() {
                           {friend.firstName?.[0] || '?'}
                         </div>
                         <div>
-                          <p className="font-medium">
+                          <p className="font-medium text-white">
                             {friend.firstName} {friend.lastName}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-game-cream/70">
                             Level {friend.level}
                           </p>
                         </div>
@@ -300,17 +316,20 @@ export default function Multiplayer() {
         </TabsContent>
 
         <TabsContent value="tournaments" className="space-y-6">
-          <Card data-testid="card-tournaments">
+          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-tournaments">
             <CardHeader>
-              <CardTitle>Active Tournaments</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-game-gold" />
+                Active Tournaments
+              </CardTitle>
+              <CardDescription className="text-game-cream/80">
                 Compete in organized competitions for prizes and glory
               </CardDescription>
             </CardHeader>
             <CardContent>
               {tournaments.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Trophy className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <div className="text-center py-8 text-game-cream/60">
+                  <Trophy className="w-12 h-12 mx-auto mb-4 opacity-50 text-game-gold" />
                   <p>No active tournaments</p>
                   <p className="text-sm">Check back later for competitive events!</p>
                 </div>
@@ -374,6 +393,7 @@ export default function Multiplayer() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

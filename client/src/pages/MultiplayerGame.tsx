@@ -97,24 +97,29 @@ export default function MultiplayerGame() {
 
   if (showLobby) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt p-6">
         <div className="container mx-auto max-w-4xl space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold text-white mb-2">Game Lobby</h1>
-            <p className="text-slate-300">Room Code: <span className="font-mono text-game-gold text-xl">{gameRoomId}</span></p>
+            <h1 className="text-5xl font-bold text-transparent bg-gradient-to-r from-game-gold to-blue-300 bg-clip-text mb-2 flex items-center justify-center gap-4">
+              <div className="w-16 h-16 bg-game-gold/20 rounded-full flex items-center justify-center">
+                <i className="fas fa-gamepad text-game-gold text-2xl"></i>
+              </div>
+              Game Lobby
+            </h1>
+            <p className="text-game-cream opacity-90">Room Code: <span className="font-mono text-game-gold text-2xl font-bold bg-slate-800/50 px-3 py-1 rounded-lg border border-game-gold/30">{gameRoomId}</span></p>
             <div className="flex justify-center">{getConnectionStatusBadge()}</div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Players */}
-            <Card className="bg-slate-800/50 border-slate-700" data-testid="card-players">
+            <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-players">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">
-                  <Users className="w-5 h-5" />
+                  <Users className="w-5 h-5 text-game-gold" />
                   Players ({connectedPlayersList.length}/{gameSettings.playerCount})
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-game-cream/80">
                   Waiting for players to join and ready up
                 </CardDescription>
               </CardHeader>
@@ -122,7 +127,7 @@ export default function MultiplayerGame() {
                 {connectedPlayersList.map((player, index) => (
                   <div
                     key={player.id}
-                    className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg border border-slate-600/30"
+                    className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg border border-game-gold/20 hover:border-game-gold/40 transition-all duration-200"
                     data-testid={`player-${player.id}`}
                   >
                     <div className="flex items-center gap-3">
@@ -161,16 +166,19 @@ export default function MultiplayerGame() {
             </Card>
 
             {/* Game Settings & Actions */}
-            <Card className="bg-slate-800/50 border-slate-700" data-testid="card-settings">
+            <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-settings">
               <CardHeader>
-                <CardTitle className="text-white">Game Settings</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <i className="fas fa-cogs text-game-gold w-5 h-5"></i>
+                  Game Settings
+                </CardTitle>
+                <CardDescription className="text-game-cream/80">
                   Configure the game before starting
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Players</label>
+                  <label className="text-sm font-medium text-game-cream">Players</label>
                   <div className="flex gap-2">
                     {[2, 3, 4].map((count) => (
                       <Button
@@ -188,7 +196,7 @@ export default function MultiplayerGame() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Rounds</label>
+                  <label className="text-sm font-medium text-game-cream">Rounds</label>
                   <div className="flex gap-2">
                     {[5, 9].map((rounds) => (
                       <Button
@@ -208,29 +216,31 @@ export default function MultiplayerGame() {
                 <div className="pt-4 space-y-3">
                   <Button
                     onClick={handlePlayerReady}
-                    className="w-full"
+                    className="w-full bg-game-gold hover:bg-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                     disabled={connectionState !== 'connected'}
                     data-testid="button-ready"
                   >
+                    <i className="fas fa-check mr-2"></i>
                     Ready Up!
                   </Button>
                   
                   {isHost && gameState?.allPlayersReady && (
                     <Button
                       onClick={handleStartGame}
-                      className="w-full bg-green-600 hover:bg-green-700"
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                       data-testid="button-start-game"
                     >
+                      <i className="fas fa-play mr-2"></i>
                       Start Game
                     </Button>
                   )}
                   
                   <Button
                     onClick={handleLeaveRoom}
-                    variant="outline"
-                    className="w-full"
+                    className="w-full bg-red-600/80 hover:bg-red-700 border-2 border-red-500/50 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                     data-testid="button-leave-room"
                   >
+                    <i className="fas fa-door-open mr-2"></i>
                     Leave Room
                   </Button>
                 </div>
