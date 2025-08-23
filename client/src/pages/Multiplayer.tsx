@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, GamepadIcon, Trophy, MessageCircle, UserPlus } from "lucide-react";
+import { Users, Plus, GamepadIcon, Trophy, MessageCircle, UserPlus, ArrowLeft, Home } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -185,6 +185,27 @@ export default function Multiplayer() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt" data-testid="multiplayer-page">
       <div className="container mx-auto p-6 space-y-6">
+        {/* Navigation */}
+        <div className="flex items-center justify-between">
+          <Button
+            onClick={() => setLocation("/")}
+            className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            data-testid="button-back-to-menu"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Menu
+          </Button>
+          
+          <Button
+            onClick={() => setLocation("/")}
+            className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            data-testid="button-home"
+          >
+            <Home className="w-4 h-4 mr-2" />
+            Home
+          </Button>
+        </div>
+
         {/* Header */}
         <div className="text-center space-y-4">
           <h1 className="text-5xl font-bold text-transparent bg-gradient-to-r from-game-gold to-blue-300 bg-clip-text mb-4 flex items-center justify-center gap-4">
@@ -324,14 +345,16 @@ export default function Multiplayer() {
               >
                 {addFriendMutation.isPending ? "Sending..." : "Send Friend Request"}
               </Button>
-              {user?.friendCode && (
-                <div className="mt-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600/50">
-                  <p className="text-sm text-slate-300 mb-1">Your friend code:</p>
-                  <p className="font-mono text-game-gold text-lg font-bold tracking-wider text-center bg-slate-800/50 py-2 px-4 rounded border border-game-gold/30">
-                    {user.friendCode}
-                  </p>
+              <div className="mt-4 p-4 bg-gradient-to-r from-game-gold/10 to-blue-500/10 rounded-lg border-2 border-game-gold/40">
+                <div className="flex items-center gap-2 mb-2">
+                  <i className="fas fa-id-card text-game-gold"></i>
+                  <p className="text-lg font-semibold text-white">Your Friend Code</p>
                 </div>
-              )}
+                <p className="font-mono text-game-gold text-2xl font-bold tracking-wider text-center bg-slate-800/70 py-3 px-6 rounded-lg border-2 border-game-gold/50 shadow-inner">
+                  {user?.friendCode || "Loading..."}
+                </p>
+                <p className="text-xs text-slate-400 text-center mt-2">Share this code with friends to connect!</p>
+              </div>
             </CardContent>
           </Card>
 

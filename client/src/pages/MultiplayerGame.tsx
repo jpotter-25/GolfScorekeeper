@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Crown, Wifi, WifiOff, Clock } from 'lucide-react';
+import { Users, Crown, Wifi, WifiOff, Clock, ArrowLeft, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function MultiplayerGame() {
@@ -99,6 +99,27 @@ export default function MultiplayerGame() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt p-6">
         <div className="container mx-auto max-w-4xl space-y-6">
+          {/* Navigation */}
+          <div className="flex items-center justify-between">
+            <Button
+              onClick={handleLeaveRoom}
+              className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              data-testid="button-back-to-multiplayer"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Multiplayer
+            </Button>
+            
+            <Button
+              onClick={() => setLocation("/")}
+              className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              data-testid="button-home-from-game"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Home
+            </Button>
+          </div>
+
           {/* Header */}
           <div className="text-center space-y-2">
             <h1 className="text-5xl font-bold text-transparent bg-gradient-to-r from-game-gold to-blue-300 bg-clip-text mb-2 flex items-center justify-center gap-4">
