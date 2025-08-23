@@ -225,10 +225,19 @@ export async function seedCosmetics() {
 
 export async function seedDatabase() {
   try {
+    console.log("Starting database seeding...");
+    
+    console.log("Seeding achievements...");
     await seedAchievements();
+    console.log("Achievements seeded successfully");
+    
+    console.log("Seeding cosmetics...");
     await seedCosmetics();
+    console.log("Cosmetics seeded successfully");
+    
     console.log("Database seeded successfully");
   } catch (error) {
     console.error("Error seeding database:", error);
+    throw error; // Re-throw so the main startup can catch it
   }
 }
