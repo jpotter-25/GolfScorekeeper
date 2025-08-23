@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ export default function Multiplayer() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [roomCode, setRoomCode] = useState("");
   const [roomName, setRoomName] = useState("");
 
@@ -72,6 +74,9 @@ export default function Multiplayer() {
       });
       setRoomName("");
       queryClient.invalidateQueries({ queryKey: ['/api/game-rooms'] });
+      
+      // Navigate to the game room
+      setLocation(`/multiplayer/game?room=${data.code}`);
     },
     onError: (error) => {
       toast({
@@ -92,7 +97,9 @@ export default function Multiplayer() {
         title: "Room Found",
         description: `Joining "${data.name}"...`,
       });
-      // Here we would navigate to the game room component
+      
+      // Navigate to the game room
+      setLocation(`/multiplayer/game?room=${data.code}`);
     },
     onError: (error) => {
       toast({
