@@ -43,14 +43,14 @@ export default function Card({
 
   const getHighlightClasses = () => {
     if (isSelected) {
-      return 'ring-2 ring-highlight-blue';
+      return 'border-highlight-blue border-2';
     }
     if (isHighlighted) {
       return highlightColor === 'green' 
-        ? 'ring-2 ring-highlight-green shadow-lg' 
-        : 'ring-2 ring-highlight-blue';
+        ? 'border-highlight-green border-2 shadow-lg' 
+        : 'border-highlight-blue border-2';
     }
-    return ''; // No ring for normal card backs
+    return 'border-white border-opacity-20 border-2';
   };
 
   const getCardColor = (card: CardType) => {
@@ -64,7 +64,7 @@ export default function Card({
         className={cn(
           'bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-500 cursor-not-allowed',
           getSizeClasses(),
-          'ring-2 ring-gray-300 dark:ring-gray-600',
+          'border-gray-300 dark:border-gray-600 border-2',
           className
         )}
         data-testid={testId}
@@ -85,32 +85,32 @@ export default function Card({
         className={cn(
           'rounded-xl flex items-center justify-center text-white cursor-pointer transition-all relative overflow-hidden',
           getSizeClasses(),
-          // Only show rings when selected or highlighted, not for default state
-          (isSelected || isHighlighted) ? getHighlightClasses() : '',
+          getHighlightClasses(),
           onClick && !isDisabled && 'hover:scale-105',
           className
         )}
-        style={cardBackAsset ? {
-          backgroundImage: `url(${cardBackAsset})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        } : {}}
         onClick={!isDisabled ? onClick : undefined}
         data-testid={testId}
       >
-        {!cardBackAsset && (
+        {cardBackAsset ? (
+          <img 
+            src={cardBackAsset} 
+            alt="Card back"
+            className="w-full h-full object-cover rounded-xl"
+          />
+        ) : (
           <>
             {/* Fallback pattern */}
             <div 
-              className="absolute inset-0 rounded-xl"
+              className="absolute inset-0"
               style={{
-                background: cardBackStyle.background
+                background: cardBackStyle.background,
+                border: cardBackStyle.border
               }}
             />
             {cardBackStyle.pattern !== 'none' && (
               <div 
-                className="absolute inset-0 rounded-xl"
+                className="absolute inset-0"
                 style={{ background: cardBackStyle.pattern }}
               />
             )}

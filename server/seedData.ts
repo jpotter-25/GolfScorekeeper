@@ -60,151 +60,31 @@ export async function seedCosmetics() {
       id: "classic_blue",
       type: "card_back",
       name: "Classic Blue",
-      description: "Traditional blue card back design with rounded corners",
+      description: "Traditional blue card back design",
       rarity: "common",
       cost: 0,
       unlockLevel: 1,
-      imageUrl: "@assets/generated_images/Classic_Blue_Card_Back_d609ccbb.png"
-    },
-    {
-      id: "forest_nature",
-      type: "card_back",
-      name: "Forest Nature",
-      description: "Earthy woodland design with golden oak leaves",
-      rarity: "common",
-      cost: 25,
-      unlockLevel: 2,
-      imageUrl: "@assets/generated_images/Forest_Nature_Back_cf54e94f.png"
-    },
-    {
-      id: "ocean_wave",
-      type: "card_back",
-      name: "Ocean Wave",
-      description: "Nautical design with rolling sea waves",
-      rarity: "common",
-      cost: 30,
-      unlockLevel: 3,
-      imageUrl: "@assets/generated_images/Ocean_Wave_Back_dcebe69a.png"
+      imageUrl: "@assets/generated_images/Classic_Blue_Card_Back_be4bbe28.png"
     },
     {
       id: "royal_red",
-      type: "card_back", 
-      name: "Royal Red Velvet",
-      description: "Luxurious crimson velvet with gold filigree",
+      type: "card_back",
+      name: "Royal Red",
+      description: "Elegant red card back with golden accents",
       rarity: "rare",
-      cost: 75,
+      cost: 50,
       unlockLevel: 5,
-      imageUrl: "@assets/generated_images/Royal_Red_Velvet_Back_69d585c4.png"
-    },
-    {
-      id: "tropical_paradise",
-      type: "card_back",
-      name: "Tropical Paradise",
-      description: "Beach vacation vibes with palm leaves and sunset colors",
-      rarity: "rare",
-      cost: 90,
-      unlockLevel: 6,
-      imageUrl: "@assets/generated_images/Tropical_Paradise_Back_6b2110c0.png"
-    },
-    {
-      id: "arctic_ice",
-      type: "card_back",
-      name: "Arctic Ice",
-      description: "Crystalline snowflake pattern with ice blue colors",
-      rarity: "rare",
-      cost: 100,
-      unlockLevel: 8,
-      imageUrl: "@assets/generated_images/Arctic_Ice_Back_27d09823.png"
-    },
-    {
-      id: "diamond_geometric",
-      type: "card_back",
-      name: "Diamond Geometric",
-      description: "Modern minimalist design with rose gold accents",
-      rarity: "rare",
-      cost: 120,
-      unlockLevel: 10,
-      imageUrl: "@assets/generated_images/Diamond_Geometric_Back_4dc0fa3b.png"
-    },
-    {
-      id: "steampunk_gears",
-      type: "card_back",
-      name: "Steampunk Gears",
-      description: "Victorian-era industrial design with bronze clockwork",
-      rarity: "epic",
-      cost: 150,
-      unlockLevel: 12,
-      imageUrl: "@assets/generated_images/Steampunk_Gears_Back_20802675.png"
+      imageUrl: "@assets/generated_images/Royal_Red_Card_Back_aafc7f73.png"
     },
     {
       id: "midnight_black",
       type: "card_back",
-      name: "Midnight Black Star",
-      description: "Dark luxury with silver metallic star patterns",
+      name: "Midnight Black",
+      description: "Sleek black design for sophisticated players",
       rarity: "epic",
-      cost: 175,
+      cost: 150,
       unlockLevel: 15,
-      imageUrl: "@assets/generated_images/Midnight_Black_Star_Back_acdd879d.png"
-    },
-    {
-      id: "dragon_oriental",
-      type: "card_back",
-      name: "Dragon Oriental",
-      description: "Asian-inspired design with mythical dragon silhouette",
-      rarity: "epic",
-      cost: 200,
-      unlockLevel: 18,
-      imageUrl: "@assets/generated_images/Dragon_Oriental_Back_db181a47.png"
-    },
-    {
-      id: "marble_luxury",
-      type: "card_back",
-      name: "Marble Luxury",
-      description: "Elegant white and gray marble texture pattern",
-      rarity: "epic",
-      cost: 225,
-      unlockLevel: 20,
-      imageUrl: "@assets/generated_images/Marble_Luxury_Back_dceabaf2.png"
-    },
-    {
-      id: "mystic_galaxy",
-      type: "card_back",
-      name: "Mystic Galaxy",
-      description: "Cosmic design with magical stars and ethereal glow",
-      rarity: "legendary",
-      cost: 300,
-      unlockLevel: 25,
-      imageUrl: "@assets/generated_images/Mystic_Galaxy_Back_f8bcaa3a.png"
-    },
-    {
-      id: "golden_celtic",
-      type: "card_back",
-      name: "Golden Celtic",
-      description: "Premium gold metallic finish with intricate Celtic knots",
-      rarity: "legendary",
-      cost: 400,
-      unlockLevel: 30,
-      imageUrl: "@assets/generated_images/Golden_Celtic_Back_0810fdc3.png"
-    },
-    {
-      id: "cyberpunk_neon",
-      type: "card_back",
-      name: "Cyberpunk Neon",
-      description: "Futuristic design with electric blue and pink circuits",
-      rarity: "legendary",
-      cost: 500,
-      unlockLevel: 35,
-      imageUrl: "@assets/generated_images/Cyberpunk_Neon_Back_55346ffb.png"
-    },
-    {
-      id: "phoenix_fire",
-      type: "card_back",
-      name: "Phoenix Fire",
-      description: "Epic fantasy design with flaming phoenix and dramatic fire effects",
-      rarity: "legendary",
-      cost: 750,
-      unlockLevel: 40,
-      imageUrl: "@assets/generated_images/Phoenix_Fire_Back_26711800.png"
+      imageUrl: "@assets/generated_images/Midnight_Black_Card_Back_37a72889.png"
     },
     // Avatars
     {

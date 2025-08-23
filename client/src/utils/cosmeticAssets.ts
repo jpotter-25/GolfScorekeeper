@@ -1,19 +1,7 @@
-// Import cosmetic assets - Card Backs
-import classicBlueCardBack from "@assets/generated_images/Classic_Blue_Card_Back_d609ccbb.png";
-import royalRedCardBack from "@assets/generated_images/Royal_Red_Velvet_Back_69d585c4.png";
-import midnightBlackCardBack from "@assets/generated_images/Midnight_Black_Star_Back_acdd879d.png";
-import forestNatureBack from "@assets/generated_images/Forest_Nature_Back_cf54e94f.png";
-import oceanWaveBack from "@assets/generated_images/Ocean_Wave_Back_dcebe69a.png";
-import mysticGalaxyBack from "@assets/generated_images/Mystic_Galaxy_Back_f8bcaa3a.png";
-import goldenCelticBack from "@assets/generated_images/Golden_Celtic_Back_0810fdc3.png";
-import dragonOrientalBack from "@assets/generated_images/Dragon_Oriental_Back_db181a47.png";
-import cyberpunkNeonBack from "@assets/generated_images/Cyberpunk_Neon_Back_55346ffb.png";
-import steampunkGearsBack from "@assets/generated_images/Steampunk_Gears_Back_20802675.png";
-import marbleLuxuryBack from "@assets/generated_images/Marble_Luxury_Back_dceabaf2.png";
-import tropicalParadiseBack from "@assets/generated_images/Tropical_Paradise_Back_6b2110c0.png";
-import arcticIceBack from "@assets/generated_images/Arctic_Ice_Back_27d09823.png";
-import phoenixFireBack from "@assets/generated_images/Phoenix_Fire_Back_26711800.png";
-import diamondGeometricBack from "@assets/generated_images/Diamond_Geometric_Back_4dc0fa3b.png";
+// Import cosmetic assets
+import classicBlueCardBack from "@assets/generated_images/Classic_Blue_Card_Back_be4bbe28.png";
+import royalRedCardBack from "@assets/generated_images/Royal_Red_Card_Back_aafc7f73.png";
+import midnightBlackCardBack from "@assets/generated_images/Midnight_Black_Card_Back_37a72889.png";
 import greenFeltTable from "@assets/generated_images/Green_Felt_Table_Texture_2c002c0f.png";
 import mahoganyWoodTable from "@assets/generated_images/Mahogany_Wood_Table_47b7e302.png";
 import professionalAvatar from "@assets/generated_images/Professional_Business_Avatar_8860d667.png";
@@ -30,24 +18,9 @@ import defaultAvatar from "@assets/generated_images/Simple_Default_Avatar_fab5c9
 
 // Asset mapping for cosmetics
 export const cosmeticAssets: Record<string, string> = {
-  // Card Backs
   "classic_blue": classicBlueCardBack,
   "royal_red": royalRedCardBack,
   "midnight_black": midnightBlackCardBack,
-  "forest_nature": forestNatureBack,
-  "ocean_wave": oceanWaveBack,
-  "mystic_galaxy": mysticGalaxyBack,
-  "golden_celtic": goldenCelticBack,
-  "dragon_oriental": dragonOrientalBack,
-  "cyberpunk_neon": cyberpunkNeonBack,
-  "steampunk_gears": steampunkGearsBack,
-  "marble_luxury": marbleLuxuryBack,
-  "tropical_paradise": tropicalParadiseBack,
-  "arctic_ice": arcticIceBack,
-  "phoenix_fire": phoenixFireBack,
-  "diamond_geometric": diamondGeometricBack,
-  
-  // Table Themes
   "green_felt": greenFeltTable,
   "wood_mahogany": mahoganyWoodTable,
   "default_avatar": defaultAvatar,
