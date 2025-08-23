@@ -1,5 +1,5 @@
 // Import cosmetic assets - Card backs (NEW - No white borders)
-import classicRoyalBlueCardBack from "@assets/generated_images/Royal_blue_luxury_card_back_1ffa9a63.png";
+import classicRoyalBlueCardBack from "@assets/generated_images/Simple_clean_default_card_back_96daa75b.png";
 import crimsonGoldOrnateCardBack from "@assets/generated_images/Crimson_gold_ornate_card_back_0dd11d91.png";
 import emeraldCelticCardBack from "@assets/generated_images/Emerald_Celtic_pattern_card_back_a37b4373.png";
 import midnightGeometricCardBack from "@assets/generated_images/Midnight_geometric_card_back_08947429.png";
