@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Plus, GamepadIcon, Trophy, MessageCircle, UserPlus, ArrowLeft, Home } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { getCosmeticAsset } from "@/lib/cosmetics";
+import { getCosmeticAsset } from "@/utils/cosmeticAssets";
+import type { GameStats } from "@shared/schema";
 
 interface GameRoom {
   id: string;
@@ -58,13 +59,13 @@ export default function Multiplayer() {
   });
 
   // Fetch user stats to get coin balance
-  const { data: userStats } = useQuery({
+  const { data: userStats } = useQuery<GameStats>({
     queryKey: ['/api/user/stats'],
     retry: false,
   });
 
   // Fetch user cosmetics for avatar display
-  const { data: userCosmetics = [] } = useQuery({
+  const { data: userCosmetics = [] } = useQuery<any[]>({
     queryKey: ['/api/user/cosmetics'],
     retry: false,
   });
@@ -103,13 +104,7 @@ export default function Multiplayer() {
   // Add friend mutation
   const addFriendMutation = useMutation({
     mutationFn: async (friendCode: string) => {
-      return await apiRequest("/api/friends/request", {
-        method: "POST",
-        body: JSON.stringify({ friendCode }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      return await apiRequest("POST", "/api/friends/request", { friendCode });
     },
     onSuccess: () => {
       toast({
@@ -129,11 +124,12 @@ export default function Multiplayer() {
   });
 
   const handleJoinBettingRoom = (betAmount: number) => {
-    // Check if user has enough coins
-    if (betAmount > 0 && (!userStats || userStats.coins < betAmount)) {
+    // Check if user has enough coins (coins are stored in user.currency)
+    const userCoins = user?.currency || 0;
+    if (betAmount > 0 && userCoins < betAmount) {
       toast({
         title: "Insufficient Coins",
-        description: `You need ${betAmount} coins to join this game. You have ${userStats?.coins || 0} coins.`,
+        description: `You need ${betAmount} coins to join this game. You have ${userCoins} coins.`,
         variant: "destructive",
       });
       return;
@@ -219,7 +215,7 @@ export default function Multiplayer() {
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 overflow-hidden">
                 {(() => {
-                  const equippedAvatar = userCosmetics.find(cosmetic => 
+                  const equippedAvatar = userCosmetics.find((cosmetic: any) => 
                     cosmetic.type === 'avatar' && cosmetic.equipped
                   );
                   if (equippedAvatar) {
@@ -235,7 +231,7 @@ export default function Multiplayer() {
                     }
                   }
                   // Fallback to Replit profile image or generic icon
-                  if (user.profileImageUrl) {
+                  if (user?.profileImageUrl) {
                     return (
                       <img 
                         src={user.profileImageUrl} 
@@ -249,8 +245,8 @@ export default function Multiplayer() {
               </div>
               <div className="text-white">
                 <div className="font-semibold">{displayName}</div>
-                <div className="text-sm opacity-80">Level {user.level || 1} • {(user.experience || 0).toLocaleString()} XP</div>
-                <div className="text-sm text-yellow-300 font-medium">{userStats?.coins || 0} coins</div>
+                <div className="text-sm opacity-80">Level 1 • 0 XP</div>
+                <div className="text-sm text-yellow-300 font-medium">{user?.currency || 0} coins</div>
               </div>
             </div>
             
@@ -352,9 +348,9 @@ export default function Multiplayer() {
                   </div>
                   <Button 
                     className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 10}
+                    disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 10}
                   >
-                    {!userStats || userStats.coins < 10 ? "Need 10 coins" : "Bet 10 Coins"}
+                    {(user?.currency || 0) < 10 ? "Need 10 coins" : "Bet 10 Coins"}
                   </Button>
                 </CardContent>
               </Card>
@@ -390,9 +386,9 @@ export default function Multiplayer() {
                   </div>
                   <Button 
                     className="w-full mt-4 bg-yellow-600 hover:bg-yellow-700 text-white"
-                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 50}
+                    disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 50}
                   >
-                    {!userStats || userStats.coins < 50 ? "Need 50 coins" : "Bet 50 Coins"}
+                    {(user?.currency || 0) < 50 ? "Need 50 coins" : "Bet 50 Coins"}
                   </Button>
                 </CardContent>
               </Card>
@@ -428,9 +424,9 @@ export default function Multiplayer() {
                   </div>
                   <Button 
                     className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white"
-                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 100}
+                    disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 100}
                   >
-                    {!userStats || userStats.coins < 100 ? "Need 100 coins" : "Bet 100 Coins"}
+                    {(user?.currency || 0) < 100 ? "Need 100 coins" : "Bet 100 Coins"}
                   </Button>
                 </CardContent>
               </Card>
@@ -466,9 +462,9 @@ export default function Multiplayer() {
                   </div>
                   <Button 
                     className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white"
-                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 500}
+                    disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 500}
                   >
-                    {!userStats || userStats.coins < 500 ? "Need 500 coins" : "Bet 500 Coins"}
+                    {(user?.currency || 0) < 500 ? "Need 500 coins" : "Bet 500 Coins"}
                   </Button>
                 </CardContent>
               </Card>
@@ -504,9 +500,9 @@ export default function Multiplayer() {
                   </div>
                   <Button 
                     className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white"
-                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 1000}
+                    disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 1000}
                   >
-                    {!userStats || userStats.coins < 1000 ? "Need 1,000 coins" : "Bet 1,000 Coins"}
+                    {(user?.currency || 0) < 1000 ? "Need 1,000 coins" : "Bet 1,000 Coins"}
                   </Button>
                 </CardContent>
               </Card>
