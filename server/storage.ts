@@ -90,9 +90,12 @@ export interface IStorage {
   
   // Game room operations
   createGameRoom(room: InsertGameRoom): Promise<GameRoom>;
+  createBettingRoom(room: any): Promise<GameRoom>;
+  getBettingRoomsByAmount(betAmount: number): Promise<any[]>;
   getGameRoom(code: string): Promise<GameRoom | undefined>;
+  getGameRooms(): Promise<GameRoom[]>;
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
-  joinGameRoom(userId: string, gameRoomId: string): Promise<GameParticipant>;
+  joinGameRoom(roomId: string, userId: string, betAmount?: number): Promise<GameParticipant>;
   leaveGameRoom(userId: string, gameRoomId: string): Promise<void>;
   updateGameState(gameRoomId: string, gameState: any): Promise<void>;
   
@@ -354,6 +357,45 @@ export class DatabaseStorage implements IStorage {
     return room;
   }
 
+  async createBettingRoom(roomData: any): Promise<GameRoom> {
+    const [room] = await db
+      .insert(gameRooms)
+      .values({
+        ...roomData,
+        prizePool: 0, // Will be updated as players join
+        status: 'waiting'
+      })
+      .returning();
+    return room;
+  }
+
+  async getBettingRoomsByAmount(betAmount: number): Promise<any[]> {
+    const rooms = await db
+      .select({
+        id: gameRooms.id,
+        code: gameRooms.code,
+        hostId: gameRooms.hostId,
+        betAmount: gameRooms.betAmount,
+        prizePool: gameRooms.prizePool,
+        maxPlayers: gameRooms.maxPlayers,
+        status: gameRooms.status,
+        currentPlayers: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${gameParticipants} 
+          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
+          AND ${gameParticipants.leftAt} IS NULL
+        )`
+      })
+      .from(gameRooms)
+      .where(eq(gameRooms.betAmount, betAmount));
+    return rooms;
+  }
+
+  async getGameRooms(): Promise<GameRoom[]> {
+    const rooms = await db.select().from(gameRooms);
+    return rooms;
+  }
+
   async getGameRoom(code: string): Promise<GameRoom | undefined> {
     const [room] = await db.select().from(gameRooms).where(eq(gameRooms.code, code));
     return room;
@@ -369,36 +411,53 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Multiplayer game room operations
-  async joinGameRoom(userId: string, gameRoomId: string): Promise<GameParticipant> {
+  async joinGameRoom(roomId: string, userId: string, betAmount: number = 0): Promise<GameParticipant> {
     // Check if already in room
     const existing = await db
       .select()
       .from(gameParticipants)
       .where(and(
         eq(gameParticipants.userId, userId),
-        eq(gameParticipants.gameRoomId, gameRoomId)
+        eq(gameParticipants.gameRoomId, roomId)
       ));
     
     if (existing.length > 0) {
       return existing[0];
     }
 
+    // For betting rooms, deduct the bet amount from user's coins
+    if (betAmount > 0) {
+      await this.spendCurrency(userId, betAmount);
+    }
+
     // Get current participant count to assign player index
     const participantCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(gameParticipants)
-      .where(eq(gameParticipants.gameRoomId, gameRoomId));
+      .where(and(
+        eq(gameParticipants.gameRoomId, roomId),
+        sql`${gameParticipants.leftAt} IS NULL`
+      ));
 
     const [participant] = await db
       .insert(gameParticipants)
       .values({
         userId,
-        gameRoomId,
+        gameRoomId: roomId,
         playerIndex: participantCount[0].count,
+        betPaid: betAmount,
         isReady: false,
         isSpectator: false
       })
       .returning();
+
+    // Update room's prize pool
+    await db
+      .update(gameRooms)
+      .set({
+        prizePool: sql`${gameRooms.prizePool} + ${betAmount}`
+      })
+      .where(eq(gameRooms.id, roomId));
 
     return participant;
   }

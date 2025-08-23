@@ -157,12 +157,13 @@ export const gameRooms = pgTable("game_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: varchar("code", { length: 6 }).notNull().unique(),
   hostId: varchar("host_id").notNull().references(() => users.id),
-  name: varchar("name").notNull(),
+  betAmount: integer("bet_amount").notNull().default(0), // coins required to join
+  prizePool: integer("prize_pool").notNull().default(0), // total coins in the pot
   maxPlayers: integer("max_players").default(4),
-  isPrivate: boolean("is_private").default(false),
   gameState: jsonb("game_state"),
   settings: jsonb("settings").notNull(),
   status: varchar("status").notNull().default("waiting"), // waiting, playing, finished
+  payouts: jsonb("payouts"), // stores final payouts for each player
   createdAt: timestamp("created_at").defaultNow(),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
@@ -174,6 +175,9 @@ export const gameParticipants = pgTable("game_participants", {
   gameRoomId: varchar("game_room_id").notNull().references(() => gameRooms.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   playerIndex: integer("player_index").notNull(), // 0, 1, 2, 3
+  betPaid: integer("bet_paid").notNull().default(0), // coins paid to join
+  finalPlacement: integer("final_placement"), // 1st, 2nd, 3rd, 4th
+  payout: integer("payout").default(0), // coins won
   isReady: boolean("is_ready").default(false),
   isSpectator: boolean("is_spectator").default(false),
   joinedAt: timestamp("joined_at").defaultNow(),

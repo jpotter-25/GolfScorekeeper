@@ -279,6 +279,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Betting Game Room API Routes
+  app.post('/api/game-rooms/join-betting', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { betAmount } = req.body;
+      
+      // Check if user has enough coins for non-free games
+      if (betAmount > 0) {
+        const userStats = await storage.getUserStats(userId);
+        if (userStats.coins < betAmount) {
+          return res.status(400).json({ message: "Insufficient coins" });
+        }
+      }
+      
+      // Look for existing room with same bet amount that has space
+      const existingRooms = await storage.getBettingRoomsByAmount(betAmount);
+      const availableRoom = existingRooms.find(room => 
+        room.status === 'waiting' && 
+        room.currentPlayers < room.maxPlayers
+      );
+      
+      if (availableRoom) {
+        // Join existing room
+        await storage.joinGameRoom(availableRoom.id, userId, betAmount);
+        res.json({ code: availableRoom.code, room: availableRoom });
+      } else {
+        // Create new betting room
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const gameRoom = await storage.createBettingRoom({
+          code,
+          hostId: userId,
+          betAmount,
+          maxPlayers: 4,
+          settings: { rounds: 9, mode: 'online' }
+        });
+        
+        // Host automatically joins with their bet
+        await storage.joinGameRoom(gameRoom.id, userId, betAmount);
+        res.json({ code: gameRoom.code, room: gameRoom });
+      }
+    } catch (error) {
+      console.error("Error joining betting room:", error);
+      res.status(500).json({ message: "Failed to join betting room" });
+    }
+  });
+
   // Multiplayer Game Room API Routes
   app.post('/api/game-rooms', isAuthenticated, async (req: any, res) => {
     try {

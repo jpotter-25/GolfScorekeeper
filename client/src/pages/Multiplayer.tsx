@@ -47,13 +47,18 @@ export default function Multiplayer() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const [roomCode, setRoomCode] = useState("");
-  const [roomName, setRoomName] = useState("");
   const [friendCode, setFriendCode] = useState("");
+  const [selectedBetAmount, setSelectedBetAmount] = useState<number | null>(null);
 
   // Fetch friends
   const { data: friends = [] } = useQuery<Friend[]>({
     queryKey: ['/api/friends'],
+    retry: false,
+  });
+
+  // Fetch user stats to get coin balance
+  const { data: userStats } = useQuery({
+    queryKey: ['/api/user/stats'],
     retry: false,
   });
 
@@ -63,40 +68,16 @@ export default function Multiplayer() {
     retry: false,
   });
 
-  // Create game room mutation
-  const createRoomMutation = useMutation({
-    mutationFn: async (roomData: { name: string; maxPlayers: number; isPrivate: boolean }) => {
-      return await apiRequest('/api/game-rooms', 'POST', roomData);
+  // Join betting room mutation
+  const joinBettingRoomMutation = useMutation({
+    mutationFn: async (betAmount: number) => {
+      return await apiRequest('/api/game-rooms/join-betting', 'POST', { betAmount });
     },
     onSuccess: (data: any) => {
+      const betAmount = data.room?.betAmount || 0;
       toast({
-        title: "Room Created",
-        description: `Game room "${data.name}" created with code: ${data.code}`,
-      });
-      setRoomName("");
-      queryClient.invalidateQueries({ queryKey: ['/api/game-rooms'] });
-      
-      // Navigate to the game room
-      setLocation(`/multiplayer/game?room=${data.code}`);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to create game room",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Join room by code mutation
-  const joinRoomMutation = useMutation({
-    mutationFn: async (code: string) => {
-      return await apiRequest(`/api/game-rooms/${code}`, 'GET');
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: "Room Found",
-        description: `Joining "${data.name}"...`,
+        title: "Joining Game",
+        description: `Bet placed! Joining ${betAmount === 0 ? 'free' : `${betAmount} coin`} game...`,
       });
       
       // Navigate to the game room
@@ -105,7 +86,7 @@ export default function Multiplayer() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Room not found or you don't have access",
+        description: error.message || "Failed to join game",
         variant: "destructive",
       });
     },
@@ -139,34 +120,18 @@ export default function Multiplayer() {
     },
   });
 
-  const handleCreateRoom = () => {
-    if (!roomName.trim()) {
+  const handleJoinBettingRoom = (betAmount: number) => {
+    // Check if user has enough coins
+    if (betAmount > 0 && (!userStats || userStats.coins < betAmount)) {
       toast({
-        title: "Error",
-        description: "Please enter a room name",
+        title: "Insufficient Coins",
+        description: `You need ${betAmount} coins to join this game. You have ${userStats?.coins || 0} coins.`,
         variant: "destructive",
       });
       return;
     }
 
-    createRoomMutation.mutate({
-      name: roomName,
-      maxPlayers: 4,
-      isPrivate: false,
-    });
-  };
-
-  const handleJoinRoom = () => {
-    if (!roomCode.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a room code",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    joinRoomMutation.mutate(roomCode.toUpperCase());
+    joinBettingRoomMutation.mutate(betAmount);
   };
 
   const handleAddFriend = () => {
@@ -221,7 +186,7 @@ export default function Multiplayer() {
         <TabsList className="grid w-full grid-cols-3 bg-slate-800/90 backdrop-blur-sm border-2 border-game-gold/30">
           <TabsTrigger value="rooms" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-rooms">
             <GamepadIcon className="w-4 h-4 mr-2" />
-            Game Rooms
+            Betting Games
           </TabsTrigger>
           <TabsTrigger value="friends" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-friends">
             <Users className="w-4 h-4 mr-2" />
@@ -234,86 +199,265 @@ export default function Multiplayer() {
         </TabsList>
 
         <TabsContent value="rooms" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Create Room */}
-            <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-create-room">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Plus className="w-5 h-5 text-game-gold" />
-                  Create Room
-                </CardTitle>
-                <CardDescription className="text-slate-200">
-                  Start a new multiplayer game session
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Input
-                  placeholder="Enter room name..."
-                  value={roomName}
-                  onChange={(e) => setRoomName(e.target.value)}
-                  className="bg-slate-700/70 border-slate-500 text-white placeholder:text-slate-300 focus:border-game-gold focus:bg-slate-700/90"
-                  data-testid="input-room-name"
-                />
-                <Button 
-                  onClick={handleCreateRoom}
-                  disabled={createRoomMutation.isPending}
-                  className="w-full bg-game-gold hover:bg-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                  data-testid="button-create-room"
-                >
-                  {createRoomMutation.isPending ? "Creating..." : "Create Room"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Join Room */}
-            <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-join-room">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <GamepadIcon className="w-5 h-5 text-game-gold" />
-                  Join Room
-                </CardTitle>
-                <CardDescription className="text-slate-200">
-                  Enter a room code to join an existing game
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Input
-                  placeholder="Enter room code..."
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  className="bg-slate-700/70 border-slate-500 text-white placeholder:text-slate-300 focus:border-game-gold focus:bg-slate-700/90 font-mono text-center tracking-wider"
-                  data-testid="input-room-code"
-                />
-                <Button 
-                  onClick={handleJoinRoom}
-                  disabled={joinRoomMutation.isPending}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                  data-testid="button-join-room"
-                >
-                  {joinRoomMutation.isPending ? "Joining..." : "Join Room"}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Match */}
-          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-purple-500/30 shadow-2xl" data-testid="card-quick-match">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <i className="fas fa-bolt text-purple-400"></i>
-                Quick Match
-              </CardTitle>
-              <CardDescription className="text-slate-200">
-                Find and join a random public game instantly
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button size="lg" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200" data-testid="button-quick-match">
-                <i className="fas fa-search mr-2"></i>
-                Find Match
-              </Button>
+          {/* User Balance */}
+          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-game-gold/20 rounded-full flex items-center justify-center">
+                    <i className="fas fa-coins text-game-gold text-xl"></i>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-lg">Your Balance</p>
+                    <p className="text-slate-300 text-sm">Available to bet</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-game-gold">{userStats?.coins || 0}</p>
+                  <p className="text-slate-400 text-sm">coins</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Betting Brackets */}
+          <div className="space-y-4">
+            <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <i className="fas fa-trophy text-game-gold"></i>
+              Choose Your Stake
+            </h3>
+            <p className="text-slate-300 mb-6">Select your bet amount to join or create a game. Winner takes 70%, second place gets 30%.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Free Games */}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-green-500/30 shadow-2xl hover:border-green-400 transition-all duration-200 cursor-pointer" 
+                    onClick={() => handleJoinBettingRoom(0)}
+                    data-testid="card-bet-free">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-green-600 text-white">FREE</Badge>
+                    <i className="fas fa-heart text-green-400 text-lg"></i>
+                  </div>
+                  <CardTitle className="text-white text-xl">Free Game</CardTitle>
+                  <CardDescription className="text-slate-200">
+                    Practice without risk
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Entry:</span>
+                      <span className="text-green-400 font-semibold">FREE</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">1st Place:</span>
+                      <span className="text-white">1 coin</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">2nd Place:</span>
+                      <span className="text-white">0 coins</span>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white"
+                    disabled={joinBettingRoomMutation.isPending}
+                  >
+                    Join Free Game
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Low Stakes */}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-blue-500/30 shadow-2xl hover:border-blue-400 transition-all duration-200 cursor-pointer" 
+                    onClick={() => handleJoinBettingRoom(10)}
+                    data-testid="card-bet-10">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-blue-600 text-white">LOW</Badge>
+                    <i className="fas fa-seedling text-blue-400 text-lg"></i>
+                  </div>
+                  <CardTitle className="text-white text-xl">Starter Stakes</CardTitle>
+                  <CardDescription className="text-slate-200">
+                    Perfect for beginners
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Entry:</span>
+                      <span className="text-blue-400 font-semibold">10 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">1st Place:</span>
+                      <span className="text-white">28 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">2nd Place:</span>
+                      <span className="text-white">12 coins</span>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 10}
+                  >
+                    {!userStats || userStats.coins < 10 ? "Need 10 coins" : "Bet 10 Coins"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Medium Stakes */}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-yellow-500/30 shadow-2xl hover:border-yellow-400 transition-all duration-200 cursor-pointer" 
+                    onClick={() => handleJoinBettingRoom(50)}
+                    data-testid="card-bet-50">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-yellow-600 text-white">MEDIUM</Badge>
+                    <i className="fas fa-fire text-yellow-400 text-lg"></i>
+                  </div>
+                  <CardTitle className="text-white text-xl">Rising Stakes</CardTitle>
+                  <CardDescription className="text-slate-200">
+                    For confident players
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Entry:</span>
+                      <span className="text-yellow-400 font-semibold">50 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">1st Place:</span>
+                      <span className="text-white">140 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">2nd Place:</span>
+                      <span className="text-white">60 coins</span>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full mt-4 bg-yellow-600 hover:bg-yellow-700 text-white"
+                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 50}
+                  >
+                    {!userStats || userStats.coins < 50 ? "Need 50 coins" : "Bet 50 Coins"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* High Stakes */}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-orange-500/30 shadow-2xl hover:border-orange-400 transition-all duration-200 cursor-pointer" 
+                    onClick={() => handleJoinBettingRoom(100)}
+                    data-testid="card-bet-100">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-orange-600 text-white">HIGH</Badge>
+                    <i className="fas fa-lightning text-orange-400 text-lg"></i>
+                  </div>
+                  <CardTitle className="text-white text-xl">High Roller</CardTitle>
+                  <CardDescription className="text-slate-200">
+                    Serious competition
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Entry:</span>
+                      <span className="text-orange-400 font-semibold">100 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">1st Place:</span>
+                      <span className="text-white">280 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">2nd Place:</span>
+                      <span className="text-white">120 coins</span>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white"
+                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 100}
+                  >
+                    {!userStats || userStats.coins < 100 ? "Need 100 coins" : "Bet 100 Coins"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Elite Stakes */}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-red-500/30 shadow-2xl hover:border-red-400 transition-all duration-200 cursor-pointer" 
+                    onClick={() => handleJoinBettingRoom(500)}
+                    data-testid="card-bet-500">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-red-600 text-white">ELITE</Badge>
+                    <i className="fas fa-crown text-red-400 text-lg"></i>
+                  </div>
+                  <CardTitle className="text-white text-xl">Elite Stakes</CardTitle>
+                  <CardDescription className="text-slate-200">
+                    For champions only
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Entry:</span>
+                      <span className="text-red-400 font-semibold">500 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">1st Place:</span>
+                      <span className="text-white">1,400 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">2nd Place:</span>
+                      <span className="text-white">600 coins</span>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white"
+                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 500}
+                  >
+                    {!userStats || userStats.coins < 500 ? "Need 500 coins" : "Bet 500 Coins"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Legendary Stakes */}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-purple-500/30 shadow-2xl hover:border-purple-400 transition-all duration-200 cursor-pointer" 
+                    onClick={() => handleJoinBettingRoom(1000)}
+                    data-testid="card-bet-1000">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-purple-600 text-white">LEGEND</Badge>
+                    <i className="fas fa-star text-purple-400 text-lg"></i>
+                  </div>
+                  <CardTitle className="text-white text-xl">Legendary</CardTitle>
+                  <CardDescription className="text-slate-200">
+                    Ultimate stakes
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Entry:</span>
+                      <span className="text-purple-400 font-semibold">1,000 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">1st Place:</span>
+                      <span className="text-white">2,800 coins</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">2nd Place:</span>
+                      <span className="text-white">1,200 coins</span>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white"
+                    disabled={joinBettingRoomMutation.isPending || !userStats || userStats.coins < 1000}
+                  >
+                    {!userStats || userStats.coins < 1000 ? "Need 1,000 coins" : "Bet 1,000 Coins"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="friends" className="space-y-6">
