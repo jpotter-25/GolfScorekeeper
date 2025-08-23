@@ -8,6 +8,15 @@ import {
   userCosmetics,
   userSettings,
   gameRooms,
+  gameParticipants,
+  friendships,
+  chatMessages,
+  tournaments,
+  tournamentParticipants,
+  tournamentMatches,
+  gameSpectators,
+  socialPosts,
+  socialPostLikes,
   type User,
   type UpsertUser,
   type GameStats,
@@ -18,6 +27,15 @@ import {
   type UserCosmetic,
   type UserSettings,
   type GameRoom,
+  type GameParticipant,
+  type Friendship,
+  type ChatMessage,
+  type Tournament,
+  type TournamentParticipant,
+  type TournamentMatch,
+  type GameSpectator,
+  type SocialPost,
+  type SocialPostLike,
   type InsertGameStats,
   type InsertGameHistory,
   type InsertUserAchievement,
@@ -25,6 +43,15 @@ import {
   type InsertUserSettings,
   type UpdateUserSettings,
   type InsertGameRoom,
+  type InsertGameParticipant,
+  type InsertFriendship,
+  type InsertChatMessage,
+  type InsertTournament,
+  type InsertTournamentParticipant,
+  type InsertTournamentMatch,
+  type InsertGameSpectator,
+  type InsertSocialPost,
+  type InsertSocialPostLike,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and } from "drizzle-orm";
@@ -65,6 +92,37 @@ export interface IStorage {
   createGameRoom(room: InsertGameRoom): Promise<GameRoom>;
   getGameRoom(code: string): Promise<GameRoom | undefined>;
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
+  joinGameRoom(userId: string, gameRoomId: string): Promise<GameParticipant>;
+  leaveGameRoom(userId: string, gameRoomId: string): Promise<void>;
+  updateGameState(gameRoomId: string, gameState: any): Promise<void>;
+  
+  // Friend system operations
+  sendFriendRequest(requesterId: string, addresseeId: string): Promise<Friendship>;
+  respondToFriendRequest(friendshipId: string, status: 'accepted' | 'declined'): Promise<Friendship>;
+  getFriends(userId: string): Promise<User[]>;
+  getFriendRequests(userId: string): Promise<Friendship[]>;
+  
+  // Chat operations
+  addChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  getChatHistory(gameRoomId?: string, limit?: number): Promise<ChatMessage[]>;
+  
+  // Tournament operations
+  createTournament(tournament: InsertTournament): Promise<Tournament>;
+  joinTournament(tournamentId: string, userId: string): Promise<TournamentParticipant>;
+  leaveTournament(tournamentId: string, userId: string): Promise<void>;
+  getTournaments(status?: string): Promise<Tournament[]>;
+  getTournamentParticipants(tournamentId: string): Promise<TournamentParticipant[]>;
+  
+  // Spectator operations
+  addSpectator(gameRoomId: string, userId: string): Promise<GameSpectator>;
+  removeSpectator(gameRoomId: string, userId: string): Promise<void>;
+  getSpectators(gameRoomId: string): Promise<User[]>;
+  
+  // Social sharing operations
+  createSocialPost(post: InsertSocialPost): Promise<SocialPost>;
+  likeSocialPost(postId: string, userId: string): Promise<SocialPostLike>;
+  unlikeSocialPost(postId: string, userId: string): Promise<void>;
+  getSocialFeed(userId: string, limit?: number): Promise<SocialPost[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -302,6 +360,301 @@ export class DatabaseStorage implements IStorage {
       .where(eq(gameRooms.code, code))
       .returning();
     return room;
+  }
+
+  // Multiplayer game room operations
+  async joinGameRoom(userId: string, gameRoomId: string): Promise<GameParticipant> {
+    // Check if already in room
+    const existing = await db
+      .select()
+      .from(gameParticipants)
+      .where(and(
+        eq(gameParticipants.userId, userId),
+        eq(gameParticipants.gameRoomId, gameRoomId)
+      ));
+    
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    // Get current participant count to assign player index
+    const participantCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(gameParticipants)
+      .where(eq(gameParticipants.gameRoomId, gameRoomId));
+
+    const [participant] = await db
+      .insert(gameParticipants)
+      .values({
+        userId,
+        gameRoomId,
+        playerIndex: participantCount[0].count,
+        isReady: false,
+        isSpectator: false
+      })
+      .returning();
+
+    return participant;
+  }
+
+  async leaveGameRoom(userId: string, gameRoomId: string): Promise<void> {
+    await db
+      .update(gameParticipants)
+      .set({ leftAt: new Date() })
+      .where(and(
+        eq(gameParticipants.userId, userId),
+        eq(gameParticipants.gameRoomId, gameRoomId)
+      ));
+  }
+
+  async updateGameState(gameRoomId: string, gameState: any): Promise<void> {
+    await db
+      .update(gameRooms)
+      .set({ gameState })
+      .where(eq(gameRooms.id, gameRoomId));
+  }
+
+  // Friend system operations
+  async sendFriendRequest(requesterId: string, addresseeId: string): Promise<Friendship> {
+    const [friendship] = await db
+      .insert(friendships)
+      .values({
+        requesterId,
+        addresseeId,
+        status: 'pending'
+      })
+      .returning();
+    return friendship;
+  }
+
+  async respondToFriendRequest(friendshipId: string, status: 'accepted' | 'declined'): Promise<Friendship> {
+    const [friendship] = await db
+      .update(friendships)
+      .set({ 
+        status,
+        respondedAt: new Date()
+      })
+      .where(eq(friendships.id, friendshipId))
+      .returning();
+    return friendship;
+  }
+
+  async getFriends(userId: string): Promise<User[]> {
+    const friends = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        level: users.level,
+        experience: users.experience,
+        currency: users.currency,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
+      .from(friendships)
+      .innerJoin(users, eq(users.id, friendships.addresseeId))
+      .where(and(
+        eq(friendships.requesterId, userId),
+        eq(friendships.status, 'accepted')
+      ));
+    
+    const friends2 = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        level: users.level,
+        experience: users.experience,
+        currency: users.currency,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
+      .from(friendships)
+      .innerJoin(users, eq(users.id, friendships.requesterId))
+      .where(and(
+        eq(friendships.addresseeId, userId),
+        eq(friendships.status, 'accepted')
+      ));
+
+    return [...friends, ...friends2];
+  }
+
+  async getFriendRequests(userId: string): Promise<Friendship[]> {
+    return await db
+      .select()
+      .from(friendships)
+      .where(and(
+        eq(friendships.addresseeId, userId),
+        eq(friendships.status, 'pending')
+      ));
+  }
+
+  // Chat operations
+  async addChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [chatMessage] = await db
+      .insert(chatMessages)
+      .values(message)
+      .returning();
+    return chatMessage;
+  }
+
+  async getChatHistory(gameRoomId?: string, limit: number = 50): Promise<ChatMessage[]> {
+    let query = db.select().from(chatMessages);
+    
+    if (gameRoomId) {
+      query = query.where(eq(chatMessages.gameRoomId, gameRoomId));
+    } else {
+      query = query.where(sql`${chatMessages.gameRoomId} IS NULL`);
+    }
+    
+    return await query
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(limit);
+  }
+
+  // Tournament operations
+  async createTournament(tournament: InsertTournament): Promise<Tournament> {
+    const [newTournament] = await db
+      .insert(tournaments)
+      .values(tournament)
+      .returning();
+    return newTournament;
+  }
+
+  async joinTournament(tournamentId: string, userId: string): Promise<TournamentParticipant> {
+    const [participant] = await db
+      .insert(tournamentParticipants)
+      .values({
+        tournamentId,
+        userId
+      })
+      .returning();
+    return participant;
+  }
+
+  async leaveTournament(tournamentId: string, userId: string): Promise<void> {
+    await db
+      .delete(tournamentParticipants)
+      .where(and(
+        eq(tournamentParticipants.tournamentId, tournamentId),
+        eq(tournamentParticipants.userId, userId)
+      ));
+  }
+
+  async getTournaments(status?: string): Promise<Tournament[]> {
+    let query = db.select().from(tournaments);
+    
+    if (status) {
+      query = query.where(eq(tournaments.status, status));
+    }
+    
+    return await query.orderBy(desc(tournaments.createdAt));
+  }
+
+  async getTournamentParticipants(tournamentId: string): Promise<TournamentParticipant[]> {
+    return await db
+      .select()
+      .from(tournamentParticipants)
+      .where(eq(tournamentParticipants.tournamentId, tournamentId));
+  }
+
+  // Spectator operations
+  async addSpectator(gameRoomId: string, userId: string): Promise<GameSpectator> {
+    const [spectator] = await db
+      .insert(gameSpectators)
+      .values({
+        gameRoomId,
+        userId
+      })
+      .returning();
+    return spectator;
+  }
+
+  async removeSpectator(gameRoomId: string, userId: string): Promise<void> {
+    await db
+      .update(gameSpectators)
+      .set({ leftAt: new Date() })
+      .where(and(
+        eq(gameSpectators.gameRoomId, gameRoomId),
+        eq(gameSpectators.userId, userId)
+      ));
+  }
+
+  async getSpectators(gameRoomId: string): Promise<User[]> {
+    return await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        level: users.level,
+        experience: users.experience,
+        currency: users.currency,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
+      .from(gameSpectators)
+      .innerJoin(users, eq(users.id, gameSpectators.userId))
+      .where(and(
+        eq(gameSpectators.gameRoomId, gameRoomId),
+        sql`${gameSpectators.leftAt} IS NULL`
+      ));
+  }
+
+  // Social sharing operations
+  async createSocialPost(post: InsertSocialPost): Promise<SocialPost> {
+    const [socialPost] = await db
+      .insert(socialPosts)
+      .values(post)
+      .returning();
+    return socialPost;
+  }
+
+  async likeSocialPost(postId: string, userId: string): Promise<SocialPostLike> {
+    const [like] = await db
+      .insert(socialPostLikes)
+      .values({
+        postId,
+        userId
+      })
+      .returning();
+    
+    // Increment like count
+    await db
+      .update(socialPosts)
+      .set({ likes: sql`${socialPosts.likes} + 1` })
+      .where(eq(socialPosts.id, postId));
+      
+    return like;
+  }
+
+  async unlikeSocialPost(postId: string, userId: string): Promise<void> {
+    await db
+      .delete(socialPostLikes)
+      .where(and(
+        eq(socialPostLikes.postId, postId),
+        eq(socialPostLikes.userId, userId)
+      ));
+    
+    // Decrement like count
+    await db
+      .update(socialPosts)
+      .set({ likes: sql`${socialPosts.likes} - 1` })
+      .where(eq(socialPosts.id, postId));
+  }
+
+  async getSocialFeed(userId: string, limit: number = 20): Promise<SocialPost[]> {
+    return await db
+      .select()
+      .from(socialPosts)
+      .where(eq(socialPosts.isPublic, true))
+      .orderBy(desc(socialPosts.createdAt))
+      .limit(limit);
   }
 }
 

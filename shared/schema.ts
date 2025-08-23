@@ -149,15 +149,128 @@ export const userSettings = pgTable("user_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Multiplayer game rooms
 export const gameRooms = pgTable("game_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(),
-  hostId: varchar("host_id").notNull(),
-  players: jsonb("players").notNull(),
+  code: varchar("code", { length: 6 }).notNull().unique(),
+  hostId: varchar("host_id").notNull().references(() => users.id),
+  name: varchar("name").notNull(),
+  maxPlayers: integer("max_players").default(4),
+  isPrivate: boolean("is_private").default(false),
   gameState: jsonb("game_state"),
   settings: jsonb("settings").notNull(),
-  createdAt: text("created_at").default(sql`NOW()`),
-  isActive: boolean("is_active").default(true),
+  status: varchar("status").notNull().default("waiting"), // waiting, playing, finished
+  createdAt: timestamp("created_at").defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+});
+
+// Game participants - tracks who's in each game
+export const gameParticipants = pgTable("game_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gameRoomId: varchar("game_room_id").notNull().references(() => gameRooms.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  playerIndex: integer("player_index").notNull(), // 0, 1, 2, 3
+  isReady: boolean("is_ready").default(false),
+  isSpectator: boolean("is_spectator").default(false),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  leftAt: timestamp("left_at"),
+});
+
+// Friend relationships
+export const friendships = pgTable("friendships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requesterId: varchar("requester_id").notNull().references(() => users.id),
+  addresseeId: varchar("addressee_id").notNull().references(() => users.id),
+  status: varchar("status").notNull().default("pending"), // pending, accepted, declined, blocked
+  createdAt: timestamp("created_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+});
+
+// Chat messages
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  gameRoomId: varchar("game_room_id").references(() => gameRooms.id), // null for global chat
+  content: text("content").notNull(),
+  type: varchar("type").notNull().default("message"), // message, system, emote
+  isDeleted: boolean("is_deleted").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tournaments
+export const tournaments = pgTable("tournaments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  organizerId: varchar("organizer_id").notNull().references(() => users.id),
+  maxParticipants: integer("max_participants").notNull(),
+  entryFee: integer("entry_fee").default(0), // in coins
+  prizePool: integer("prize_pool").default(0),
+  status: varchar("status").notNull().default("registration"), // registration, active, finished, cancelled
+  registrationStart: timestamp("registration_start").defaultNow(),
+  registrationEnd: timestamp("registration_end").notNull(),
+  tournamentStart: timestamp("tournament_start").notNull(),
+  tournamentEnd: timestamp("tournament_end"),
+  rules: jsonb("rules").notNull(),
+  brackets: jsonb("brackets"), // Tournament bracket structure
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tournament participants
+export const tournamentParticipants = pgTable("tournament_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  seed: integer("seed"), // Tournament seeding
+  currentRound: integer("current_round").default(1),
+  isEliminated: boolean("is_eliminated").default(false),
+  finalPlacement: integer("final_placement"),
+  registeredAt: timestamp("registered_at").defaultNow(),
+});
+
+// Tournament matches
+export const tournamentMatches = pgTable("tournament_matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
+  gameRoomId: varchar("game_room_id").references(() => gameRooms.id),
+  round: integer("round").notNull(),
+  matchNumber: integer("match_number").notNull(),
+  participant1Id: varchar("participant1_id").references(() => tournamentParticipants.id),
+  participant2Id: varchar("participant2_id").references(() => tournamentParticipants.id),
+  winnerId: varchar("winner_id").references(() => tournamentParticipants.id),
+  status: varchar("status").notNull().default("pending"), // pending, playing, finished
+  scheduledAt: timestamp("scheduled_at"),
+  playedAt: timestamp("played_at"),
+});
+
+// Spectators for games
+export const gameSpectators = pgTable("game_spectators", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gameRoomId: varchar("game_room_id").notNull().references(() => gameRooms.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  leftAt: timestamp("left_at"),
+});
+
+// Social sharing posts
+export const socialPosts = pgTable("social_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: varchar("type").notNull(), // achievement, game_result, milestone
+  content: text("content").notNull(),
+  metadata: jsonb("metadata"), // Extra data for the post
+  likes: integer("likes").default(0),
+  isPublic: boolean("is_public").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Likes on social posts
+export const socialPostLikes = pgTable("social_post_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => socialPosts.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Schema definitions for inserts
@@ -179,11 +292,60 @@ export const insertGameHistorySchema = createInsertSchema(gameHistory).omit({
   createdAt: true,
 });
 
-export const insertGameRoomSchema = createInsertSchema(gameRooms).pick({
-  code: true,
-  hostId: true,
-  players: true,
-  settings: true,
+export const insertGameRoomSchema = createInsertSchema(gameRooms).omit({
+  id: true,
+  createdAt: true,
+  startedAt: true,
+  finishedAt: true,
+});
+
+export const insertGameParticipantSchema = createInsertSchema(gameParticipants).omit({
+  id: true,
+  joinedAt: true,
+  leftAt: true,
+});
+
+export const insertFriendshipSchema = createInsertSchema(friendships).omit({
+  id: true,
+  createdAt: true,
+  respondedAt: true,
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTournamentSchema = createInsertSchema(tournaments).omit({
+  id: true,
+  createdAt: true,
+  tournamentEnd: true,
+});
+
+export const insertTournamentParticipantSchema = createInsertSchema(tournamentParticipants).omit({
+  id: true,
+  registeredAt: true,
+});
+
+export const insertTournamentMatchSchema = createInsertSchema(tournamentMatches).omit({
+  id: true,
+  playedAt: true,
+});
+
+export const insertGameSpectatorSchema = createInsertSchema(gameSpectators).omit({
+  id: true,
+  joinedAt: true,
+  leftAt: true,
+});
+
+export const insertSocialPostSchema = createInsertSchema(socialPosts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSocialPostLikeSchema = createInsertSchema(socialPostLikes).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertAchievementSchema = createInsertSchema(achievements);
@@ -217,6 +379,15 @@ export type User = typeof users.$inferSelect;
 export type GameStats = typeof gameStats.$inferSelect;
 export type GameHistory = typeof gameHistory.$inferSelect;
 export type GameRoom = typeof gameRooms.$inferSelect;
+export type GameParticipant = typeof gameParticipants.$inferSelect;
+export type Friendship = typeof friendships.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type Tournament = typeof tournaments.$inferSelect;
+export type TournamentParticipant = typeof tournamentParticipants.$inferSelect;
+export type TournamentMatch = typeof tournamentMatches.$inferSelect;
+export type GameSpectator = typeof gameSpectators.$inferSelect;
+export type SocialPost = typeof socialPosts.$inferSelect;
+export type SocialPostLike = typeof socialPostLikes.$inferSelect;
 export type Achievement = typeof achievements.$inferSelect;
 export type UserAchievement = typeof userAchievements.$inferSelect;
 export type Cosmetic = typeof cosmetics.$inferSelect;
@@ -226,6 +397,15 @@ export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertGameStats = z.infer<typeof insertGameStatsSchema>;
 export type InsertGameHistory = z.infer<typeof insertGameHistorySchema>;
 export type InsertGameRoom = z.infer<typeof insertGameRoomSchema>;
+export type InsertGameParticipant = z.infer<typeof insertGameParticipantSchema>;
+export type InsertFriendship = z.infer<typeof insertFriendshipSchema>;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type InsertTournament = z.infer<typeof insertTournamentSchema>;
+export type InsertTournamentParticipant = z.infer<typeof insertTournamentParticipantSchema>;
+export type InsertTournamentMatch = z.infer<typeof insertTournamentMatchSchema>;
+export type InsertGameSpectator = z.infer<typeof insertGameSpectatorSchema>;
+export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
+export type InsertSocialPostLike = z.infer<typeof insertSocialPostLikeSchema>;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 export type InsertUserAchievement = z.infer<typeof insertUserAchievementSchema>;
 export type InsertCosmetic = z.infer<typeof insertCosmeticSchema>;
