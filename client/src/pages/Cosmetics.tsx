@@ -34,7 +34,7 @@ export default function Cosmetics() {
       return apiRequest("POST", "/api/cosmetics/purchase", { cosmeticId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cosmetics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cosmetics", selectedCategory] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Purchase Successful",
@@ -55,7 +55,7 @@ export default function Cosmetics() {
       return apiRequest("POST", `/api/cosmetics/${cosmeticId}/equip`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cosmetics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cosmetics", selectedCategory] });
       toast({
         title: "Item Equipped",
         description: "Your cosmetic is now active!",
