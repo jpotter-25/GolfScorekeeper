@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, GamepadIcon, Trophy, MessageCircle } from "lucide-react";
+import { Users, Plus, GamepadIcon, Trophy, MessageCircle, UserPlus } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -49,6 +49,7 @@ export default function Multiplayer() {
   const [, setLocation] = useLocation();
   const [roomCode, setRoomCode] = useState("");
   const [roomName, setRoomName] = useState("");
+  const [friendCode, setFriendCode] = useState("");
 
   // Fetch friends
   const { data: friends = [] } = useQuery<Friend[]>({
@@ -110,6 +111,34 @@ export default function Multiplayer() {
     },
   });
 
+  // Add friend mutation
+  const addFriendMutation = useMutation({
+    mutationFn: async (friendCode: string) => {
+      return await apiRequest("/api/friends/request", {
+        method: "POST",
+        body: JSON.stringify({ friendCode }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Friend request sent!",
+      });
+      setFriendCode("");
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send friend request",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateRoom = () => {
     if (!roomName.trim()) {
       toast({
@@ -140,6 +169,19 @@ export default function Multiplayer() {
     joinRoomMutation.mutate(roomCode.toUpperCase());
   };
 
+  const handleAddFriend = () => {
+    if (!friendCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a friend code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addFriendMutation.mutate(friendCode.toUpperCase());
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt" data-testid="multiplayer-page">
       <div className="container mx-auto p-6 space-y-6">
@@ -155,7 +197,7 @@ export default function Multiplayer() {
         </div>
 
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-slate-800/90 backdrop-blur-sm border-2 border-game-gold/30">
+        <TabsList className="grid w-full grid-cols-3 bg-slate-800/90 backdrop-blur-sm border-2 border-game-gold/30">
           <TabsTrigger value="rooms" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-rooms">
             <GamepadIcon className="w-4 h-4 mr-2" />
             Game Rooms
@@ -167,10 +209,6 @@ export default function Multiplayer() {
           <TabsTrigger value="tournaments" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-tournaments">
             <Trophy className="w-4 h-4 mr-2" />
             Tournaments
-          </TabsTrigger>
-          <TabsTrigger value="chat" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-chat">
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Global Chat
           </TabsTrigger>
         </TabsList>
 
@@ -258,6 +296,45 @@ export default function Multiplayer() {
         </TabsContent>
 
         <TabsContent value="friends" className="space-y-6">
+          {/* Add Friend Card */}
+          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-blue-500/30 shadow-2xl" data-testid="card-add-friend">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-blue-400" />
+                Add Friend
+              </CardTitle>
+              <CardDescription className="text-slate-200">
+                Enter a friend's 6-character friend code to send them a request
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Input
+                placeholder="Enter friend code..."
+                value={friendCode}
+                onChange={(e) => setFriendCode(e.target.value.toUpperCase())}
+                maxLength={6}
+                className="bg-slate-700/70 border-slate-500 text-white placeholder:text-slate-300 focus:border-blue-400 focus:bg-slate-700/90 font-mono text-center tracking-wider text-lg"
+                data-testid="input-friend-code"
+              />
+              <Button 
+                onClick={handleAddFriend}
+                disabled={addFriendMutation.isPending}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                data-testid="button-add-friend"
+              >
+                {addFriendMutation.isPending ? "Sending..." : "Send Friend Request"}
+              </Button>
+              {user?.friendCode && (
+                <div className="mt-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600/50">
+                  <p className="text-sm text-slate-300 mb-1">Your friend code:</p>
+                  <p className="font-mono text-game-gold text-lg font-bold tracking-wider text-center bg-slate-800/50 py-2 px-4 rounded border border-game-gold/30">
+                    {user.friendCode}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-friends">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
@@ -373,28 +450,6 @@ export default function Multiplayer() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="chat">
-          <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl" data-testid="card-global-chat">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <MessageCircle className="w-5 h-5 text-game-gold" />
-                Global Chat
-              </CardTitle>
-              <CardDescription className="text-slate-200">
-                Chat with players from around the world
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 border border-slate-600/50 rounded-lg p-4 bg-slate-700/30">
-                <div className="text-center text-slate-300 py-20">
-                  <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-60 text-game-gold" />
-                  <p className="text-lg">Global chat coming soon!</p>
-                  <p className="text-sm text-slate-400">Connect with players worldwide</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
       </div>
     </div>

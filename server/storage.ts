@@ -101,6 +101,7 @@ export interface IStorage {
   respondToFriendRequest(friendshipId: string, status: 'accepted' | 'declined'): Promise<Friendship>;
   getFriends(userId: string): Promise<User[]>;
   getFriendRequests(userId: string): Promise<Friendship[]>;
+  findUserByFriendCode(friendCode: string): Promise<User | undefined>;
   
   // Chat operations
   addChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
@@ -133,6 +134,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // Generate unique friend code if not provided
+    if (!userData.friendCode) {
+      userData.friendCode = await this.generateUniqueFriendCode();
+    }
+    
     const [user] = await db
       .insert(users)
       .values(userData)
@@ -447,6 +453,7 @@ export class DatabaseStorage implements IStorage {
         firstName: users.firstName,
         lastName: users.lastName,
         profileImageUrl: users.profileImageUrl,
+        friendCode: users.friendCode,
         level: users.level,
         experience: users.experience,
         currency: users.currency,
@@ -467,6 +474,7 @@ export class DatabaseStorage implements IStorage {
         firstName: users.firstName,
         lastName: users.lastName,
         profileImageUrl: users.profileImageUrl,
+        friendCode: users.friendCode,
         level: users.level,
         experience: users.experience,
         currency: users.currency,
@@ -491,6 +499,14 @@ export class DatabaseStorage implements IStorage {
         eq(friendships.addresseeId, userId),
         eq(friendships.status, 'pending')
       ));
+  }
+
+  async findUserByFriendCode(friendCode: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.friendCode, friendCode.toUpperCase()));
+    return user;
   }
 
   // Chat operations
@@ -592,6 +608,7 @@ export class DatabaseStorage implements IStorage {
         firstName: users.firstName,
         lastName: users.lastName,
         profileImageUrl: users.profileImageUrl,
+        friendCode: users.friendCode,
         level: users.level,
         experience: users.experience,
         currency: users.currency,
@@ -655,6 +672,26 @@ export class DatabaseStorage implements IStorage {
       .where(eq(socialPosts.isPublic, true))
       .orderBy(desc(socialPosts.createdAt))
       .limit(limit);
+  }
+
+  // Helper method to generate unique friend codes
+  private async generateUniqueFriendCode(): Promise<string> {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code: string;
+    let isUnique = false;
+    
+    do {
+      code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      
+      // Check if code already exists
+      const existingUser = await this.findUserByFriendCode(code);
+      isUnique = !existingUser;
+    } while (!isUnique);
+    
+    return code;
   }
 }
 

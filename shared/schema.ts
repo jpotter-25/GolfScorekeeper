@@ -22,6 +22,9 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   
+  // Friend system - unique 6-character friend code
+  friendCode: varchar("friend_code", { length: 6 }).unique(),
+  
   // Game progression fields
   level: integer("level").default(1),
   experience: integer("experience").default(0),
@@ -280,6 +283,7 @@ export const upsertUserSchema = createInsertSchema(users).pick({
   firstName: true,
   lastName: true,
   profileImageUrl: true,
+  friendCode: true,
 });
 
 export const insertGameStatsSchema = createInsertSchema(gameStats).omit({

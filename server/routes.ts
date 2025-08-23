@@ -335,13 +335,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/friends/request', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { addresseeId } = req.body;
+      const { addresseeId, friendCode } = req.body;
       
-      if (userId === addresseeId) {
+      let targetUserId = addresseeId;
+      
+      // If friend code is provided, find user by friend code
+      if (friendCode && !addresseeId) {
+        const targetUser = await storage.findUserByFriendCode(friendCode);
+        if (!targetUser) {
+          return res.status(404).json({ message: "User with friend code not found" });
+        }
+        targetUserId = targetUser.id;
+      }
+      
+      if (userId === targetUserId) {
         return res.status(400).json({ message: "Cannot send friend request to yourself" });
       }
       
-      const friendRequest = await storage.sendFriendRequest(userId, addresseeId);
+      const friendRequest = await storage.sendFriendRequest(userId, targetUserId);
       res.json(friendRequest);
     } catch (error) {
       console.error("Error sending friend request:", error);
@@ -374,6 +385,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching friend requests:", error);
       res.status(500).json({ message: "Failed to fetch friend requests" });
+    }
+  });
+
+  // Find user by friend code
+  app.get('/api/users/find/:friendCode', isAuthenticated, async (req: any, res) => {
+    try {
+      const { friendCode } = req.params;
+      const user = await storage.findUserByFriendCode(friendCode);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't return sensitive information
+      const { email, ...publicUser } = user;
+      res.json(publicUser);
+    } catch (error) {
+      console.error("Error finding user by friend code:", error);
+      res.status(500).json({ message: "Failed to find user" });
     }
   });
 
