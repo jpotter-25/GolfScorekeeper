@@ -52,7 +52,7 @@ export default function Cosmetics() {
 
   const equipMutation = useMutation({
     mutationFn: async (cosmeticId: string) => {
-      return apiRequest("POST", "/api/cosmetics/equip", { cosmeticId });
+      return apiRequest("POST", `/api/cosmetics/${cosmeticId}/equip`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cosmetics"] });
