@@ -161,26 +161,6 @@ export default function Multiplayer() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt" data-testid="multiplayer-page">
       <div className="container mx-auto p-6 space-y-6">
-        {/* Navigation */}
-        <div className="flex items-center justify-between">
-          <Button
-            onClick={() => setLocation("/")}
-            className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-            data-testid="button-back-to-menu"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Menu
-          </Button>
-          
-          <Button
-            onClick={() => setLocation("/")}
-            className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-            data-testid="button-home"
-          >
-            <Home className="w-4 h-4 mr-2" />
-            Home
-          </Button>
-        </div>
 
         {/* Header */}
         <div className="text-center space-y-4">
@@ -192,6 +172,74 @@ export default function Multiplayer() {
           </h1>
           <p className="text-game-cream opacity-90 text-lg">Connect with friends and compete online</p>
         </div>
+
+        {/* User Profile Header */}
+        <header className="flex justify-between items-center p-6 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl rounded-lg">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 overflow-hidden">
+              {(() => {
+                const equippedAvatar = userCosmetics.find((cosmetic: any) => 
+                  cosmetic.type === 'avatar' && cosmetic.equipped
+                );
+                if (equippedAvatar) {
+                  const assetUrl = getCosmeticAsset(equippedAvatar.cosmeticId);
+                  if (assetUrl) {
+                    return (
+                      <img 
+                        src={assetUrl} 
+                        alt={equippedAvatar.name}
+                        className="w-full h-full object-cover"
+                      />
+                    );
+                  }
+                }
+                // Fallback to Replit profile image or generic icon
+                if (user?.profileImageUrl) {
+                  return (
+                    <img 
+                      src={user.profileImageUrl} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  );
+                }
+                return <i className="fas fa-user text-white text-xl"></i>;
+              })()}
+            </div>
+            <div className="text-white">
+              <div className="font-semibold">{displayName}</div>
+              <div className="text-sm opacity-80">Level 1 • 0 XP</div>
+              <div className="text-sm text-yellow-300 font-medium">{user?.currency || 0} coins</div>
+            </div>
+          </div>
+          
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setLocation("/")}
+              className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              data-testid="button-home"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Home
+            </Button>
+            <Button 
+              onClick={() => setLocation('/cosmetics')}
+              className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
+              data-testid="button-cosmetics"
+            >
+              <i className="fas fa-palette mr-2"></i>
+              Cosmetics
+            </Button>
+            <Button 
+              onClick={() => setLocation('/settings')}
+              className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
+              data-testid="button-settings"
+            >
+              <i className="fas fa-cog mr-2"></i>
+              Settings
+            </Button>
+          </div>
+        </header>
 
       <Tabs defaultValue="rooms" className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-slate-800/90 backdrop-blur-sm border-2 border-game-gold/30">
@@ -210,65 +258,6 @@ export default function Multiplayer() {
         </TabsList>
 
         <TabsContent value="rooms" className="space-y-6">
-          {/* User Profile Header */}
-          <header className="flex justify-between items-center p-6 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl rounded-lg">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 overflow-hidden">
-                {(() => {
-                  const equippedAvatar = userCosmetics.find((cosmetic: any) => 
-                    cosmetic.type === 'avatar' && cosmetic.equipped
-                  );
-                  if (equippedAvatar) {
-                    const assetUrl = getCosmeticAsset(equippedAvatar.cosmeticId);
-                    if (assetUrl) {
-                      return (
-                        <img 
-                          src={assetUrl} 
-                          alt={equippedAvatar.name}
-                          className="w-full h-full object-cover"
-                        />
-                      );
-                    }
-                  }
-                  // Fallback to Replit profile image or generic icon
-                  if (user?.profileImageUrl) {
-                    return (
-                      <img 
-                        src={user.profileImageUrl} 
-                        alt="Profile" 
-                        className="w-full h-full object-cover"
-                      />
-                    );
-                  }
-                  return <i className="fas fa-user text-white text-xl"></i>;
-                })()}
-              </div>
-              <div className="text-white">
-                <div className="font-semibold">{displayName}</div>
-                <div className="text-sm opacity-80">Level 1 • 0 XP</div>
-                <div className="text-sm text-yellow-300 font-medium">{user?.currency || 0} coins</div>
-              </div>
-            </div>
-            
-            <div className="flex gap-3">
-              <Button 
-                onClick={() => setLocation('/cosmetics')}
-                className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
-                data-testid="button-cosmetics"
-              >
-                <i className="fas fa-palette mr-2"></i>
-                Cosmetics
-              </Button>
-              <Button 
-                onClick={() => setLocation('/settings')}
-                className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
-                data-testid="button-settings"
-              >
-                <i className="fas fa-cog mr-2"></i>
-                Settings
-              </Button>
-            </div>
-          </header>
 
           {/* Betting Brackets */}
           <div className="space-y-4">
