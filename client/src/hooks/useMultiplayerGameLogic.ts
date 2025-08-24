@@ -286,7 +286,7 @@ export function useMultiplayerGameLogic(
 
   const setPlayerReady = useCallback((ready: boolean) => {
     sendMessage({
-      type: 'player_ready',
+      type: 'ready_toggle',
       gameRoomId: multiplayerGameState?.gameRoomId,
       isReady: ready
     });

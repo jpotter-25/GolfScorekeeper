@@ -720,31 +720,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      const { gameRoomId } = message;
+      const { gameRoomId: roomCode } = message;
       
-      // Join game room in database
-      await storage.joinGameRoom(connection.userId, gameRoomId);
+      // Get room by code to get the actual room ID
+      const gameRoom = await storage.getGameRoom(roomCode);
+      if (!gameRoom) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Game room not found' }));
+        return;
+      }
       
-      // Update connection
-      connection.gameRoomId = gameRoomId;
+      // Join game room in database with correct parameter order
+      const participant = await storage.joinGameRoom(gameRoom.id, connection.userId, 0);
+      
+      // Update connection with room ID
+      connection.gameRoomId = gameRoom.id;
       
       // Add to active game room
-      if (!activeGameRooms.has(gameRoomId)) {
-        activeGameRooms.set(gameRoomId, {
+      if (!activeGameRooms.has(gameRoom.id)) {
+        activeGameRooms.set(gameRoom.id, {
           participants: new Set(),
-          spectators: new Set()
+          spectators: new Set(),
+          gameState: null
         });
       }
-      activeGameRooms.get(gameRoomId)!.participants.add(connection.userId);
+      activeGameRooms.get(gameRoom.id)!.participants.add(connection.userId);
+      
+      // Get user info for broadcasting
+      const user = await storage.getUser(connection.userId);
+      const playerName = user?.firstName || user?.email?.split('@')[0] || 'Player';
       
       // Broadcast room update to all participants
-      await broadcastToRoom(gameRoomId, {
+      await broadcastToRoom(gameRoom.id, {
         type: 'player_joined',
         userId: connection.userId,
-        gameRoomId
+        playerName,
+        gameRoomId: roomCode,
+        player: {
+          id: connection.userId,
+          name: playerName,
+          level: user?.level || 1,
+          isReady: participant.isReady || false
+        }
       });
       
-      ws.send(JSON.stringify({ type: 'room_joined', gameRoomId }));
+      // Send current room state to joining player
+      const allParticipants = await storage.getGameParticipants(gameRoom.id);
+      const connectedPlayers: { [key: string]: any } = {};
+      
+      for (const p of allParticipants) {
+        const pUser = await storage.getUser(p.userId);
+        const pName = pUser?.firstName || pUser?.email?.split('@')[0] || 'Player';
+        connectedPlayers[p.userId] = {
+          id: p.userId,
+          name: pName,
+          level: pUser?.level || 1,
+          isReady: p.isReady || false
+        };
+      }
+      
+      ws.send(JSON.stringify({ 
+        type: 'room_joined', 
+        gameRoomId: roomCode,
+        gameState: {
+          gameRoomId: roomCode,
+          hostId: gameRoom.hostId,
+          isHost: connection.userId === gameRoom.hostId,
+          connectedPlayers,
+          waitingForPlayers: true,
+          allPlayersReady: allParticipants.every(p => p.isReady)
+        }
+      }));
       
     } catch (error) {
       console.error('Join room error:', error);
@@ -785,6 +830,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
     } catch (error) {
       console.error('Leave room error:', error);
+    }
+  }
+
+  async function handleReadyToggle(ws: WebSocket, message: any) {
+    try {
+      const connection = findConnection(ws);
+      if (!connection || !connection.gameRoomId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Not in a game room' }));
+        return;
+      }
+
+      const { isReady } = message;
+      
+      // Update participant ready status
+      await storage.updateParticipantReady(connection.gameRoomId, connection.userId, isReady);
+      
+      // Check if all players are ready
+      const allParticipants = await storage.getGameParticipants(connection.gameRoomId);
+      const allPlayersReady = allParticipants.length > 1 && allParticipants.every(p => p.isReady);
+      
+      // Broadcast the ready status change to all participants
+      await broadcastToRoom(connection.gameRoomId, {
+        type: 'player_ready_changed',
+        userId: connection.userId,
+        isReady,
+        allPlayersReady
+      });
+      
+    } catch (error) {
+      console.error('Ready toggle error:', error);
+      ws.send(JSON.stringify({ type: 'error', message: 'Failed to toggle ready status' }));
     }
   }
 
@@ -918,10 +994,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   async function handleFriendResponse(ws: WebSocket, message: any) {
     // Implementation for friend request responses
-  }
-
-  async function handleReadyToggle(ws: WebSocket, message: any) {
-    // Implementation for ready state toggling
   }
 
   return httpServer;

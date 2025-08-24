@@ -470,6 +470,26 @@ export class DatabaseStorage implements IStorage {
     return participant;
   }
 
+  async getGameParticipants(roomId: string): Promise<GameParticipant[]> {
+    return await db
+      .select()
+      .from(gameParticipants)
+      .where(and(
+        eq(gameParticipants.gameRoomId, roomId),
+        sql`${gameParticipants.leftAt} IS NULL`
+      ));
+  }
+
+  async updateParticipantReady(roomId: string, userId: string, isReady: boolean): Promise<void> {
+    await db
+      .update(gameParticipants)
+      .set({ isReady })
+      .where(and(
+        eq(gameParticipants.gameRoomId, roomId),
+        eq(gameParticipants.userId, userId)
+      ));
+  }
+
   async leaveGameRoom(userId: string, gameRoomId: string): Promise<void> {
     await db
       .update(gameParticipants)
