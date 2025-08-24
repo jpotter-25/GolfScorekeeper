@@ -352,7 +352,12 @@ export class DatabaseStorage implements IStorage {
   async createGameRoom(roomData: InsertGameRoom): Promise<GameRoom> {
     const [room] = await db
       .insert(gameRooms)
-      .values(roomData)
+      .values({
+        ...roomData,
+        players: [], // Empty array initially, players added when they join
+        isActive: true,
+        createdAt: new Date().toISOString()
+      })
       .returning();
     return room;
   }
@@ -362,8 +367,11 @@ export class DatabaseStorage implements IStorage {
       .insert(gameRooms)
       .values({
         ...roomData,
+        players: [], // Empty array initially, players added when they join
         prizePool: 0, // Will be updated as players join
-        status: 'waiting'
+        status: 'waiting',
+        isActive: true,
+        createdAt: new Date().toISOString()
       })
       .returning();
     return room;

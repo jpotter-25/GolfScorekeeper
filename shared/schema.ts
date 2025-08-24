@@ -155,18 +155,20 @@ export const userSettings = pgTable("user_settings", {
 // Multiplayer game rooms
 export const gameRooms = pgTable("game_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: varchar("code", { length: 6 }).notNull().unique(),
+  code: text("code").notNull().unique(),
   hostId: varchar("host_id").notNull().references(() => users.id),
-  betAmount: integer("bet_amount").notNull().default(0), // coins required to join
-  prizePool: integer("prize_pool").notNull().default(0), // total coins in the pot
-  maxPlayers: integer("max_players").default(4),
+  players: jsonb("players").notNull(), // array of player objects
   gameState: jsonb("game_state"),
   settings: jsonb("settings").notNull(),
-  status: varchar("status").notNull().default("waiting"), // waiting, playing, finished
-  payouts: jsonb("payouts"), // stores final payouts for each player
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: text("created_at"),
+  isActive: boolean("is_active"),
+  maxPlayers: integer("max_players"),
+  status: varchar("status"),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
+  betAmount: integer("bet_amount").notNull().default(0), // coins required to join
+  prizePool: integer("prize_pool").notNull().default(0), // total coins in the pot
+  payouts: jsonb("payouts"), // stores final payouts for each player
 });
 
 // Game participants - tracks who's in each game

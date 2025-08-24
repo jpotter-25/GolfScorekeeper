@@ -287,8 +287,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user has enough coins for non-free games
       if (betAmount > 0) {
-        const userStats = await storage.getUserStats(userId);
-        if (userStats.coins < betAmount) {
+        const user = await storage.getUser(userId);
+        if (!user || (user.currency || 0) < betAmount) {
           return res.status(400).json({ message: "Insufficient coins" });
         }
       }
@@ -337,9 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameRoom = await storage.createGameRoom({
         code,
         hostId: userId,
-        name: name || `${req.user.claims.first_name || 'Player'}'s Game`,
         maxPlayers: maxPlayers || 4,
-        isPrivate: isPrivate || false,
         settings: settings || { rounds: 9, timeLimit: 60 }
       });
       
