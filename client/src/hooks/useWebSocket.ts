@@ -24,9 +24,11 @@ export function useWebSocket(): WebSocketHook {
   const { user } = useAuth();
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
+  const [pendingMessages, setPendingMessages] = useState<WebSocketMessage[]>([]);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
@@ -53,7 +55,7 @@ export function useWebSocket(): WebSocketHook {
       newSocket.onopen = () => {
         console.log('WebSocket connected');
         setIsConnected(true);
-        setConnectionState('connected');
+        setConnectionState('connecting'); // Still connecting until authenticated
         reconnectAttempts.current = 0;
         reconnectDelay.current = 1000;
         
@@ -73,6 +75,16 @@ export function useWebSocket(): WebSocketHook {
           // Handle authentication response
           if (message.type === 'authenticated') {
             console.log('WebSocket authenticated successfully', message);
+            setIsAuthenticated(true);
+            setConnectionState('connected');
+            
+            // Send any pending messages that were queued while authenticating
+            if (pendingMessages.length > 0) {
+              pendingMessages.forEach(pendingMsg => {
+                newSocket.send(JSON.stringify(pendingMsg));
+              });
+              setPendingMessages([]);
+            }
           } else if (message.type === 'auth_error') {
             console.error('WebSocket authentication failed:', message.message);
             setConnectionState('error');
@@ -85,8 +97,10 @@ export function useWebSocket(): WebSocketHook {
       newSocket.onclose = (event) => {
         console.log('WebSocket disconnected:', event.code, event.reason);
         setIsConnected(false);
+        setIsAuthenticated(false);
         setConnectionState('disconnected');
         setSocket(null);
+        setPendingMessages([]);
         
         // Attempt to reconnect unless it was a clean close
         if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
@@ -127,17 +141,23 @@ export function useWebSocket(): WebSocketHook {
     }
     
     setIsConnected(false);
+    setIsAuthenticated(false);
     setConnectionState('disconnected');
+    setPendingMessages([]);
     reconnectAttempts.current = 0;
   }, [socket]);
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
-    if (socket?.readyState === WebSocket.OPEN) {
+    if (socket?.readyState === WebSocket.OPEN && isAuthenticated) {
       socket.send(JSON.stringify(message));
+    } else if (socket?.readyState === WebSocket.OPEN && !isAuthenticated) {
+      // Queue message until authenticated
+      console.log('Queueing message until authenticated:', message);
+      setPendingMessages(prev => [...prev, message]);
     } else {
       console.warn('WebSocket is not connected. Message not sent:', message);
     }
-  }, [socket]);
+  }, [socket, isAuthenticated]);
 
   const joinGameRoom = useCallback((gameRoomId: string) => {
     sendMessage({
