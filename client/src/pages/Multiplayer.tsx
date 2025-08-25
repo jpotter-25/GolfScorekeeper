@@ -260,33 +260,33 @@ export default function Multiplayer() {
       <div className="h-6"></div>
 
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg p-2">
+        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg p-1 gap-1">
           <TabsTrigger 
             value="rooms" 
-            className="relative overflow-hidden text-slate-300 font-semibold transition-all duration-300 px-4 py-3 rounded-lg hover:bg-slate-700/50 data-[state=active]:text-black data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold data-[state=active]:to-yellow-500 data-[state=active]:shadow-lg data-[state=active]:transform data-[state=active]:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-game-gold/50 focus:ring-inset" 
+            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-black data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold data-[state=active]:to-yellow-500 data-[state=active]:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-game-gold/50 focus-visible:ring-inset" 
             data-testid="tab-rooms"
           >
-            <GamepadIcon className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Game Lobbies</span>
-            <span className="sm:hidden">Lobbies</span>
+            <GamepadIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="hidden sm:inline truncate">Game Lobbies</span>
+            <span className="sm:hidden truncate">Lobbies</span>
           </TabsTrigger>
           <TabsTrigger 
             value="friends" 
-            className="relative overflow-hidden text-slate-300 font-semibold transition-all duration-300 px-4 py-3 rounded-lg hover:bg-slate-700/50 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:shadow-lg data-[state=active]:transform data-[state=active]:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-inset" 
+            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset" 
             data-testid="tab-friends"
           >
-            <Users className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Friends ({friends.length})</span>
-            <span className="sm:hidden">Friends</span>
+            <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="hidden sm:inline truncate">Friends ({friends.length})</span>
+            <span className="sm:hidden truncate">Friends</span>
           </TabsTrigger>
           <TabsTrigger 
             value="tournaments" 
-            className="relative overflow-hidden text-slate-300 font-semibold transition-all duration-300 px-4 py-3 rounded-lg hover:bg-slate-700/50 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:shadow-lg data-[state=active]:transform data-[state=active]:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-inset" 
+            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-inset" 
             data-testid="tab-tournaments"
           >
-            <Trophy className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Tournaments</span>
-            <span className="sm:hidden">Tournaments</span>
+            <Trophy className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="hidden sm:inline truncate">Tournaments</span>
+            <span className="sm:hidden truncate">Tournaments</span>
           </TabsTrigger>
         </TabsList>
 
