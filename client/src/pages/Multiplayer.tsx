@@ -260,31 +260,31 @@ export default function Multiplayer() {
       <div className="h-6"></div>
 
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg p-2 gap-1">
+        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg p-1 gap-0.5">
           <TabsTrigger 
             value="rooms" 
-            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-black data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold data-[state=active]:to-yellow-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-game-gold/50 focus-visible:ring-inset" 
+            className="relative text-slate-300 font-medium transition-all duration-300 px-2 py-1.5 rounded-lg text-sm hover:bg-slate-700/50 hover:text-white data-[state=active]:text-black data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold data-[state=active]:to-yellow-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-game-gold/50 focus-visible:ring-inset" 
             data-testid="tab-rooms"
           >
-            <GamepadIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+            <GamepadIcon className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
             <span className="hidden sm:inline truncate">Game Lobbies</span>
             <span className="sm:hidden truncate">Lobbies</span>
           </TabsTrigger>
           <TabsTrigger 
             value="friends" 
-            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset" 
+            className="relative text-slate-300 font-medium transition-all duration-300 px-2 py-1.5 rounded-lg text-sm hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset" 
             data-testid="tab-friends"
           >
-            <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+            <Users className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
             <span className="hidden sm:inline truncate">Friends ({friends.length})</span>
             <span className="sm:hidden truncate">Friends</span>
           </TabsTrigger>
           <TabsTrigger 
             value="tournaments" 
-            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-inset" 
+            className="relative text-slate-300 font-medium transition-all duration-300 px-2 py-1.5 rounded-lg text-sm hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-inset" 
             data-testid="tab-tournaments"
           >
-            <Trophy className="w-4 h-4 mr-2 flex-shrink-0" />
+            <Trophy className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
             <span className="hidden sm:inline truncate">Tournaments</span>
             <span className="sm:hidden truncate">Tournaments</span>
           </TabsTrigger>
