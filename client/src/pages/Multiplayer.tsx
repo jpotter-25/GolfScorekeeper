@@ -161,7 +161,7 @@ export default function Multiplayer() {
     .then(r => r.json())
     .then(data => {
       if (data.code) {
-        navigate(`/multiplayer/lobby/${data.code}`);
+        window.location.href = `/multiplayer/lobby/${data.code}`;
       }
     })
     .catch(error => {
@@ -185,7 +185,7 @@ export default function Multiplayer() {
     .then(r => r.json())
     .then(data => {
       if (data.code) {
-        navigate(`/multiplayer/lobby/${data.code}`);
+        window.location.href = `/multiplayer/lobby/${data.code}`;
       }
     })
     .catch(error => {
@@ -328,8 +328,7 @@ export default function Multiplayer() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Free Games */}
-              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-green-500/30 shadow-2xl hover:border-green-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleJoinBettingRoom(0)}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-green-500/30 shadow-2xl hover:border-green-400 transition-all duration-200" 
                     data-testid="card-bet-free">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -367,8 +366,7 @@ export default function Multiplayer() {
               </Card>
 
               {/* Low Stakes */}
-              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-blue-500/30 shadow-2xl hover:border-blue-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleJoinBettingRoom(10)}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-blue-500/30 shadow-2xl hover:border-blue-400 transition-all duration-200" 
                     data-testid="card-bet-10">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -406,8 +404,7 @@ export default function Multiplayer() {
               </Card>
 
               {/* Medium Stakes */}
-              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-yellow-500/30 shadow-2xl hover:border-yellow-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleJoinBettingRoom(50)}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-yellow-500/30 shadow-2xl hover:border-yellow-400 transition-all duration-200" 
                     data-testid="card-bet-50">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
