@@ -260,10 +260,10 @@ export default function Multiplayer() {
       <div className="h-6"></div>
 
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg">
+        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg p-2">
           <TabsTrigger 
             value="rooms" 
-            className="text-slate-300 font-medium transition-all duration-300 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold/20 data-[state=active]:to-yellow-500/20 data-[state=active]:border data-[state=active]:border-game-gold/30 data-[state=active]:shadow-md rounded-lg m-1" 
+            className="relative overflow-hidden text-slate-300 font-semibold transition-all duration-300 px-4 py-3 rounded-lg hover:bg-slate-700/50 data-[state=active]:text-black data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold data-[state=active]:to-yellow-500 data-[state=active]:shadow-lg data-[state=active]:transform data-[state=active]:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-game-gold/50 focus:ring-inset" 
             data-testid="tab-rooms"
           >
             <GamepadIcon className="w-4 h-4 mr-2" />
@@ -272,7 +272,7 @@ export default function Multiplayer() {
           </TabsTrigger>
           <TabsTrigger 
             value="friends" 
-            className="text-slate-300 font-medium transition-all duration-300 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/20 data-[state=active]:to-cyan-500/20 data-[state=active]:border data-[state=active]:border-blue-500/30 data-[state=active]:shadow-md rounded-lg m-1" 
+            className="relative overflow-hidden text-slate-300 font-semibold transition-all duration-300 px-4 py-3 rounded-lg hover:bg-slate-700/50 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:shadow-lg data-[state=active]:transform data-[state=active]:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-inset" 
             data-testid="tab-friends"
           >
             <Users className="w-4 h-4 mr-2" />
@@ -281,7 +281,7 @@ export default function Multiplayer() {
           </TabsTrigger>
           <TabsTrigger 
             value="tournaments" 
-            className="text-slate-300 font-medium transition-all duration-300 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500/20 data-[state=active]:to-indigo-500/20 data-[state=active]:border data-[state=active]:border-purple-500/30 data-[state=active]:shadow-md rounded-lg m-1" 
+            className="relative overflow-hidden text-slate-300 font-semibold transition-all duration-300 px-4 py-3 rounded-lg hover:bg-slate-700/50 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:shadow-lg data-[state=active]:transform data-[state=active]:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-inset" 
             data-testid="tab-tournaments"
           >
             <Trophy className="w-4 h-4 mr-2" />
@@ -328,31 +328,70 @@ export default function Multiplayer() {
                 )}
               </div>
               
-              {/* Simplified Filter Buttons */}
-              <div className="flex flex-wrap gap-2">
+              {/* Enhanced Filter Buttons */}
+              <div className="flex flex-wrap gap-3">
                 {[
-                  { stake: 0, label: "FREE", color: "bg-green-600 hover:bg-green-700" },
-                  { stake: 10, label: "10 coins", color: "bg-blue-600 hover:bg-blue-700" },
-                  { stake: 50, label: "50 coins", color: "bg-yellow-600 hover:bg-yellow-700" },
-                  { stake: 100, label: "100 coins", color: "bg-orange-600 hover:bg-orange-700" },
-                  { stake: 500, label: "500 coins", color: "bg-red-600 hover:bg-red-700" },
-                  { stake: 1000, label: "1K coins", color: "bg-purple-600 hover:bg-purple-700" }
-                ].map(({ stake, label, color }) => {
+                  { 
+                    stake: 0, 
+                    label: "FREE", 
+                    icon: "fas fa-heart",
+                    activeColor: "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25",
+                    inactiveColor: "bg-green-500/10 border-green-500/40 text-green-400 hover:bg-green-500/20 hover:border-green-500/60 hover:text-green-300"
+                  },
+                  { 
+                    stake: 10, 
+                    label: "10 coins", 
+                    icon: "fas fa-coins",
+                    activeColor: "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg shadow-blue-500/25",
+                    inactiveColor: "bg-blue-500/10 border-blue-500/40 text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/60 hover:text-blue-300"
+                  },
+                  { 
+                    stake: 50, 
+                    label: "50 coins", 
+                    icon: "fas fa-fire",
+                    activeColor: "bg-gradient-to-r from-yellow-500 to-amber-600 text-black shadow-lg shadow-yellow-500/25",
+                    inactiveColor: "bg-yellow-500/10 border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/20 hover:border-yellow-500/60 hover:text-yellow-300"
+                  },
+                  { 
+                    stake: 100, 
+                    label: "100 coins", 
+                    icon: "fas fa-lightning",
+                    activeColor: "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/25",
+                    inactiveColor: "bg-orange-500/10 border-orange-500/40 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/60 hover:text-orange-300"
+                  },
+                  { 
+                    stake: 500, 
+                    label: "500 coins", 
+                    icon: "fas fa-crown",
+                    activeColor: "bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25",
+                    inactiveColor: "bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20 hover:border-red-500/60 hover:text-red-300"
+                  },
+                  { 
+                    stake: 1000, 
+                    label: "1K coins", 
+                    icon: "fas fa-star",
+                    activeColor: "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/25",
+                    inactiveColor: "bg-purple-500/10 border-purple-500/40 text-purple-400 hover:bg-purple-500/20 hover:border-purple-500/60 hover:text-purple-300"
+                  }
+                ].map(({ stake, label, icon, activeColor, inactiveColor }) => {
                   const isActive = stakeFilters.includes(stake);
                   
                   return (
                     <Button
                       key={stake}
-                      variant={isActive ? "default" : "outline"}
+                      variant="outline"
                       size="sm"
-                      className={isActive 
-                        ? `${color} text-white border-0`
-                        : "border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
-                      }
+                      className={`relative overflow-hidden border transition-all duration-300 font-semibold px-4 py-2 ${
+                        isActive ? activeColor : inactiveColor
+                      }`}
                       onClick={() => toggleStakeFilter(stake)}
                       data-testid={`filter-stake-${stake}`}
                     >
+                      <i className={`${icon} mr-2 text-sm`}></i>
                       {label}
+                      {isActive && (
+                        <div className="absolute inset-0 bg-white/10 rounded animate-pulse"></div>
+                      )}
                     </Button>
                   );
                 })}
