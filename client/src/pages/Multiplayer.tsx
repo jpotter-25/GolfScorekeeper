@@ -212,7 +212,7 @@ export default function Multiplayer() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       {/* Header */}
-      <header className="bg-slate-800/90 backdrop-blur-sm border-b-2 border-game-gold/30 p-4">
+      <header className="bg-slate-800/90 backdrop-blur-sm border-b border-slate-700/50 p-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button
@@ -246,7 +246,7 @@ export default function Multiplayer() {
             <Button
               variant="outline"
               onClick={() => setLocation("/settings")}
-              className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm flex-1 sm:flex-none"
+              className="bg-slate-800/80 backdrop-blur-sm border border-slate-600 text-slate-300 hover:bg-slate-700 hover:border-slate-500 hover:text-white transition-all duration-200 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm flex-1 sm:flex-none"
               data-testid="button-settings"
             >
               <i className="fas fa-cog text-xs sm:text-sm sm:mr-2"></i>
@@ -256,19 +256,37 @@ export default function Multiplayer() {
         </div>
       </header>
 
+      {/* Separator space */}
+      <div className="h-6"></div>
+
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-slate-800/90 backdrop-blur-sm border-2 border-game-gold/30">
-          <TabsTrigger value="rooms" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-rooms">
+        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg">
+          <TabsTrigger 
+            value="rooms" 
+            className="text-slate-300 font-medium transition-all duration-300 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold/20 data-[state=active]:to-yellow-500/20 data-[state=active]:border data-[state=active]:border-game-gold/30 data-[state=active]:shadow-md rounded-lg m-1" 
+            data-testid="tab-rooms"
+          >
             <GamepadIcon className="w-4 h-4 mr-2" />
-            Game Lobbies
+            <span className="hidden sm:inline">Game Lobbies</span>
+            <span className="sm:hidden">Lobbies</span>
           </TabsTrigger>
-          <TabsTrigger value="friends" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-friends">
+          <TabsTrigger 
+            value="friends" 
+            className="text-slate-300 font-medium transition-all duration-300 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/20 data-[state=active]:to-cyan-500/20 data-[state=active]:border data-[state=active]:border-blue-500/30 data-[state=active]:shadow-md rounded-lg m-1" 
+            data-testid="tab-friends"
+          >
             <Users className="w-4 h-4 mr-2" />
-            Friends ({friends.length})
+            <span className="hidden sm:inline">Friends ({friends.length})</span>
+            <span className="sm:hidden">Friends</span>
           </TabsTrigger>
-          <TabsTrigger value="tournaments" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-tournaments">
+          <TabsTrigger 
+            value="tournaments" 
+            className="text-slate-300 font-medium transition-all duration-300 data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500/20 data-[state=active]:to-indigo-500/20 data-[state=active]:border data-[state=active]:border-purple-500/30 data-[state=active]:shadow-md rounded-lg m-1" 
+            data-testid="tab-tournaments"
+          >
             <Trophy className="w-4 h-4 mr-2" />
-            Tournaments
+            <span className="hidden sm:inline">Tournaments</span>
+            <span className="sm:hidden">Tournaments</span>
           </TabsTrigger>
         </TabsList>
 
