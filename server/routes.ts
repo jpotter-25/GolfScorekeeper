@@ -905,9 +905,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update participant ready status
       await storage.updateParticipantReady(connection.gameRoomId, connection.userId, isReady);
       
-      // Check if all players are ready
+      // Get the room details using room ID
+      const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
       const allParticipants = await storage.getGameParticipants(connection.gameRoomId);
-      const allPlayersReady = allParticipants.length > 1 && allParticipants.every(p => p.isReady);
+      const allPlayersReady = allParticipants.length >= 2 && allParticipants.every(p => p.isReady);
       
       // Broadcast the ready status change to all participants
       await broadcastToRoom(connection.gameRoomId, {
@@ -916,6 +917,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isReady,
         allPlayersReady
       });
+
+      // Auto-start the game if all players are ready
+      if (allPlayersReady && gameRoom) {
+        // Update room status to 'active'
+        await storage.updateGameRoom(gameRoom.code, { status: 'active' });
+
+        // Deduct coins from all participants now that game is starting
+        for (const participant of allParticipants) {
+          if (participant.betPaid > 0) {
+            try {
+              await storage.spendCurrency(participant.userId, participant.betPaid);
+            } catch (error) {
+              console.error(`Failed to deduct coins for user ${participant.userId}:`, error);
+            }
+          }
+        }
+
+        // Auto-start the game
+        await broadcastToRoom(connection.gameRoomId, {
+          type: 'start_game',
+          gameRoomId: connection.gameRoomId,
+          settings: { rounds: 9, mode: 'online', playerCount: allParticipants.length }
+        });
+      }
       
     } catch (error) {
       console.error('Ready toggle error:', error);

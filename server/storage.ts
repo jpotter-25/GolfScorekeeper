@@ -411,6 +411,11 @@ export class DatabaseStorage implements IStorage {
     return room;
   }
 
+  async getGameRoomById(id: string): Promise<GameRoom | undefined> {
+    const [room] = await db.select().from(gameRooms).where(eq(gameRooms.id, id));
+    return room;
+  }
+
   async updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined> {
     const [room] = await db
       .update(gameRooms)

@@ -102,6 +102,7 @@ export function useMultiplayerGameLogic(
         handlePlayerReadyChanged(lastMessage);
         break;
       case 'game_started':
+      case 'start_game':
         handleGameStarted(lastMessage);
         break;
       case 'error':
@@ -243,8 +244,9 @@ export function useMultiplayerGameLogic(
 
   const handleGameStarted = useCallback((message: any) => {
     toast({
-      title: "Game Started",
-      description: "All players are ready! Starting the game...",
+      title: "Match Starting...",
+      description: "All players are ready! Loading game...",
+      duration: 3000,
     });
     
     // Initialize the game with the synchronized state
