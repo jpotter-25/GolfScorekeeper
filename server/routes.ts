@@ -337,6 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameRoom = await storage.createGameRoom({
         code,
         hostId: userId,
+        players: [],
         maxPlayers: maxPlayers || 4,
         settings: settings || { rounds: 9, timeLimit: 60 }
       });
@@ -683,15 +684,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket message handlers
   async function handleAuthentication(ws: WebSocket, message: any) {
     try {
+      console.log('Handling authentication:', message);
       const { userId } = message;
       if (!userId) {
+        console.log('No userId provided');
         ws.send(JSON.stringify({ type: 'auth_error', message: 'User ID required' }));
         return;
       }
 
+      console.log('Looking up user:', userId);
       // Verify user exists
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log('User not found:', userId);
         ws.send(JSON.stringify({ type: 'auth_error', message: 'User not found' }));
         return;
       }
@@ -700,6 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const connectionId = generateConnectionId();
       activeConnections.set(connectionId, { ws, userId });
       
+      console.log('User authenticated successfully:', userId, 'connectionId:', connectionId);
       ws.send(JSON.stringify({ 
         type: 'authenticated', 
         connectionId,
