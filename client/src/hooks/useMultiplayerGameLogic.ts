@@ -63,8 +63,17 @@ export function useMultiplayerGameLogic(
 
   // Auto-join room when connection becomes ready
   useEffect(() => {
+    console.log('🔍 Checking auto-join conditions:', {
+      connectionState,
+      gameRoomId: multiplayerGameState?.gameRoomId,
+      waitingForPlayers: multiplayerGameState?.waitingForPlayers,
+      hasUserInConnectedPlayers: !!multiplayerGameState?.connectedPlayers[userId],
+      userId,
+      connectedPlayersCount: Object.keys(multiplayerGameState?.connectedPlayers || {}).length
+    });
+    
     if (connectionState === 'connected' && multiplayerGameState?.gameRoomId && multiplayerGameState.waitingForPlayers && !multiplayerGameState.connectedPlayers[userId]) {
-      console.log('Connection ready, sending delayed join room message for:', multiplayerGameState.gameRoomId);
+      console.log('✅ Auto-join conditions met! Sending delayed join room message for:', multiplayerGameState.gameRoomId);
       wsJoinGameRoom(multiplayerGameState.gameRoomId);
     }
   }, [connectionState, multiplayerGameState?.gameRoomId, multiplayerGameState?.waitingForPlayers, multiplayerGameState?.connectedPlayers, userId, wsJoinGameRoom]);

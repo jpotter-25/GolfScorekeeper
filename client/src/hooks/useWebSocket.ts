@@ -150,27 +150,40 @@ export function useWebSocket(): WebSocketHook {
   }, [socket]);
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
+    console.log('🚀 sendMessage called with:', message, {
+      socketReady: socket?.readyState === WebSocket.OPEN,
+      isAuthenticated,
+      connectionState
+    });
+    
     if (socket?.readyState === WebSocket.OPEN && isAuthenticated) {
+      console.log('✅ Sending message immediately:', message);
       socket.send(JSON.stringify(message));
     } else if (socket?.readyState === WebSocket.OPEN && !isAuthenticated) {
       // Queue message until authenticated
-      console.log('Queueing message until authenticated:', message);
+      console.log('⏳ Queueing message until authenticated:', message);
       setPendingMessages(prev => {
         const newQueue = [...prev, message];
-        console.log('Message queue now has:', newQueue.length, 'messages');
+        console.log('📝 Message queue now has:', newQueue.length, 'messages');
         return newQueue;
       });
     } else {
-      console.warn('WebSocket is not connected. Message not sent:', message);
+      console.warn('❌ WebSocket is not connected. Message not sent:', message);
     }
-  }, [socket, isAuthenticated]);
+  }, [socket, isAuthenticated, connectionState]);
 
   const joinGameRoom = useCallback((gameRoomId: string) => {
+    console.log('🎯 joinGameRoom called with:', gameRoomId, {
+      socketReady: socket?.readyState === WebSocket.OPEN,
+      isAuthenticated,
+      connectionState,
+      pendingMessagesCount: pendingMessages.length
+    });
     sendMessage({
       type: 'join_room',
       gameRoomId
     });
-  }, [sendMessage]);
+  }, [sendMessage, socket?.readyState, isAuthenticated, connectionState, pendingMessages.length]);
 
   const leaveGameRoom = useCallback((gameRoomId: string) => {
     sendMessage({
