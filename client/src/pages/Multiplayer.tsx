@@ -117,8 +117,20 @@ export default function Multiplayer() {
     },
   });
 
-  const handleJoinBettingRoom = (betAmount: number) => {
-    // Check if user has enough coins (coins are stored in user.currency)
+  // State for lobby browsing
+  const [selectedStake, setSelectedStake] = useState<number | null>(null);
+  const [availableLobbies, setAvailableLobbies] = useState<any[]>([]);
+
+  // Fetch available lobbies for selected stake
+  const { data: lobbiesData = [], isLoading: lobbiesLoading } = useQuery({
+    queryKey: ['/api/game-rooms/lobbies', selectedStake],
+    queryFn: () => selectedStake !== null ? fetch(`/api/game-rooms/lobbies/${selectedStake}`).then(r => r.json()) : [],
+    enabled: selectedStake !== null,
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+
+  const handleSelectStake = (betAmount: number) => {
+    // Check if user has enough coins
     const userCoins = user?.currency || 0;
     if (betAmount > 0 && userCoins < betAmount) {
       toast({
@@ -129,7 +141,60 @@ export default function Multiplayer() {
       return;
     }
 
+    setSelectedStake(betAmount);
+    setAvailableLobbies(lobbiesData);
+  };
+
+  const handleJoinBettingRoom = (betAmount: number) => {
     joinBettingRoomMutation.mutate(betAmount);
+  };
+
+  const handleJoinLobby = (lobbyCode: string, betAmount: number) => {
+    // Join specific lobby
+    const joinData = { roomCode: lobbyCode, betAmount };
+    
+    fetch('/api/game-rooms/join-lobby', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(joinData)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.code) {
+        navigate(`/multiplayer/lobby/${data.code}`);
+      }
+    })
+    .catch(error => {
+      toast({
+        title: "Error",
+        description: "Failed to join lobby",
+        variant: "destructive",
+      });
+    });
+  };
+
+  const handleCreateLobby = (betAmount: number) => {
+    // Create new crown-managed lobby
+    const createData = { betAmount, maxPlayers: 4, rounds: 9, isPrivate: true };
+    
+    fetch('/api/game-rooms/create-lobby', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createData)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.code) {
+        navigate(`/multiplayer/lobby/${data.code}`);
+      }
+    })
+    .catch(error => {
+      toast({
+        title: "Error", 
+        description: "Failed to create lobby",
+        variant: "destructive",
+      });
+    });
   };
 
   const handleAddFriend = () => {
@@ -294,8 +359,9 @@ export default function Multiplayer() {
                   <Button 
                     className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white"
                     disabled={joinBettingRoomMutation.isPending}
+                    onClick={() => handleSelectStake(0)}
                   >
-                    Join Free Game
+                    Browse Lobbies
                   </Button>
                 </CardContent>
               </Card>
@@ -332,8 +398,9 @@ export default function Multiplayer() {
                   <Button 
                     className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
                     disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 10}
+                    onClick={() => handleSelectStake(10)}
                   >
-                    {(user?.currency || 0) < 10 ? "Need 10 coins" : "Bet 10 Coins"}
+                    {(user?.currency || 0) < 10 ? "Need 10 coins" : "Browse Lobbies"}
                   </Button>
                 </CardContent>
               </Card>
@@ -370,15 +437,16 @@ export default function Multiplayer() {
                   <Button 
                     className="w-full mt-4 bg-yellow-600 hover:bg-yellow-700 text-white"
                     disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 50}
+                    onClick={() => handleSelectStake(50)}
                   >
-                    {(user?.currency || 0) < 50 ? "Need 50 coins" : "Bet 50 Coins"}
+                    {(user?.currency || 0) < 50 ? "Need 50 coins" : "Browse Lobbies"}
                   </Button>
                 </CardContent>
               </Card>
 
               {/* High Stakes */}
               <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-orange-500/30 shadow-2xl hover:border-orange-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleJoinBettingRoom(100)}
+                    onClick={() => handleSelectStake(100)}
                     data-testid="card-bet-100">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -409,14 +477,14 @@ export default function Multiplayer() {
                     className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white"
                     disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 100}
                   >
-                    {(user?.currency || 0) < 100 ? "Need 100 coins" : "Bet 100 Coins"}
+                    {(user?.currency || 0) < 100 ? "Need 100 coins" : "Browse Lobbies"}
                   </Button>
                 </CardContent>
               </Card>
 
               {/* Elite Stakes */}
               <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-red-500/30 shadow-2xl hover:border-red-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleJoinBettingRoom(500)}
+                    onClick={() => handleSelectStake(500)}
                     data-testid="card-bet-500">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -447,14 +515,14 @@ export default function Multiplayer() {
                     className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white"
                     disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 500}
                   >
-                    {(user?.currency || 0) < 500 ? "Need 500 coins" : "Bet 500 Coins"}
+                    {(user?.currency || 0) < 500 ? "Need 500 coins" : "Browse Lobbies"}
                   </Button>
                 </CardContent>
               </Card>
 
               {/* Legendary Stakes */}
               <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-purple-500/30 shadow-2xl hover:border-purple-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleJoinBettingRoom(1000)}
+                    onClick={() => handleSelectStake(1000)}
                     data-testid="card-bet-1000">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -485,12 +553,219 @@ export default function Multiplayer() {
                     className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white"
                     disabled={joinBettingRoomMutation.isPending || (user?.currency || 0) < 1000}
                   >
-                    {(user?.currency || 0) < 1000 ? "Need 1,000 coins" : "Bet 1,000 Coins"}
+                    {(user?.currency || 0) < 1000 ? "Need 1,000 coins" : "Browse Lobbies"}
                   </Button>
                 </CardContent>
               </Card>
             </div>
           </div>
+
+          {/* Lobby Browser */}
+          {selectedStake !== null && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <i className="fas fa-users text-game-gold"></i>
+                  {selectedStake === 0 ? 'Free' : `${selectedStake} Coin`} Lobbies
+                </h3>
+                <Button 
+                  variant="outline" 
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                  onClick={() => setSelectedStake(null)}
+                >
+                  <i className="fas fa-arrow-left mr-2"></i>
+                  Back to Stakes
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Create New Lobby */}
+                <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 shadow-2xl">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-game-gold/20 rounded-full flex items-center justify-center">
+                        <i className="fas fa-crown text-game-gold text-lg"></i>
+                      </div>
+                      <div>
+                        <CardTitle className="text-white text-xl">Create New Lobby</CardTitle>
+                        <CardDescription className="text-slate-300">
+                          Start your own lobby as crown holder
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-300">You'll be:</span>
+                        <span className="text-game-gold font-semibold flex items-center gap-1">
+                          <i className="fas fa-crown text-xs"></i>
+                          Crown Holder
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-300">Stake:</span>
+                        <span className="text-white font-semibold">
+                          {selectedStake === 0 ? 'FREE' : `${selectedStake} coins`}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded">
+                        <i className="fas fa-info-circle mr-1"></i>
+                        As crown holder, you control lobby settings and can publish it for others to join.
+                      </div>
+                    </div>
+                    <Button 
+                      className="w-full mt-4 bg-game-gold hover:bg-game-gold/90 text-black font-semibold"
+                      onClick={() => handleCreateLobby(selectedStake)}
+                    >
+                      <i className="fas fa-plus mr-2"></i>
+                      Create Lobby
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Join Quick Match */}
+                <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-blue-500/30 shadow-2xl">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                        <i className="fas fa-bolt text-blue-400 text-lg"></i>
+                      </div>
+                      <div>
+                        <CardTitle className="text-white text-xl">Quick Match</CardTitle>
+                        <CardDescription className="text-slate-300">
+                          Join any available game immediately
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-300">Mode:</span>
+                        <span className="text-blue-400 font-semibold">Auto-match</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-300">Stake:</span>
+                        <span className="text-white font-semibold">
+                          {selectedStake === 0 ? 'FREE' : `${selectedStake} coins`}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded">
+                        <i className="fas fa-info-circle mr-1"></i>
+                        Instantly join the first available lobby or create one if none exist.
+                      </div>
+                    </div>
+                    <Button 
+                      className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => handleJoinBettingRoom(selectedStake)}
+                      disabled={joinBettingRoomMutation.isPending}
+                    >
+                      <i className="fas fa-play mr-2"></i>
+                      Quick Match
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Available Lobbies */}
+              <div className="space-y-4">
+                <h4 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <i className="fas fa-list text-slate-400"></i>
+                  Available Lobbies
+                  {lobbiesLoading && <i className="fas fa-spinner fa-spin text-slate-400"></i>}
+                </h4>
+
+                {lobbiesLoading ? (
+                  <div className="text-center py-8">
+                    <i className="fas fa-spinner fa-spin text-slate-400 text-2xl mb-2"></i>
+                    <p className="text-slate-400">Loading lobbies...</p>
+                  </div>
+                ) : lobbiesData.length === 0 ? (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardContent className="text-center py-8">
+                      <i className="fas fa-inbox text-slate-400 text-3xl mb-3"></i>
+                      <h5 className="text-white font-semibold mb-2">No lobbies found</h5>
+                      <p className="text-slate-400 mb-4">Be the first to create a lobby at this stake level!</p>
+                      <Button 
+                        className="bg-game-gold hover:bg-game-gold/90 text-black"
+                        onClick={() => handleCreateLobby(selectedStake)}
+                      >
+                        <i className="fas fa-plus mr-2"></i>
+                        Create First Lobby
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {lobbiesData.map((lobby: any) => (
+                      <Card key={lobby.code} className="bg-slate-800/80 backdrop-blur-sm border-slate-700 shadow-xl hover:border-game-gold/30 transition-all">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <CardTitle className="text-white text-lg flex items-center gap-2">
+                                <div className="w-8 h-8 bg-game-gold/20 rounded-full flex items-center justify-center">
+                                  <i className="fas fa-crown text-game-gold text-sm"></i>
+                                </div>
+                                {lobby.crownHolderName}
+                              </CardTitle>
+                              <CardDescription className="text-slate-400 text-sm">
+                                Room: {lobby.code}
+                              </CardDescription>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-white font-semibold">
+                                {lobby.playerCount}/{lobby.maxPlayers}
+                              </div>
+                              <div className="text-slate-400 text-xs">players</div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2 mb-4">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-300">Stake:</span>
+                              <span className="text-white font-semibold">
+                                {lobby.betAmount === 0 ? 'FREE' : `${lobby.betAmount} coins`}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-300">Rounds:</span>
+                              <span className="text-white">{lobby.rounds || 9}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-300">Privacy:</span>
+                              <span className="text-white flex items-center gap-1">
+                                <i className={`fas ${lobby.isPrivate ? 'fa-lock' : 'fa-globe'} text-xs`}></i>
+                                {lobby.isPrivate ? 'Private' : 'Public'}
+                              </span>
+                            </div>
+                          </div>
+                          <Button 
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => handleJoinLobby(lobby.code, selectedStake)}
+                            disabled={lobby.playerCount >= lobby.maxPlayers}
+                          >
+                            {lobby.playerCount >= lobby.maxPlayers ? (
+                              <>
+                                <i className="fas fa-times mr-2"></i>
+                                Lobby Full
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-sign-in-alt mr-2"></i>
+                                Join Lobby
+                              </>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="friends" className="space-y-6">

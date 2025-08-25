@@ -280,6 +280,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Betting Game Room API Routes
+  // Get available lobbies for a specific stake
+  app.get('/api/game-rooms/lobbies/:betAmount', isAuthenticated, async (req: any, res) => {
+    try {
+      const betAmount = parseInt(req.params.betAmount);
+      const lobbies = await storage.getPublishedLobbiesByStake(betAmount);
+      res.json(lobbies);
+    } catch (error) {
+      console.error("Error fetching lobbies:", error);
+      res.status(500).json({ message: "Failed to fetch lobbies" });
+    }
+  });
+
+  // Create a new crown-managed lobby
+  app.post('/api/game-rooms/create-lobby', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { betAmount, maxPlayers = 4, rounds = 9, isPrivate = true } = req.body;
+      
+      // Check if user has enough coins for non-free games
+      if (betAmount > 0) {
+        const user = await storage.getUser(userId);
+        if (!user || (user.currency || 0) < betAmount) {
+          return res.status(400).json({ message: "Insufficient coins" });
+        }
+      }
+      
+      // Create new crown-managed lobby
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const gameRoom = await storage.createBettingRoom({
+        code,
+        hostId: userId,
+        betAmount,
+        maxPlayers,
+        settings: { rounds, mode: 'online' }
+      });
+      
+      // Creator automatically joins and gets crown
+      await storage.joinGameRoom(gameRoom.id, userId, betAmount);
+      res.json({ code: gameRoom.code, room: gameRoom });
+    } catch (error) {
+      console.error("Error creating lobby:", error);
+      res.status(500).json({ message: "Failed to create lobby" });
+    }
+  });
+
+  // Join a specific lobby by code
+  app.post('/api/game-rooms/join-lobby', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { roomCode, betAmount } = req.body;
+      
+      // Check if user has enough coins for non-free games
+      if (betAmount > 0) {
+        const user = await storage.getUser(userId);
+        if (!user || (user.currency || 0) < betAmount) {
+          return res.status(400).json({ message: "Insufficient coins" });
+        }
+      }
+      
+      // Get room by code
+      const room = await storage.getGameRoom(roomCode);
+      if (!room) {
+        return res.status(404).json({ message: "Lobby not found" });
+      }
+      
+      // Check if room is published and has space
+      if (!room.isPublished && room.isPrivate) {
+        return res.status(403).json({ message: "This lobby is private" });
+      }
+      
+      // Join the room
+      await storage.joinGameRoom(room.id, userId, betAmount);
+      res.json({ code: room.code, room });
+    } catch (error) {
+      console.error("Error joining lobby:", error);
+      res.status(500).json({ message: "Failed to join lobby" });
+    }
+  });
+
   app.post('/api/game-rooms/join-betting', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -293,19 +372,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Look for existing room with same bet amount that has space
-      const existingRooms = await storage.getBettingRoomsByAmount(betAmount);
-      const availableRoom = existingRooms.find(room => 
+      // Look for existing published rooms with same bet amount that have space
+      const availableLobbies = await storage.getPublishedLobbiesByStake(betAmount);
+      const availableRoom = availableLobbies.find(room => 
         room.status === 'waiting' && 
-        room.currentPlayers < room.maxPlayers
+        room.currentPlayers < room.maxPlayers &&
+        !room.isPrivate
       );
       
       if (availableRoom) {
-        // Join existing room
+        // Join existing published room
         await storage.joinGameRoom(availableRoom.id, userId, betAmount);
         res.json({ code: availableRoom.code, room: availableRoom });
       } else {
-        // Create new betting room
+        // Create new crown-managed lobby (initially private)
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
         const gameRoom = await storage.createBettingRoom({
           code,
@@ -712,6 +792,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'start_game':
             await handleStartGame(ws, message);
             break;
+
+          // Crown-based lobby management
+          case 'publish_lobby':
+            await handlePublishLobby(ws, message);
+            break;
+            
+          case 'transfer_crown':
+            await handleTransferCrown(ws, message);
+            break;
+            
+          case 'update_room_settings':
+            await handleUpdateRoomSettings(ws, message);
+            break;
+            
+          case 'lobby_activity':
+            await handleLobbyActivity(ws, message);
+            break;
             
           default:
             ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
@@ -1006,6 +1103,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Crown-based lobby management handlers
+  async function handlePublishLobby(ws: WebSocket, message: any) {
+    try {
+      const connection = findConnection(ws);
+      if (!connection || !connection.gameRoomId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Not in a game room' }));
+        return;
+      }
+
+      const { isPrivate = false } = message;
+      const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
+      
+      // Only crown holder can publish lobby
+      if (!gameRoom || gameRoom.crownHolderId !== connection.userId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Only the crown holder can publish the lobby' }));
+        return;
+      }
+
+      // Already published
+      if (gameRoom.isPublished) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Lobby is already published' }));
+        return;
+      }
+
+      // Publish the lobby
+      await storage.publishLobby(connection.gameRoomId, isPrivate);
+      
+      // Update room activity
+      await storage.updateRoomActivity(connection.gameRoomId);
+
+      // Broadcast lobby published event
+      await broadcastToRoom(connection.gameRoomId, {
+        type: 'lobby_published',
+        gameRoomId: connection.gameRoomId,
+        isPrivate,
+        settingsLocked: true,
+        publishedBy: connection.userId
+      });
+
+      ws.send(JSON.stringify({ 
+        type: 'lobby_publish_success', 
+        message: isPrivate ? 'Lobby published as private' : 'Lobby published publicly' 
+      }));
+      
+    } catch (error) {
+      console.error('Publish lobby error:', error);
+      ws.send(JSON.stringify({ type: 'error', message: 'Failed to publish lobby' }));
+    }
+  }
+
+  async function handleTransferCrown(ws: WebSocket, message: any) {
+    try {
+      const connection = findConnection(ws);
+      if (!connection || !connection.gameRoomId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Not in a game room' }));
+        return;
+      }
+
+      const { targetUserId } = message;
+      const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
+      
+      // Only crown holder can transfer crown
+      if (!gameRoom || gameRoom.crownHolderId !== connection.userId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Only the crown holder can transfer the crown' }));
+        return;
+      }
+
+      // Check if target user is in the room
+      const participants = await storage.getGameParticipants(connection.gameRoomId);
+      const targetParticipant = participants.find(p => p.userId === targetUserId);
+      
+      if (!targetParticipant) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Target player is not in this lobby' }));
+        return;
+      }
+
+      // Transfer the crown
+      await storage.transferCrown(connection.gameRoomId, targetUserId);
+
+      // Broadcast crown transfer event
+      await broadcastToRoom(connection.gameRoomId, {
+        type: 'crown_transferred',
+        gameRoomId: connection.gameRoomId,
+        previousCrownHolder: connection.userId,
+        newCrownHolder: targetUserId
+      });
+
+      ws.send(JSON.stringify({ 
+        type: 'crown_transfer_success', 
+        message: 'Crown transferred successfully' 
+      }));
+      
+    } catch (error) {
+      console.error('Transfer crown error:', error);
+      ws.send(JSON.stringify({ type: 'error', message: 'Failed to transfer crown' }));
+    }
+  }
+
+  async function handleUpdateRoomSettings(ws: WebSocket, message: any) {
+    try {
+      const connection = findConnection(ws);
+      if (!connection || !connection.gameRoomId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Not in a game room' }));
+        return;
+      }
+
+      const { settings } = message;
+      const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
+      
+      // Only crown holder can update settings
+      if (!gameRoom || gameRoom.crownHolderId !== connection.userId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Only the crown holder can update room settings' }));
+        return;
+      }
+
+      // Check if settings are locked (published lobby)
+      if (gameRoom.settingsLocked) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Settings are locked after lobby is published' }));
+        return;
+      }
+
+      // Update settings
+      await storage.updateGameRoomById(connection.gameRoomId, { settings });
+      
+      // Update room activity
+      await storage.updateRoomActivity(connection.gameRoomId);
+
+      // Broadcast settings update
+      await broadcastToRoom(connection.gameRoomId, {
+        type: 'room_settings_updated',
+        gameRoomId: connection.gameRoomId,
+        settings,
+        updatedBy: connection.userId
+      });
+
+      ws.send(JSON.stringify({ 
+        type: 'settings_update_success', 
+        message: 'Room settings updated successfully' 
+      }));
+      
+    } catch (error) {
+      console.error('Update room settings error:', error);
+      ws.send(JSON.stringify({ type: 'error', message: 'Failed to update room settings' }));
+    }
+  }
+
+  async function handleLobbyActivity(ws: WebSocket, message: any) {
+    try {
+      const connection = findConnection(ws);
+      if (!connection || !connection.gameRoomId) {
+        return; // Silently ignore if not in room
+      }
+
+      const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
+      
+      // Only track activity for crown holder
+      if (gameRoom && gameRoom.crownHolderId === connection.userId) {
+        // Update last activity timestamp
+        await storage.updateRoomActivity(connection.gameRoomId);
+        
+        // Clear idle warning if it was set
+        if (gameRoom.idleWarningAt) {
+          await storage.updateGameRoomById(connection.gameRoomId, { idleWarningAt: null });
+        }
+      }
+      
+    } catch (error) {
+      console.error('Lobby activity error:', error);
+    }
+  }
+
   // Helper functions
   function findConnection(ws: WebSocket) {
     for (const [id, connection] of Array.from(activeConnections)) {
@@ -1135,6 +1403,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ws.send(JSON.stringify({ type: 'error', message: 'Failed to start game' }));
     }
   }
+
+  // Idle detection system for crown holders
+  setInterval(async () => {
+    try {
+      // Get all active rooms with crown holders
+      const activeRooms = await storage.getActiveRoomsWithCrowns();
+      const now = new Date();
+      
+      for (const room of activeRooms) {
+        const timeSinceActivity = now.getTime() - new Date(room.lastActivityAt).getTime();
+        const fourMinutesMs = 4 * 60 * 1000;
+        const fiveMinutesMs = 5 * 60 * 1000;
+        
+        // Check if crown holder has been idle for more than 4 minutes
+        if (timeSinceActivity > fourMinutesMs && !room.idleWarningAt) {
+          // Send idle warning
+          await storage.setIdleWarning(room.id);
+          
+          await broadcastToRoom(room.id, {
+            type: 'idle_warning',
+            crownHolderId: room.crownHolderId,
+            message: 'Crown holder has been idle for 4 minutes. Please acknowledge or crown will be transferred.',
+            timeRemaining: 60000 // 1 minute remaining
+          });
+        }
+        // Check if crown holder should be removed (5 minutes total idle time with warning)
+        else if (room.idleWarningAt && timeSinceActivity > fiveMinutesMs) {
+          // Get room participants to find next crown holder
+          const participants = await storage.getGameParticipants(room.id);
+          const activePlayers = participants.filter(p => p.userId !== room.crownHolderId);
+          
+          if (activePlayers.length > 0) {
+            // Transfer crown to next player
+            const newCrownHolder = activePlayers[0];
+            await storage.transferCrown(room.id, newCrownHolder.userId);
+            
+            await broadcastToRoom(room.id, {
+              type: 'crown_transferred_idle',
+              previousCrownHolder: room.crownHolderId,
+              newCrownHolder: newCrownHolder.userId,
+              reason: 'Previous crown holder was idle for too long'
+            });
+          } else {
+            // No other players, close the room
+            await storage.updateGameRoomById(room.id, { status: 'closed' });
+            
+            await broadcastToRoom(room.id, {
+              type: 'room_closed',
+              reason: 'Crown holder was idle and no other players remain'
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Idle detection error:', error);
+    }
+  }, 60000); // Check every minute
 
   return httpServer;
 }

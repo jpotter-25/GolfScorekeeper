@@ -373,6 +373,12 @@ export class DatabaseStorage implements IStorage {
         prizePool: 0, // Will be updated as players join
         status: 'waiting',
         isActive: true,
+        // Crown-based lobby management - creator gets crown
+        crownHolderId: roomData.hostId,
+        isPublished: false, // Start as unpublished (private)
+        isPrivate: true,
+        settingsLocked: false,
+        lastActivityAt: new Date(),
         createdAt: new Date().toISOString()
       })
       .returning();
@@ -423,6 +429,218 @@ export class DatabaseStorage implements IStorage {
       .where(eq(gameRooms.code, code))
       .returning();
     return room;
+  }
+
+  async updateGameRoomById(roomId: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined> {
+    const [room] = await db
+      .update(gameRooms)
+      .set(updates)
+      .where(eq(gameRooms.id, roomId))
+      .returning();
+    return room;
+  }
+
+  // Crown-based lobby management methods
+  async transferCrown(roomId: string, newCrownHolderId: string): Promise<GameRoom | undefined> {
+    const [room] = await db
+      .update(gameRooms)
+      .set({ 
+        crownHolderId: newCrownHolderId,
+        lastActivityAt: new Date()
+      })
+      .where(eq(gameRooms.id, roomId))
+      .returning();
+    return room;
+  }
+
+  async updateRoomActivity(roomId: string): Promise<void> {
+    await db
+      .update(gameRooms)
+      .set({ lastActivityAt: new Date() })
+      .where(eq(gameRooms.id, roomId));
+  }
+
+  async setIdleWarning(roomId: string): Promise<void> {
+    await db
+      .update(gameRooms)
+      .set({ idleWarningAt: new Date() })
+      .where(eq(gameRooms.id, roomId));
+  }
+
+  async publishLobby(roomId: string, isPrivate: boolean = false): Promise<GameRoom | undefined> {
+    const [room] = await db
+      .update(gameRooms)
+      .set({ 
+        isPublished: true,
+        isPrivate,
+        settingsLocked: true, // Lock settings when published
+        lastActivityAt: new Date()
+      })
+      .where(eq(gameRooms.id, roomId))
+      .returning();
+    return room;
+  }
+
+  async getPublishedLobbiesByStake(betAmount: number): Promise<any[]> {
+    const rooms = await db
+      .select({
+        id: gameRooms.id,
+        code: gameRooms.code,
+        hostId: gameRooms.hostId,
+        crownHolderId: gameRooms.crownHolderId,
+        betAmount: gameRooms.betAmount,
+        prizePool: gameRooms.prizePool,
+        maxPlayers: gameRooms.maxPlayers,
+        settings: gameRooms.settings,
+        status: gameRooms.status,
+        isPrivate: gameRooms.isPrivate,
+        currentPlayers: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${gameParticipants} 
+          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
+          AND ${gameParticipants.leftAt} IS NULL
+        )`
+      })
+      .from(gameRooms)
+      .where(and(
+        eq(gameRooms.betAmount, betAmount),
+        eq(gameRooms.isPublished, true),
+        eq(gameRooms.status, 'waiting')
+      ));
+    
+    // Add crown holder names
+    const roomsWithNames = await Promise.all(
+      rooms.map(async (room) => {
+        let crownHolderName = 'Unknown';
+        if (room.crownHolderId) {
+          const crownHolder = await this.getUserById(room.crownHolderId);
+          if (crownHolder) {
+            crownHolderName = crownHolder.firstName && crownHolder.lastName 
+              ? `${crownHolder.firstName} ${crownHolder.lastName}`
+              : crownHolder.email?.split('@')[0] || 'Player';
+          }
+        }
+        
+        return {
+          ...room,
+          crownHolderName,
+          playerCount: room.currentPlayers,
+          rounds: room.settings?.rounds || 9
+        };
+      })
+    );
+    
+    return roomsWithNames;
+  }
+
+  // Alias for consistency
+  async getAvailableLobbiesByStake(betAmount: number): Promise<any[]> {
+    return this.getPublishedLobbiesByStake(betAmount);
+  }
+
+  async createCrownLobby(userId: string, options: {
+    betAmount: number;
+    maxPlayers: number;
+    rounds: number;
+    isPrivate: boolean;
+    settings: any;
+  }): Promise<any> {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    // Create the game room with crown holder
+    const gameRoom = await this.createBettingRoom({
+      code,
+      hostId: userId,
+      betAmount: options.betAmount,
+      maxPlayers: options.maxPlayers,
+      settings: options.settings,
+      crownHolderId: userId, // Creator gets the crown
+      isPrivate: options.isPrivate,
+      isPublished: false, // Not published initially
+      settingsLocked: false,
+      lastActivityAt: new Date()
+    });
+    
+    // Host automatically joins
+    await this.joinGameRoom(gameRoom.id, userId, options.betAmount);
+    
+    return { code: gameRoom.code, room: gameRoom };
+  }
+
+  async joinLobbyByCode(roomCode: string, userId: string, betAmount: number): Promise<any> {
+    // Get room by code
+    const room = await this.getGameRoom(roomCode);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    
+    // Check if room has space
+    const participants = await this.getGameParticipants(room.id);
+    if (participants.length >= room.maxPlayers) {
+      throw new Error('Room is full');
+    }
+    
+    // Check if room is published and accessible
+    if (!room.isPublished && room.isPrivate) {
+      throw new Error('This lobby is private');
+    }
+    
+    // Join the room
+    await this.joinGameRoom(room.id, userId, betAmount);
+    
+    return { code: room.code, room };
+  }
+
+  // AI replacement system methods
+  async replacePlayerWithAI(gameRoomId: string, userId: string): Promise<void> {
+    // Apply 50% penalty
+    const participant = await db
+      .select()
+      .from(gameParticipants)
+      .where(and(
+        eq(gameParticipants.gameRoomId, gameRoomId),
+        eq(gameParticipants.userId, userId)
+      ));
+
+    if (participant.length > 0) {
+      const penalty = Math.floor(participant[0].betPaid * 0.5);
+      
+      // Deduct penalty from user's currency
+      if (penalty > 0) {
+        await this.spendCurrency(userId, penalty);
+      }
+
+      // Mark as AI replacement and apply penalty
+      await db
+        .update(gameParticipants)
+        .set({
+          isAiReplacement: true,
+          leftDuringGame: true,
+          penaltyApplied: penalty,
+          leftAt: new Date()
+        })
+        .where(and(
+          eq(gameParticipants.gameRoomId, gameRoomId),
+          eq(gameParticipants.userId, userId)
+        ));
+    }
+  }
+
+  // Idle detection helper method
+  async getActiveRoomsWithCrowns(): Promise<any[]> {
+    const rooms = await db
+      .select({
+        id: gameRooms.id,
+        crownHolderId: gameRooms.crownHolderId,
+        lastActivityAt: gameRooms.lastActivityAt,
+        idleWarningAt: gameRooms.idleWarningAt
+      })
+      .from(gameRooms)
+      .where(and(
+        eq(gameRooms.status, 'waiting'),
+        sql`${gameRooms.crownHolderId} IS NOT NULL`
+      ));
+    return rooms;
   }
 
   // Multiplayer game room operations

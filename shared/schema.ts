@@ -157,6 +157,17 @@ export const gameRooms = pgTable("game_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: text("code").notNull().unique(),
   hostId: varchar("host_id").notNull().references(() => users.id),
+  
+  // Crown-based lobby management
+  crownHolderId: varchar("crown_holder_id").references(() => users.id), // Who has lobby management crown
+  isPublished: boolean("is_published").default(false), // Whether lobby is public for joining
+  isPrivate: boolean("is_private").default(false), // Whether lobby requires invites
+  settingsLocked: boolean("settings_locked").default(false), // Prevent changes after publishing
+  
+  // Idle management for crown holders
+  lastActivityAt: timestamp("last_activity_at").defaultNow(),
+  idleWarningAt: timestamp("idle_warning_at"), // When 4-minute warning was sent
+  
   players: jsonb("players").notNull(), // array of player objects
   gameState: jsonb("game_state"),
   settings: jsonb("settings").notNull(),
@@ -182,6 +193,12 @@ export const gameParticipants = pgTable("game_participants", {
   payout: integer("payout").default(0), // coins won
   isReady: boolean("is_ready").default(false),
   isSpectator: boolean("is_spectator").default(false),
+  
+  // AI replacement system
+  isAiReplacement: boolean("is_ai_replacement").default(false), // Replaced by AI after leaving
+  leftDuringGame: boolean("left_during_game").default(false), // Left after game started
+  penaltyApplied: integer("penalty_applied").default(0), // Penalty coins deducted
+  
   joinedAt: timestamp("joined_at").defaultNow(),
   leftAt: timestamp("left_at"),
 });
