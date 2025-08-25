@@ -59,11 +59,18 @@ export function useWebSocket(): WebSocketHook {
         reconnectAttempts.current = 0;
         reconnectDelay.current = 1000;
         
-        // Authenticate immediately after connection
-        newSocket.send(JSON.stringify({
-          type: 'authenticate',
-          userId: user.id
-        }));
+        // Add small delay to ensure connection is stable before authenticating
+        setTimeout(() => {
+          if (newSocket.readyState === WebSocket.OPEN) {
+            console.log('🔐 Sending authentication for user:', user.id);
+            newSocket.send(JSON.stringify({
+              type: 'authenticate',
+              userId: user.id
+            }));
+          } else {
+            console.warn('⚠️ WebSocket not ready for authentication');
+          }
+        }, 200);
       };
 
       newSocket.onmessage = (event) => {
@@ -74,21 +81,23 @@ export function useWebSocket(): WebSocketHook {
           
           // Handle authentication response
           if (message.type === 'authenticated') {
-            console.log('WebSocket authenticated successfully', message);
+            console.log('✅ WebSocket authenticated successfully!', message);
             setIsAuthenticated(true);
             setConnectionState('connected');
             
             // Send any pending messages that were queued while authenticating
             if (pendingMessages.length > 0) {
-              console.log('Sending pending messages:', pendingMessages);
+              console.log('📤 Sending', pendingMessages.length, 'pending messages:', pendingMessages);
               pendingMessages.forEach(pendingMsg => {
-                console.log('Sending queued message:', pendingMsg);
+                console.log('📨 Sending queued message:', pendingMsg);
                 newSocket.send(JSON.stringify(pendingMsg));
               });
               setPendingMessages([]);
+            } else {
+              console.log('✨ No pending messages to send');
             }
           } else if (message.type === 'auth_error') {
-            console.error('WebSocket authentication failed:', message.message);
+            console.error('❌ WebSocket authentication failed:', message.message);
             setConnectionState('error');
           }
         } catch (error) {
@@ -97,26 +106,29 @@ export function useWebSocket(): WebSocketHook {
       };
 
       newSocket.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
+        console.log('🔌 WebSocket disconnected:', event.code, event.reason, 'wasAuthenticated:', isAuthenticated);
         setIsConnected(false);
         setIsAuthenticated(false);
         setConnectionState('disconnected');
         setSocket(null);
-        setPendingMessages([]);
+        
+        // Don't clear pending messages - keep them for retry
         
         // Attempt to reconnect unless it was a clean close
         if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
           reconnectAttempts.current++;
-          reconnectDelay.current = Math.min(reconnectDelay.current * 1.5, 10000);
+          // Shorter delay for faster reconnection
+          reconnectDelay.current = Math.min(reconnectDelay.current * 1.2, 5000);
           
-          console.log(`Attempting to reconnect in ${reconnectDelay.current}ms (attempt ${reconnectAttempts.current}/${maxReconnectAttempts})`);
+          console.log(`🔄 Attempting to reconnect in ${reconnectDelay.current}ms (attempt ${reconnectAttempts.current}/${maxReconnectAttempts})`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, reconnectDelay.current);
         } else if (reconnectAttempts.current >= maxReconnectAttempts) {
-          console.error('Max reconnect attempts reached');
+          console.error('❌ Max reconnect attempts reached');
           setConnectionState('error');
+          setPendingMessages([]); // Clear only after max attempts
         }
       };
 
