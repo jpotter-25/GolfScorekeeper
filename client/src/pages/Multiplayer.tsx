@@ -290,11 +290,11 @@ export default function Multiplayer() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-300">1st Place:</span>
-                      <span className="text-white">1 coin</span>
+                      <span className="text-white">5 coins</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-300">2nd Place:</span>
-                      <span className="text-white">0 coins</span>
+                      <span className="text-white">3 coins</span>
                     </div>
                   </div>
                   <Button 
