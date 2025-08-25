@@ -361,6 +361,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get participants with ready status from gameParticipants table
       const participants = await storage.getGameRoomParticipants(gameRoom.id);
       
+      // Force no cache for this response
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       res.json({
         ...gameRoom,
         players: participants
@@ -380,15 +385,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { isReady } = req.body;
       const userId = req.user.claims.sub;
 
-      // Use joinGameRoom instead of direct update to ensure user is properly added
+      const gameRoom = await storage.getGameRoom(roomId);
+      if (!gameRoom) {
+        return res.status(404).json({ message: 'Room not found' });
+      }
+
+      // Use joinGameRoom with the correct room ID (not code)
       try {
-        await storage.joinGameRoom(roomId, userId, 0); // Join with 0 bet for free room
+        await storage.joinGameRoom(gameRoom.id, userId, 0); // Use room.id, not roomId
       } catch (error) {
         console.log('User already in room or join failed:', error);
       }
 
-      // Now update the ready status via gameParticipants table
-      await storage.setPlayerReady(roomId, userId, isReady);
+      // Now update the ready status via gameParticipants table  
+      await storage.setPlayerReady(gameRoom.id, userId, isReady); // Use room.id, not roomId
 
       res.json({ success: true, isReady });
     } catch (error) {
