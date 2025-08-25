@@ -9,7 +9,7 @@ interface HowToPlayProps {
 export default function HowToPlay({ isOpen, onClose }: HowToPlayProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700 [&>button]:text-white [&>button]:hover:text-game-gold [&>button]:hover:bg-slate-700">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-white">How to Play Golf 9</DialogTitle>
         </DialogHeader>
