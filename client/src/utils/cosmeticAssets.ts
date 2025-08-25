@@ -14,8 +14,22 @@ import turquoiseTribalCardBack from "@assets/generated_images/Turquoise_tribal_p
 import mahoganyBaroqueCardBack from "@assets/generated_images/Mahogany_baroque_luxury_card_back_70363571.png";
 import pearlHolographicCardBack from "@assets/generated_images/Pearl_holographic_modern_card_back_6995c5ee.png";
 import steelSteampunkCardBack from "@assets/generated_images/Steel_steampunk_industrial_card_back_2da7ac41.png";
-import greenFeltTable from "@assets/generated_images/Green_Felt_Table_Texture_2c002c0f.png";
-import mahoganyWoodTable from "@assets/generated_images/Mahogany_Wood_Table_47b7e302.png";
+// Table theme imports
+import midnightVelvetTable from "@assets/generated_images/Midnight_velvet_table_texture_dccb96f9.png";
+import charcoalLeatherTable from "@assets/generated_images/Charcoal_leather_table_texture_53e91e20.png";
+import slateStoneTable from "@assets/generated_images/Slate_stone_table_texture_3ed94fc1.png";
+import darkMahoganyTable from "@assets/generated_images/Dark_mahogany_table_texture_8323bac7.png";
+import burgundyFeltTable from "@assets/generated_images/Burgundy_felt_texture_f1b85f51.png";
+import obsidianGlassTable from "@assets/generated_images/Obsidian_glass_texture_d2f92430.png";
+import copperPatinaTable from "@assets/generated_images/Copper_patina_texture_eb8c99fc.png";
+import royalNavyTable from "@assets/generated_images/Royal_navy_texture_1a97c49e.png";
+import forestOakTable from "@assets/generated_images/Forest_oak_texture_0ab98a13.png";
+import charcoalMarbleTable from "@assets/generated_images/Charcoal_marble_texture_f451a404.png";
+import midnightSteelTable from "@assets/generated_images/Midnight_steel_texture_fae2ed56.png";
+import shadowCarbonTable from "@assets/generated_images/Shadow_carbon_texture_6b1a8f0e.png";
+import ebonyPearlTable from "@assets/generated_images/Ebony_pearl_texture_358254bb.png";
+import noirCrystalTable from "@assets/generated_images/Noir_crystal_texture_6f7739c1.png";
+import platinumShadowTable from "@assets/generated_images/Platinum_shadow_texture_442f1b92.png";
 import professionalAvatar from "@assets/generated_images/Professional_Business_Avatar_8860d667.png";
 import gamingAvatar from "@assets/generated_images/Gaming_Enthusiast_Avatar_6f97dd65.png";
 import elegantAvatar from "@assets/generated_images/Elegant_Premium_Avatar_db98b5b8.png";
@@ -47,8 +61,21 @@ export const cosmeticAssets: Record<string, string> = {
   "pearl_holographic": pearlHolographicCardBack,
   "steel_steampunk": steelSteampunkCardBack,
   // Table themes
-  "green_felt": greenFeltTable,
-  "wood_mahogany": mahoganyWoodTable,
+  "midnight_velvet": midnightVelvetTable,
+  "charcoal_leather": charcoalLeatherTable,
+  "slate_stone": slateStoneTable,
+  "dark_mahogany": darkMahoganyTable,
+  "burgundy_felt": burgundyFeltTable,
+  "obsidian_glass": obsidianGlassTable,
+  "copper_patina": copperPatinaTable,
+  "royal_navy": royalNavyTable,
+  "forest_oak": forestOakTable,
+  "charcoal_marble": charcoalMarbleTable,
+  "midnight_steel": midnightSteelTable,
+  "shadow_carbon": shadowCarbonTable,
+  "ebony_pearl": ebonyPearlTable,
+  "noir_crystal": noirCrystalTable,
+  "platinum_shadow": platinumShadowTable,
   "default_avatar": defaultAvatar,
   "professional_avatar": professionalAvatar,
   "gaming_avatar": gamingAvatar,
