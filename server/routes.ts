@@ -720,8 +720,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   async function handleJoinRoom(ws: WebSocket, message: any) {
     try {
+      console.log('Handling join room:', message);
       const connection = findConnection(ws);
       if (!connection) {
+        console.log('User not authenticated for join room');
         ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
         return;
       }

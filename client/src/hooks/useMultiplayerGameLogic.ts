@@ -177,9 +177,32 @@ export function useMultiplayerGameLogic(
   }, []);
 
   const handleRoomJoined = useCallback((message: any) => {
+    console.log('Room joined message received:', message);
     toast({
       title: "Room Joined",
       description: `Successfully joined game room ${message.gameRoomId}`,
+    });
+
+    // Update the multiplayer game state with the room information
+    setMultiplayerGameState({
+      ...message.gameState,
+      gameRoomId: message.gameRoomId,
+      hostId: message.gameState.hostId,
+      isHost: message.gameState.isHost,
+      connectedPlayers: message.gameState.connectedPlayers || {},
+      waitingForPlayers: message.gameState.waitingForPlayers || true,
+      allPlayersReady: message.gameState.allPlayersReady || false,
+      // Initialize basic game state structure
+      currentPlayer: 0,
+      currentRound: 1,
+      gamePhase: 'setup',
+      players: [],
+      deck: [],
+      discardPile: [],
+      roundScores: [],
+      totalScores: [],
+      gameEnded: false,
+      winner: null
     });
   }, [toast]);
 
