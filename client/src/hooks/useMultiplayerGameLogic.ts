@@ -61,6 +61,14 @@ export function useMultiplayerGameLogic(
     gameStateRef.current = multiplayerGameState;
   }, [multiplayerGameState]);
 
+  // Auto-join room when connection becomes ready
+  useEffect(() => {
+    if (connectionState === 'connected' && multiplayerGameState?.gameRoomId && multiplayerGameState.waitingForPlayers && !multiplayerGameState.connectedPlayers[userId]) {
+      console.log('Connection ready, sending delayed join room message for:', multiplayerGameState.gameRoomId);
+      wsJoinGameRoom(multiplayerGameState.gameRoomId);
+    }
+  }, [connectionState, multiplayerGameState?.gameRoomId, multiplayerGameState?.waitingForPlayers, multiplayerGameState?.connectedPlayers, userId, wsJoinGameRoom]);
+
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
@@ -285,7 +293,16 @@ export function useMultiplayerGameLogic(
 
   // Multiplayer specific actions
   const joinGameRoom = useCallback((roomId: string) => {
-    wsJoinGameRoom(roomId);
+    console.log('joinGameRoom called with roomId:', roomId, 'connectionState:', connectionState);
+    
+    // Only send join message if we're properly connected and authenticated
+    if (connectionState === 'connected') {
+      console.log('Sending join room message immediately');
+      wsJoinGameRoom(roomId);
+    } else {
+      console.log('Waiting for connection before joining room');
+      // We'll send the join message when connection becomes ready
+    }
     
     // Initialize basic multiplayer state
     setMultiplayerGameState({
@@ -297,7 +314,7 @@ export function useMultiplayerGameLogic(
       waitingForPlayers: true,
       allPlayersReady: false
     });
-  }, [wsJoinGameRoom, syncedGameLogic.gameState]);
+  }, [wsJoinGameRoom, syncedGameLogic.gameState, connectionState]);
 
   const leaveGameRoom = useCallback(() => {
     if (multiplayerGameState?.gameRoomId) {

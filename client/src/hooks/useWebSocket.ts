@@ -80,7 +80,9 @@ export function useWebSocket(): WebSocketHook {
             
             // Send any pending messages that were queued while authenticating
             if (pendingMessages.length > 0) {
+              console.log('Sending pending messages:', pendingMessages);
               pendingMessages.forEach(pendingMsg => {
+                console.log('Sending queued message:', pendingMsg);
                 newSocket.send(JSON.stringify(pendingMsg));
               });
               setPendingMessages([]);
@@ -153,7 +155,11 @@ export function useWebSocket(): WebSocketHook {
     } else if (socket?.readyState === WebSocket.OPEN && !isAuthenticated) {
       // Queue message until authenticated
       console.log('Queueing message until authenticated:', message);
-      setPendingMessages(prev => [...prev, message]);
+      setPendingMessages(prev => {
+        const newQueue = [...prev, message];
+        console.log('Message queue now has:', newQueue.length, 'messages');
+        return newQueue;
+      });
     } else {
       console.warn('WebSocket is not connected. Message not sent:', message);
     }
