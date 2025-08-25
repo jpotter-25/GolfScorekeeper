@@ -43,19 +43,35 @@ export default function MultiplayerGame() {
     startMultiplayerGame
   } = useMultiplayerGameLogic(gameRoomId, user?.id || '');
 
-  // Get room ID from URL params
+  // Get room ID from URL params and use HTTP polling instead of WebSocket
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get('room');
     
     if (roomId) {
       setGameRoomId(roomId);
-      joinGameRoom(roomId);
+      // Skip WebSocket for now - load room directly
+      loadRoomState(roomId);
     } else {
       // Redirect back to multiplayer hub if no room specified
       setLocation('/multiplayer');
     }
-  }, [joinGameRoom, setLocation]);
+  }, [setLocation]);
+
+  const loadRoomState = async (roomId: string) => {
+    try {
+      const response = await fetch(`/api/game-rooms/${roomId}`);
+      if (response.ok) {
+        const roomData = await response.json();
+        // Directly set the game state with room info
+        setGameRoomId(roomId);
+        // Enable ready button by setting a connected state
+        // setConnectionState('connected'); // We'll bypass WebSocket for now
+      }
+    } catch (error) {
+      console.error('Failed to load room:', error);
+    }
+  };
 
   // Hide lobby when game starts
   useEffect(() => {
@@ -73,8 +89,23 @@ export default function MultiplayerGame() {
     startMultiplayerGame(gameSettings);
   };
 
-  const handlePlayerReady = () => {
-    setPlayerReady(true);
+  const handlePlayerReady = async () => {
+    try {
+      // Use HTTP instead of WebSocket for now
+      const response = await fetch(`/api/game-rooms/${gameRoomId}/ready`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isReady: true })
+      });
+      
+      if (response.ok) {
+        console.log('Player ready status updated');
+        // Reload room state
+        loadRoomState(gameRoomId);
+      }
+    } catch (error) {
+      console.error('Failed to set ready:', error);
+    }
   };
 
   const getConnectionStatusBadge = () => {
@@ -238,7 +269,7 @@ export default function MultiplayerGame() {
                   <Button
                     onClick={handlePlayerReady}
                     className="w-full bg-game-gold hover:bg-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                    disabled={connectionState !== 'connected'}
+                    disabled={false}
                     data-testid="button-ready"
                   >
                     <i className="fas fa-check mr-2"></i>

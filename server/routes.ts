@@ -365,6 +365,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Set ready status endpoint  
+  app.post('/api/game-rooms/:roomId/ready', isAuthenticated, async (req: any, res) => {
+    try {
+      const { roomId } = req.params;
+      const { isReady } = req.body;
+      const userId = req.user.claims.sub;
+
+      const gameRoom = await storage.getGameRoomByCode(roomId);
+      if (!gameRoom) {
+        return res.status(404).json({ message: 'Room not found' });
+      }
+
+      // Update participant ready status
+      const updatedParticipants = gameRoom.participants.map((p: any) => 
+        p.userId === userId ? { ...p, isReady } : p
+      );
+
+      await storage.updateGameRoom(gameRoom.id, {
+        participants: updatedParticipants
+      });
+
+      res.json({ success: true, isReady });
+    } catch (error) {
+      console.error('Error updating ready status:', error);
+      res.status(500).json({ message: 'Failed to update ready status' });
+    }
+  });
+
   // Friend System API Routes
   app.get('/api/friends', isAuthenticated, async (req: any, res) => {
     try {
