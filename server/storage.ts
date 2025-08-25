@@ -98,6 +98,7 @@ export interface IStorage {
   joinGameRoom(roomId: string, userId: string, betAmount?: number): Promise<GameParticipant>;
   leaveGameRoom(userId: string, gameRoomId: string): Promise<void>;
   setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void>;
+  getGameRoomParticipants(roomId: string): Promise<any[]>;
   updateGameState(gameRoomId: string, gameState: any): Promise<void>;
   
   // Friend system operations
@@ -510,6 +511,29 @@ export class DatabaseStorage implements IStorage {
         eq(gameParticipants.gameRoomId, roomId),
         sql`${gameParticipants.leftAt} IS NULL`
       ));
+  }
+
+  async getGameRoomParticipants(roomId: string): Promise<any[]> {
+    const participants = await db
+      .select({
+        userId: gameParticipants.userId,
+        userName: users.email,
+        isReady: gameParticipants.isReady,
+        joinedAt: gameParticipants.joinedAt
+      })
+      .from(gameParticipants)
+      .leftJoin(users, eq(gameParticipants.userId, users.id))
+      .where(and(
+        eq(gameParticipants.gameRoomId, roomId),
+        sql`${gameParticipants.leftAt} IS NULL`
+      ));
+    
+    return participants.map(p => ({
+      userId: p.userId,
+      userName: p.userName?.split('@')[0] || 'Player',
+      isReady: p.isReady || false,
+      joinedAt: p.joinedAt
+    }));
   }
 
   async updateGameState(gameRoomId: string, gameState: any): Promise<void> {

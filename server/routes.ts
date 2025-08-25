@@ -357,8 +357,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!gameRoom) {
         return res.status(404).json({ message: "Game room not found" });
       }
+
+      // Get participants with ready status from gameParticipants table
+      const participants = await storage.getGameRoomParticipants(gameRoom.id);
       
-      res.json(gameRoom);
+      res.json({
+        ...gameRoom,
+        players: participants
+      });
     } catch (error) {
       console.error("Error fetching game room:", error);
       res.status(500).json({ message: "Failed to fetch game room" });
