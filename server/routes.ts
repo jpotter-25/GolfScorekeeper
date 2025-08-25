@@ -379,15 +379,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update participant ready status - use players field 
       const currentPlayers = Array.isArray(gameRoom.players) ? gameRoom.players : [];
-      const updatedParticipants = currentPlayers.map((p: any) => 
-        p.userId === userId ? { ...p, isReady } : p
-      );
+      
+      // Check if user is already in the room, if not add them
+      const userExists = currentPlayers.some((p: any) => p.userId === userId);
+      let updatedParticipants;
+      
+      if (userExists) {
+        updatedParticipants = currentPlayers.map((p: any) => 
+          p.userId === userId ? { ...p, isReady } : p
+        );
+      } else {
+        // Add user to room if not already present
+        updatedParticipants = [...currentPlayers, {
+          userId,
+          userName: req.user.email?.split('@')[0] || 'Player',
+          isReady,
+          joinedAt: new Date().toISOString()
+        }];
+      }
 
-      await storage.updateGameRoom(gameRoom.id, {
+      console.log('Updating room with players:', updatedParticipants);
+      
+      await storage.updateGameRoom(gameRoom.code, {
         players: updatedParticipants
       });
 
-      res.json({ success: true, isReady });
+      res.json({ success: true, isReady, players: updatedParticipants });
     } catch (error) {
       console.error('Error updating ready status:', error);
       res.status(500).json({ message: 'Failed to update ready status' });
