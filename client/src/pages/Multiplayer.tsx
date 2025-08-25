@@ -83,12 +83,6 @@ export default function Multiplayer() {
       return res.json();
     },
     onSuccess: (data: any) => {
-      const betAmount = data.room?.betAmount || 0;
-      toast({
-        title: "Joining Game",
-        description: `Bet placed! Joining ${betAmount === 0 ? 'free' : `${betAmount} coin`} game...`,
-      });
-      
       // Navigate to the game room
       setLocation(`/multiplayer/game?room=${data.code}`);
     },

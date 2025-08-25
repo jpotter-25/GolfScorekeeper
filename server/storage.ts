@@ -435,10 +435,8 @@ export class DatabaseStorage implements IStorage {
       return existing[0];
     }
 
-    // For betting rooms, deduct the bet amount from user's coins
-    if (betAmount > 0) {
-      await this.spendCurrency(userId, betAmount);
-    }
+    // Store bet amount but don't deduct coins until game starts
+    // Coins will be deducted when the game actually begins
 
     // Get current participant count to assign player index
     const participantCount = await db

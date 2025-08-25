@@ -709,6 +709,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await handleFriendResponse(ws, message);
             break;
             
+          case 'start_game':
+            await handleStartGame(ws, message);
+            break;
+            
           default:
             ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
         }
@@ -1049,6 +1053,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   async function handleFriendResponse(ws: WebSocket, message: any) {
     // Implementation for friend request responses
+  }
+
+  async function handleStartGame(ws: WebSocket, message: any) {
+    try {
+      const connection = findConnection(ws);
+      if (!connection || !connection.gameRoomId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Not in a game room' }));
+        return;
+      }
+
+      const { gameRoomId, settings } = message;
+      if (!gameRoomId || !settings) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Invalid start game request' }));
+        return;
+      }
+
+      // Get the game room details
+      const room = await storage.getGameRoom(gameRoomId);
+      if (!room) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Game room not found' }));
+        return;
+      }
+
+      // Only host can start the game
+      if (room.hostId !== connection.userId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Only host can start the game' }));
+        return;
+      }
+
+      // Get all participants and deduct bet amounts
+      const participants = await storage.getGameParticipants(room.id);
+      for (const participant of participants) {
+        if (participant.betPaid > 0) {
+          try {
+            await storage.spendCurrency(participant.userId, participant.betPaid);
+          } catch (error) {
+            console.error(`Failed to deduct coins for user ${participant.userId}:`, error);
+            // Continue with other participants, don't fail the entire start
+          }
+        }
+      }
+
+      // Update room status to 'active'
+      await storage.updateGameRoom(room.code, { status: 'active' });
+
+      // Broadcast game start to all room participants
+      await broadcastToRoom(room.id, {
+        type: 'start_game',
+        gameRoomId: room.id,
+        settings
+      });
+
+    } catch (error) {
+      console.error('Start game error:', error);
+      ws.send(JSON.stringify({ type: 'error', message: 'Failed to start game' }));
+    }
   }
 
   return httpServer;
