@@ -178,7 +178,7 @@ export default function MultiplayerGame() {
                   <Users className="w-5 h-5 text-game-gold" />
                   Players ({connectedPlayersList.length}/{gameSettings.playerCount})
                 </CardTitle>
-                <CardDescription className="text-game-cream/80">
+                <CardDescription className="text-slate-200">
                   Waiting for players to join and ready up
                 </CardDescription>
               </CardHeader>
@@ -218,7 +218,7 @@ export default function MultiplayerGame() {
                     <div className="w-10 h-10 bg-slate-600/30 rounded-full flex items-center justify-center">
                       <Users className="w-5 h-5 text-slate-500" />
                     </div>
-                    <p className="text-slate-500">Waiting for player...</p>
+                    <p className="text-slate-300">Waiting for player...</p>
                   </div>
                 ))}
               </CardContent>
@@ -231,7 +231,7 @@ export default function MultiplayerGame() {
                   <i className="fas fa-cogs text-game-gold w-5 h-5"></i>
                   Game Settings
                 </CardTitle>
-                <CardDescription className="text-game-cream/80">
+                <CardDescription className="text-slate-200">
                   Configure the game before starting
                 </CardDescription>
               </CardHeader>
