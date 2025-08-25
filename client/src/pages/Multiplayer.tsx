@@ -174,9 +174,9 @@ export default function Multiplayer() {
         </div>
 
         {/* User Profile Header */}
-        <header className="flex justify-between items-center p-6 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl rounded-lg">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 overflow-hidden">
+        <header className="flex flex-col sm:flex-row justify-between items-center p-3 sm:p-6 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 shadow-2xl rounded-lg space-y-3 sm:space-y-0">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 overflow-hidden">
               {(() => {
                 const equippedAvatar = userCosmetics.find((cosmetic: any) => 
                   cosmetic.type === 'avatar' && cosmetic.equipped
@@ -203,40 +203,40 @@ export default function Multiplayer() {
                     />
                   );
                 }
-                return <i className="fas fa-user text-white text-xl"></i>;
+                return <i className="fas fa-user text-white text-lg sm:text-xl"></i>;
               })()}
             </div>
             <div className="text-white">
-              <div className="font-semibold">{displayName}</div>
-              <div className="text-sm opacity-80">Level 1 • 0 XP</div>
-              <div className="text-sm text-yellow-300 font-medium">{user?.currency || 0} coins</div>
+              <div className="font-semibold text-sm sm:text-base">{displayName}</div>
+              <div className="text-xs sm:text-sm opacity-80">Level 1 • 0 XP</div>
+              <div className="text-xs sm:text-sm text-yellow-300 font-medium">{user?.currency || 0} coins</div>
             </div>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex gap-1 sm:gap-2 md:gap-3 w-full sm:w-auto justify-center sm:justify-end">
             <Button
               onClick={() => setLocation("/")}
-              className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm flex-1 sm:flex-none"
               data-testid="button-home"
             >
-              <Home className="w-4 h-4 mr-2" />
-              Home
+              <Home className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Home</span>
             </Button>
             <Button 
               onClick={() => setLocation('/cosmetics')}
-              className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
+              className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm flex-1 sm:flex-none"
               data-testid="button-cosmetics"
             >
-              <i className="fas fa-palette mr-2"></i>
-              Cosmetics
+              <i className="fas fa-palette text-xs sm:text-sm sm:mr-2"></i>
+              <span className="hidden sm:inline">Cosmetics</span>
             </Button>
             <Button 
               onClick={() => setLocation('/settings')}
-              className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
+              className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm flex-1 sm:flex-none"
               data-testid="button-settings"
             >
-              <i className="fas fa-cog mr-2"></i>
-              Settings
+              <i className="fas fa-cog text-xs sm:text-sm sm:mr-2"></i>
+              <span className="hidden sm:inline">Settings</span>
             </Button>
           </div>
         </header>
