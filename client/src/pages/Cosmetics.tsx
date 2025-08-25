@@ -167,7 +167,7 @@ export default function Cosmetics() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                 {cosmetics
                   .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
                   .map((cosmetic) => (
@@ -178,11 +178,11 @@ export default function Cosmetics() {
                       cosmetic.equipped && "ring-2 ring-game-gold shadow-game-gold/30"
                     )}
                   >
-                    <CardHeader className="pb-2 flex-shrink-0">
+                    <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6 flex-shrink-0">
                       <div className="flex items-center justify-between">
                         <Badge 
                           className={cn(
-                            "flex items-center gap-1 text-xs text-white border-0 shadow-md",
+                            "flex items-center gap-1 text-xs sm:text-xs text-white border-0 shadow-md",
                             getRarityColor(cosmetic.rarity)
                           )}
                         >
@@ -196,14 +196,14 @@ export default function Cosmetics() {
                           </Badge>
                         )}
                       </div>
-                      <CardTitle className="text-lg text-white font-bold">{cosmetic.name}</CardTitle>
-                      <CardDescription className="text-sm text-slate-300 h-10 flex items-start">
+                      <CardTitle className="text-sm sm:text-lg text-white font-bold">{cosmetic.name}</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm text-slate-300 h-8 sm:h-10 flex items-start">
                         <span className="line-clamp-2">{cosmetic.description}</span>
                       </CardDescription>
                     </CardHeader>
                     
-                    <CardContent className="flex-grow flex flex-col">
-                      <div className="aspect-square bg-gradient-to-br from-game-felt to-black rounded-lg mb-4 flex items-center justify-center flex-shrink-0">
+                    <CardContent className="flex-grow flex flex-col p-3 sm:p-6">
+                      <div className="aspect-square bg-gradient-to-br from-game-felt to-black rounded-lg mb-2 sm:mb-4 flex items-center justify-center flex-shrink-0">
                         {(() => {
                           const assetUrl = getCosmeticAsset(cosmetic.id);
                           return assetUrl ? (
@@ -214,17 +214,17 @@ export default function Cosmetics() {
                             />
                           ) : (
                             <div className="text-white opacity-50 text-center">
-                              <Palette className="w-8 h-8 mx-auto mb-2" />
+                              <Palette className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 sm:mb-2" />
                               <p className="text-xs">Preview Coming Soon</p>
                             </div>
                           );
                         })()}
                       </div>
 
-                      <div className="space-y-2 mt-auto">
+                      <div className="space-y-1 sm:space-y-2 mt-auto">
                         {!canUnlock(cosmetic.unlockLevel ?? 1) ? (
-                          <Button disabled className="w-full bg-slate-700 text-slate-400 border-slate-600" data-testid={`button-locked-${cosmetic.id}`}>
-                            <Lock className="w-4 h-4 mr-2" />
+                          <Button disabled className="w-full bg-slate-700 text-slate-400 border-slate-600 h-8 sm:h-10 text-xs sm:text-sm" data-testid={`button-locked-${cosmetic.id}`}>
+                            <Lock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                             Requires Level {cosmetic.unlockLevel}
                           </Button>
                         ) : !cosmetic.owned ? (
@@ -232,26 +232,26 @@ export default function Cosmetics() {
                             onClick={() => purchaseMutation.mutate(cosmetic.id)}
                             disabled={!canAfford(cosmetic.cost) || purchaseMutation.isPending}
                             className={cn(
-                              "w-full transition-all duration-200",
+                              "w-full transition-all duration-200 h-8 sm:h-10 text-xs sm:text-sm",
                               canAfford(cosmetic.cost) 
                                 ? "bg-gradient-to-r from-game-gold to-yellow-400 hover:from-yellow-400 hover:to-game-gold text-slate-900 font-bold shadow-lg hover:shadow-xl hover:shadow-game-gold/30" 
                                 : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
                             )}
                             data-testid={`button-purchase-${cosmetic.id}`}
                           >
-                            <Coins className="w-4 h-4 mr-2" />
+                            <Coins className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                             {canAfford(cosmetic.cost) ? `Buy for ${cosmetic.cost}` : 'Not enough coins'}
                           </Button>
                         ) : cosmetic.equipped ? (
-                          <Button disabled className="w-full bg-game-gold text-slate-900 font-bold border-0">
-                            <Check className="w-4 h-4 mr-2" />
+                          <Button disabled className="w-full bg-game-gold text-slate-900 font-bold border-0 h-8 sm:h-10 text-xs sm:text-sm">
+                            <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                             Currently Equipped
                           </Button>
                         ) : (
                           <Button
                             onClick={() => equipMutation.mutate(cosmetic.id)}
                             disabled={equipMutation.isPending}
-                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200"
+                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 h-8 sm:h-10 text-xs sm:text-sm"
                             data-testid={`button-equip-${cosmetic.id}`}
                           >
                             Equip
