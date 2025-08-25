@@ -167,7 +167,7 @@ export default function Cosmetics() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                 {cosmetics
                   .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
                   .map((cosmetic) => (
@@ -178,7 +178,7 @@ export default function Cosmetics() {
                       cosmetic.equipped && "ring-2 ring-game-gold shadow-game-gold/30"
                     )}
                   >
-                    <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6 flex-shrink-0">
+                    <CardHeader className="pb-1 sm:pb-2 p-2 sm:p-3 md:p-6 flex-shrink-0">
                       <div className="flex items-center justify-between">
                         <Badge 
                           className={cn(
@@ -196,14 +196,14 @@ export default function Cosmetics() {
                           </Badge>
                         )}
                       </div>
-                      <CardTitle className="text-sm sm:text-lg text-white font-bold">{cosmetic.name}</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm text-slate-300 h-8 sm:h-10 flex items-start">
-                        <span className="line-clamp-2">{cosmetic.description}</span>
+                      <CardTitle className="text-xs sm:text-sm md:text-lg text-white font-bold leading-tight">{cosmetic.name}</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm text-slate-300 h-6 sm:h-8 md:h-10 flex items-start overflow-hidden">
+                        <span className="line-clamp-1 sm:line-clamp-2">{cosmetic.description}</span>
                       </CardDescription>
                     </CardHeader>
                     
-                    <CardContent className="flex-grow flex flex-col p-3 sm:p-6">
-                      <div className="aspect-square bg-gradient-to-br from-game-felt to-black rounded-lg mb-2 sm:mb-4 flex items-center justify-center flex-shrink-0">
+                    <CardContent className="flex-grow flex flex-col p-2 sm:p-3 md:p-6">
+                      <div className="aspect-square bg-gradient-to-br from-game-felt to-black rounded-lg mb-1 sm:mb-2 md:mb-4 flex items-center justify-center flex-shrink-0 max-h-24 sm:max-h-32 md:max-h-none">
                         {(() => {
                           const assetUrl = getCosmeticAsset(cosmetic.id);
                           return assetUrl ? (
@@ -214,8 +214,8 @@ export default function Cosmetics() {
                             />
                           ) : (
                             <div className="text-white opacity-50 text-center">
-                              <Palette className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 sm:mb-2" />
-                              <p className="text-xs">Preview Coming Soon</p>
+                              <Palette className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 mx-auto mb-1" />
+                              <p className="text-xs hidden sm:block">Preview Coming Soon</p>
                             </div>
                           );
                         })()}
@@ -223,35 +223,38 @@ export default function Cosmetics() {
 
                       <div className="space-y-1 sm:space-y-2 mt-auto">
                         {!canUnlock(cosmetic.unlockLevel ?? 1) ? (
-                          <Button disabled className="w-full bg-slate-700 text-slate-400 border-slate-600 h-8 sm:h-10 text-xs sm:text-sm" data-testid={`button-locked-${cosmetic.id}`}>
-                            <Lock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            Requires Level {cosmetic.unlockLevel}
+                          <Button disabled className="w-full bg-slate-700 text-slate-400 border-slate-600 h-6 sm:h-8 md:h-10 text-xs" data-testid={`button-locked-${cosmetic.id}`}>
+                            <Lock className="w-3 h-3 mr-1" />
+                            <span className="hidden sm:inline">Requires Level {cosmetic.unlockLevel}</span>
+                            <span className="sm:hidden">Lv.{cosmetic.unlockLevel}</span>
                           </Button>
                         ) : !cosmetic.owned ? (
                           <Button
                             onClick={() => purchaseMutation.mutate(cosmetic.id)}
                             disabled={!canAfford(cosmetic.cost) || purchaseMutation.isPending}
                             className={cn(
-                              "w-full transition-all duration-200 h-8 sm:h-10 text-xs sm:text-sm",
+                              "w-full transition-all duration-200 h-6 sm:h-8 md:h-10 text-xs",
                               canAfford(cosmetic.cost) 
                                 ? "bg-gradient-to-r from-game-gold to-yellow-400 hover:from-yellow-400 hover:to-game-gold text-slate-900 font-bold shadow-lg hover:shadow-xl hover:shadow-game-gold/30" 
                                 : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
                             )}
                             data-testid={`button-purchase-${cosmetic.id}`}
                           >
-                            <Coins className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            {canAfford(cosmetic.cost) ? `Buy for ${cosmetic.cost}` : 'Not enough coins'}
+                            <Coins className="w-3 h-3 mr-1" />
+                            <span className="hidden sm:inline">{canAfford(cosmetic.cost) ? `Buy for ${cosmetic.cost}` : 'Not enough coins'}</span>
+                            <span className="sm:hidden">{canAfford(cosmetic.cost) ? `${cosmetic.cost}` : 'Poor'}</span>
                           </Button>
                         ) : cosmetic.equipped ? (
-                          <Button disabled className="w-full bg-game-gold text-slate-900 font-bold border-0 h-8 sm:h-10 text-xs sm:text-sm">
-                            <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            Currently Equipped
+                          <Button disabled className="w-full bg-game-gold text-slate-900 font-bold border-0 h-6 sm:h-8 md:h-10 text-xs">
+                            <Check className="w-3 h-3 mr-1" />
+                            <span className="hidden sm:inline">Currently Equipped</span>
+                            <span className="sm:hidden">Equipped</span>
                           </Button>
                         ) : (
                           <Button
                             onClick={() => equipMutation.mutate(cosmetic.id)}
                             disabled={equipMutation.isPending}
-                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 h-8 sm:h-10 text-xs sm:text-sm"
+                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 h-6 sm:h-8 md:h-10 text-xs"
                             data-testid={`button-equip-${cosmetic.id}`}
                           >
                             Equip
