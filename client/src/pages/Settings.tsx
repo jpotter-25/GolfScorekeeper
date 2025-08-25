@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { UserSettings, UpdateUserSettings } from "@shared/schema";
-import { Volume2, VolumeX, Eye, Gamepad2, Accessibility } from "lucide-react";
+import { Volume2, VolumeX, Settings as SettingsIcon } from "lucide-react";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -82,270 +80,122 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-transparent bg-gradient-to-r from-game-gold to-yellow-300 bg-clip-text mb-2 flex items-center gap-3">
-              <div className="w-12 h-12 bg-game-gold/20 rounded-full flex items-center justify-center">
-                <i className="fas fa-cog text-game-gold text-xl"></i>
-              </div>
-              Settings
-            </h1>
-            <p className="text-slate-200 opacity-90 text-lg">Customize your Golf 9 experience</p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-game-gold to-yellow-400 bg-clip-text text-transparent">
+            Settings
+          </h1>
+          <p className="text-slate-300">Customize your Golf 9 experience</p>
         </div>
 
-        <Tabs defaultValue="audio" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/30 p-1 rounded-xl">
-            <TabsTrigger 
-              value="audio" 
-              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
-            >
-              <Volume2 className="w-4 h-4" />
-              Audio
-            </TabsTrigger>
-            <TabsTrigger 
-              value="accessibility" 
-              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
-            >
-              <Accessibility className="w-4 h-4" />
-              Accessibility
-            </TabsTrigger>
-            <TabsTrigger 
-              value="gameplay" 
-              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
-            >
-              <Gamepad2 className="w-4 h-4" />
-              Gameplay
-            </TabsTrigger>
-            <TabsTrigger 
-              value="visual" 
-              className="flex items-center gap-2 data-[state=active]:bg-game-gold data-[state=active]:text-slate-900 text-slate-300 hover:text-white transition-all duration-200"
-            >
-              <Eye className="w-4 h-4" />
-              Visual
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="audio">
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Volume2 className="w-5 h-5 text-game-gold" />
-                  Audio Settings
-                </CardTitle>
-                <CardDescription className="text-slate-300">
-                  Control sound effects, music, and volume levels
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+        <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <SettingsIcon className="w-5 h-5 text-game-gold" />
+              Game Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {/* Sound Effects */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="sound-effects" className="text-white text-lg">Sound Effects</Label>
+                  <p className="text-sm text-slate-400">
+                    Toggle game sound effects on/off
+                  </p>
+                </div>
+                <Switch
+                  id="sound-effects"
+                  checked={settings.soundEnabled ?? true}
+                  onCheckedChange={(checked) => handleSettingChange('soundEnabled', checked)}
+                  data-testid="switch-sound-effects"
+                />
+              </div>
+              
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="sound-enabled" className="text-white">Sound Effects</Label>
-                    <p className="text-sm text-slate-400">
-                      Play sounds for card flips, matches, and game actions
-                    </p>
-                  </div>
-                  <Switch
-                    id="sound-enabled"
-                    checked={settings.soundEnabled ?? true}
-                    onCheckedChange={(checked) => handleSettingChange('soundEnabled', checked)}
-                    data-testid="switch-sound-enabled"
-                  />
+                  <Label htmlFor="sound-volume" className="text-white">Volume</Label>
+                  <span className="text-game-gold font-semibold">
+                    {Math.round((settings.soundVolume ?? 0.7) * 100)}%
+                  </span>
                 </div>
+                <div className="flex items-center space-x-3">
+                  <VolumeX className="w-4 h-4 text-slate-400" />
+                  <Slider
+                    id="sound-volume"
+                    value={[settings.soundVolume ?? 0.7]}
+                    onValueChange={(value) => handleVolumeChange('soundVolume', value)}
+                    max={1}
+                    step={0.1}
+                    className="flex-1"
+                    disabled={!settings.soundEnabled}
+                    data-testid="slider-sound-volume"
+                  />
+                  <Volume2 className="w-4 h-4 text-slate-400" />
+                </div>
+              </div>
+            </div>
 
-                {settings.soundEnabled && (
-                  <div className="space-y-2">
-                    <Label className="text-white">Sound Volume: {settings.soundVolume}%</Label>
-                    <Slider
-                      value={[settings.soundVolume ?? 50]}
-                      onValueChange={(value) => handleVolumeChange('soundVolume', value)}
-                      max={100}
-                      step={5}
-                      className="w-full"
-                      data-testid="slider-sound-volume"
-                    />
-                  </div>
-                )}
-
-                <Separator />
-
+            {/* Background Music */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="background-music" className="text-white text-lg">Background Music</Label>
+                  <p className="text-sm text-slate-400">
+                    Toggle background music on/off
+                  </p>
+                </div>
+                <Switch
+                  id="background-music"
+                  checked={settings.musicEnabled ?? true}
+                  onCheckedChange={(checked) => handleSettingChange('musicEnabled', checked)}
+                  data-testid="switch-background-music"
+                />
+              </div>
+              
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="music-enabled" className="text-white">Background Music</Label>
-                    <p className="text-sm text-slate-400">
-                      Play ambient music during gameplay
-                    </p>
-                  </div>
-                  <Switch
-                    id="music-enabled"
-                    checked={settings.musicEnabled ?? true}
-                    onCheckedChange={(checked) => handleSettingChange('musicEnabled', checked)}
-                    data-testid="switch-music-enabled"
+                  <Label htmlFor="music-volume" className="text-white">Volume</Label>
+                  <span className="text-game-gold font-semibold">
+                    {Math.round((settings.musicVolume ?? 0.5) * 100)}%
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <VolumeX className="w-4 h-4 text-slate-400" />
+                  <Slider
+                    id="music-volume"
+                    value={[settings.musicVolume ?? 0.5]}
+                    onValueChange={(value) => handleVolumeChange('musicVolume', value)}
+                    max={1}
+                    step={0.1}
+                    className="flex-1"
+                    disabled={!settings.musicEnabled}
+                    data-testid="slider-music-volume"
                   />
+                  <Volume2 className="w-4 h-4 text-slate-400" />
                 </div>
+              </div>
+            </div>
 
-                {settings.musicEnabled && (
-                  <div className="space-y-2">
-                    <Label className="text-white">Music Volume: {settings.musicVolume}%</Label>
-                    <Slider
-                      value={[settings.musicVolume ?? 30]}
-                      onValueChange={(value) => handleVolumeChange('musicVolume', value)}
-                      max={100}
-                      step={5}
-                      className="w-full"
-                      data-testid="slider-music-volume"
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="accessibility">
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Accessibility className="w-5 h-5 text-game-gold" />
-                  Accessibility Settings
-                </CardTitle>
-                <CardDescription className="text-slate-300">
-                  Customize the interface for better accessibility
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="reduced-motion" className="text-white">Reduce Motion</Label>
-                    <p className="text-sm text-slate-400">
-                      Minimize animations and transitions
-                    </p>
-                  </div>
-                  <Switch
-                    id="reduced-motion"
-                    checked={settings.reducedMotion ?? false}
-                    onCheckedChange={(checked) => handleSettingChange('reducedMotion', checked)}
-                    data-testid="switch-reduced-motion"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="high-contrast" className="text-white">High Contrast</Label>
-                    <p className="text-sm text-slate-400">
-                      Increase contrast for better visibility
-                    </p>
-                  </div>
-                  <Switch
-                    id="high-contrast"
-                    checked={settings.highContrast ?? false}
-                    onCheckedChange={(checked) => handleSettingChange('highContrast', checked)}
-                    data-testid="switch-high-contrast"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="large-text" className="text-white">Large Text</Label>
-                    <p className="text-sm text-slate-400">
-                      Increase text size for better readability
-                    </p>
-                  </div>
-                  <Switch
-                    id="large-text"
-                    checked={settings.largeText ?? false}
-                    onCheckedChange={(checked) => handleSettingChange('largeText', checked)}
-                    data-testid="switch-large-text"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="vibration-enabled" className="text-white">Haptic Feedback</Label>
-                    <p className="text-sm text-slate-400">
-                      Vibration feedback on mobile devices
-                    </p>
-                  </div>
-                  <Switch
-                    id="vibration-enabled"
-                    checked={settings.vibrationEnabled ?? true}
-                    onCheckedChange={(checked) => handleSettingChange('vibrationEnabled', checked)}
-                    data-testid="switch-vibration-enabled"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="gameplay">
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Gamepad2 className="w-5 h-5 text-game-gold" />
-                  Gameplay Settings
-                </CardTitle>
-                <CardDescription className="text-slate-300">
-                  Customize game behavior and assistance
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="auto-end-turn" className="text-white">Auto End Turn</Label>
-                    <p className="text-sm text-slate-400">
-                      Automatically end turn when no actions available
-                    </p>
-                  </div>
-                  <Switch
-                    id="auto-end-turn"
-                    checked={settings.autoEndTurn ?? false}
-                    onCheckedChange={(checked) => handleSettingChange('autoEndTurn', checked)}
-                    data-testid="switch-auto-end-turn"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="show-hints" className="text-white">Show Hints</Label>
-                    <p className="text-sm text-slate-400">
-                      Display helpful tips and suggestions during gameplay
-                    </p>
-                  </div>
-                  <Switch
-                    id="show-hints"
-                    checked={settings.showHints ?? true}
-                    onCheckedChange={(checked) => handleSettingChange('showHints', checked)}
-                    data-testid="switch-show-hints"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="visual">
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-game-gold/30 text-white">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-game-gold" />
-                  Visual Preferences
-                </CardTitle>
-                <CardDescription className="text-slate-300">
-                  Coming soon: Card backs, table themes, and more customization options
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="text-center py-8">
-                  <div className="text-slate-400 mb-4">
-                    <Eye className="w-12 h-12 mx-auto mb-2 text-game-gold" />
-                    <p className="text-white">Visual customization options are being developed</p>
-                    <p className="text-sm">Check back soon for card backs, table themes, and more!</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+            {/* Haptic Feedback */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="vibration-enabled" className="text-white text-lg">Haptic Feedback</Label>
+                <p className="text-sm text-slate-400">
+                  Vibration feedback on mobile devices
+                </p>
+              </div>
+              <Switch
+                id="vibration-enabled"
+                checked={settings.vibrationEnabled ?? true}
+                onCheckedChange={(checked) => handleSettingChange('vibrationEnabled', checked)}
+                data-testid="switch-vibration-enabled"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="mt-8 text-center">
           <Button 
