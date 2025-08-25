@@ -372,18 +372,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { isReady } = req.body;
       const userId = req.user.claims.sub;
 
-      const gameRoom = await storage.getGameRoomByCode(roomId);
+      const gameRoom = await storage.getGameRoom(roomId);
       if (!gameRoom) {
         return res.status(404).json({ message: 'Room not found' });
       }
 
-      // Update participant ready status
-      const updatedParticipants = gameRoom.participants.map((p: any) => 
+      // Update participant ready status - use players field 
+      const currentPlayers = Array.isArray(gameRoom.players) ? gameRoom.players : [];
+      const updatedParticipants = currentPlayers.map((p: any) => 
         p.userId === userId ? { ...p, isReady } : p
       );
 
       await storage.updateGameRoom(gameRoom.id, {
-        participants: updatedParticipants
+        players: updatedParticipants
       });
 
       res.json({ success: true, isReady });

@@ -58,15 +58,21 @@ export default function MultiplayerGame() {
     }
   }, [setLocation]);
 
+  // State for HTTP-based multiplayer (bypassing WebSocket issues)
+  const [roomData, setRoomData] = useState<any>(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+
   const loadRoomState = async (roomId: string) => {
     try {
       const response = await fetch(`/api/game-rooms/${roomId}`);
       if (response.ok) {
-        const roomData = await response.json();
-        // Directly set the game state with room info
+        const roomInfo = await response.json();
+        setRoomData(roomInfo);
         setGameRoomId(roomId);
-        // Enable ready button by setting a connected state
-        // setConnectionState('connected'); // We'll bypass WebSocket for now
+        
+        // Check if current user is ready
+        const currentUserParticipant = roomInfo.players?.find((p: any) => p.userId === user?.id);
+        setIsPlayerReady(currentUserParticipant?.isReady || false);
       }
     } catch (error) {
       console.error('Failed to load room:', error);
@@ -91,17 +97,17 @@ export default function MultiplayerGame() {
 
   const handlePlayerReady = async () => {
     try {
-      // Use HTTP instead of WebSocket for now
+      const newReadyState = !isPlayerReady;
       const response = await fetch(`/api/game-rooms/${gameRoomId}/ready`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isReady: true })
+        body: JSON.stringify({ isReady: newReadyState })
       });
       
       if (response.ok) {
-        console.log('Player ready status updated');
-        // Reload room state
-        loadRoomState(gameRoomId);
+        setIsPlayerReady(newReadyState);
+        // Reload room state to get updated participant list
+        await loadRoomState(gameRoomId);
       }
     } catch (error) {
       console.error('Failed to set ready:', error);
@@ -123,8 +129,9 @@ export default function MultiplayerGame() {
     }
   };
 
-  const connectedPlayersList: MultiplayerPlayer[] = gameState ? Object.values(gameState.connectedPlayers) : [];
-  const isHost = gameState?.isHost || false;
+  // Use room data instead of WebSocket game state
+  const connectedPlayersList = roomData?.players || [];
+  const isHost = roomData?.hostId === user?.id;
 
   if (showLobby) {
     return (
@@ -176,20 +183,20 @@ export default function MultiplayerGame() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {connectedPlayersList.map((player, index) => (
+                {connectedPlayersList.map((player: any, index: number) => (
                   <div
-                    key={player.id}
+                    key={player.userId || index}
                     className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg border border-game-gold/20 hover:border-game-gold/40 transition-all duration-200"
-                    data-testid={`player-${player.id}`}
+                    data-testid={`player-${player.userId}`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                        {player.name[0]?.toUpperCase() || '?'}
+                        {player.userName?.[0]?.toUpperCase() || '?'}
                       </div>
                       <div>
                         <p className="font-medium text-white flex items-center gap-2">
-                          {player.name}
-                          {isHost && player.id === user?.id && (
+                          {player.userName || 'Player'}
+                          {isHost && player.userId === user?.id && (
                             <Crown className="w-4 h-4 text-game-gold" />
                           )}
                         </p>
@@ -273,7 +280,7 @@ export default function MultiplayerGame() {
                     data-testid="button-ready"
                   >
                     <i className="fas fa-check mr-2"></i>
-                    Ready Up!
+                    {isPlayerReady ? 'Unready' : 'Ready Up!'}
                   </Button>
                   
                   {isHost && gameState?.allPlayersReady && (
