@@ -260,10 +260,10 @@ export default function Multiplayer() {
       <div className="h-6"></div>
 
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg p-1 gap-1">
+        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg p-1.5 gap-1 overflow-hidden">
           <TabsTrigger 
             value="rooms" 
-            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-black data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold data-[state=active]:to-yellow-500 data-[state=active]:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-game-gold/50 focus-visible:ring-inset" 
+            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-black data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold data-[state=active]:to-yellow-500 data-[state=active]:border data-[state=active]:border-yellow-400/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-game-gold/50 focus-visible:ring-inset" 
             data-testid="tab-rooms"
           >
             <GamepadIcon className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -272,7 +272,7 @@ export default function Multiplayer() {
           </TabsTrigger>
           <TabsTrigger 
             value="friends" 
-            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset" 
+            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:border data-[state=active]:border-cyan-400/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset" 
             data-testid="tab-friends"
           >
             <Users className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -281,7 +281,7 @@ export default function Multiplayer() {
           </TabsTrigger>
           <TabsTrigger 
             value="tournaments" 
-            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-inset" 
+            className="relative text-slate-300 font-semibold transition-all duration-300 px-3 py-2.5 rounded-lg hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:border data-[state=active]:border-indigo-400/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-inset" 
             data-testid="tab-tournaments"
           >
             <Trophy className="w-4 h-4 mr-2 flex-shrink-0" />
