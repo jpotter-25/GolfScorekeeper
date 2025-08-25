@@ -26,10 +26,6 @@ export default function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/settings"] });
-      toast({
-        title: "Settings Updated",
-        description: "Your preferences have been saved.",
-      });
     },
     onError: () => {
       toast({
