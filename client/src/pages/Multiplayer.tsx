@@ -442,8 +442,7 @@ export default function Multiplayer() {
               </Card>
 
               {/* High Stakes */}
-              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-orange-500/30 shadow-2xl hover:border-orange-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleSelectStake(100)}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-orange-500/30 shadow-2xl hover:border-orange-400 transition-all duration-200" 
                     data-testid="card-bet-100">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -480,8 +479,7 @@ export default function Multiplayer() {
               </Card>
 
               {/* Elite Stakes */}
-              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-red-500/30 shadow-2xl hover:border-red-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleSelectStake(500)}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-red-500/30 shadow-2xl hover:border-red-400 transition-all duration-200" 
                     data-testid="card-bet-500">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -518,8 +516,7 @@ export default function Multiplayer() {
               </Card>
 
               {/* Legendary Stakes */}
-              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-purple-500/30 shadow-2xl hover:border-purple-400 transition-all duration-200 cursor-pointer" 
-                    onClick={() => handleSelectStake(1000)}
+              <Card className="bg-slate-800/80 backdrop-blur-sm border-2 border-purple-500/30 shadow-2xl hover:border-purple-400 transition-all duration-200" 
                     data-testid="card-bet-1000">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
