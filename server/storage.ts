@@ -513,7 +513,7 @@ export class DatabaseStorage implements IStorage {
       rooms.map(async (room) => {
         let crownHolderName = 'Unknown';
         if (room.crownHolderId) {
-          const crownHolder = await this.getUserById(room.crownHolderId);
+          const crownHolder = await this.getUser(room.crownHolderId);
           if (crownHolder) {
             crownHolderName = crownHolder.firstName && crownHolder.lastName 
               ? `${crownHolder.firstName} ${crownHolder.lastName}`
@@ -525,7 +525,7 @@ export class DatabaseStorage implements IStorage {
           ...room,
           crownHolderName,
           playerCount: room.currentPlayers,
-          rounds: room.settings?.rounds || 9
+          rounds: (room.settings as any)?.rounds || 9
         };
       })
     );
@@ -536,6 +536,59 @@ export class DatabaseStorage implements IStorage {
   // Alias for consistency
   async getAvailableLobbiesByStake(betAmount: number): Promise<any[]> {
     return this.getPublishedLobbiesByStake(betAmount);
+  }
+
+  // Get ALL published lobbies (for consolidated view)
+  async getAllPublishedLobbies(): Promise<any[]> {
+    const rooms = await db
+      .select({
+        id: gameRooms.id,
+        code: gameRooms.code,
+        hostId: gameRooms.hostId,
+        crownHolderId: gameRooms.crownHolderId,
+        betAmount: gameRooms.betAmount,
+        prizePool: gameRooms.prizePool,
+        maxPlayers: gameRooms.maxPlayers,
+        settings: gameRooms.settings,
+        status: gameRooms.status,
+        isPrivate: gameRooms.isPrivate,
+        currentPlayers: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${gameParticipants} 
+          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
+          AND ${gameParticipants.leftAt} IS NULL
+        )`
+      })
+      .from(gameRooms)
+      .where(and(
+        eq(gameRooms.isPublished, true),
+        eq(gameRooms.status, 'waiting')
+      ))
+      .orderBy(gameRooms.betAmount); // Sort by stake amount
+    
+    // Add crown holder names
+    const roomsWithNames = await Promise.all(
+      rooms.map(async (room) => {
+        let crownHolderName = 'Unknown';
+        if (room.crownHolderId) {
+          const crownHolder = await this.getUser(room.crownHolderId);
+          if (crownHolder) {
+            crownHolderName = crownHolder.firstName && crownHolder.lastName 
+              ? `${crownHolder.firstName} ${crownHolder.lastName}`
+              : crownHolder.email?.split('@')[0] || 'Player';
+          }
+        }
+        
+        return {
+          ...room,
+          crownHolderName,
+          playerCount: room.currentPlayers,
+          rounds: (room.settings as any)?.rounds || 9
+        };
+      })
+    );
+    
+    return roomsWithNames;
   }
 
   async createCrownLobby(userId: string, options: {
@@ -576,7 +629,7 @@ export class DatabaseStorage implements IStorage {
     
     // Check if room has space
     const participants = await this.getGameParticipants(room.id);
-    if (participants.length >= room.maxPlayers) {
+    if (participants.length >= (room.maxPlayers || 4)) {
       throw new Error('Room is full');
     }
     

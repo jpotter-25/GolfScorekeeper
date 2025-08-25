@@ -292,6 +292,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get ALL available lobbies (for new consolidated view)
+  app.get('/api/game-rooms/all-lobbies', isAuthenticated, async (req: any, res) => {
+    try {
+      const allLobbies = await storage.getAllPublishedLobbies();
+      res.json(allLobbies);
+    } catch (error) {
+      console.error("Error fetching all lobbies:", error);
+      res.status(500).json({ message: "Failed to fetch lobbies" });
+    }
+  });
+
   // Create a new crown-managed lobby
   app.post('/api/game-rooms/create-lobby', isAuthenticated, async (req: any, res) => {
     try {
