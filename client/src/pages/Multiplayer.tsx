@@ -135,7 +135,7 @@ export default function Multiplayer() {
     .then(r => r.json())
     .then(data => {
       if (data.code) {
-        window.location.href = `/multiplayer/lobby/${data.code}`;
+        window.location.href = `/multiplayer/game?room=${data.code}`;
       }
     })
     .catch(error => {
@@ -159,7 +159,7 @@ export default function Multiplayer() {
     .then(r => r.json())
     .then(data => {
       if (data.code) {
-        window.location.href = `/multiplayer/lobby/${data.code}`;
+        window.location.href = `/multiplayer/game?room=${data.code}`;
       }
     })
     .catch(error => {
