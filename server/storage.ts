@@ -97,6 +97,7 @@ export interface IStorage {
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
   joinGameRoom(roomId: string, userId: string, betAmount?: number): Promise<GameParticipant>;
   leaveGameRoom(userId: string, gameRoomId: string): Promise<void>;
+  setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void>;
   updateGameState(gameRoomId: string, gameState: any): Promise<void>;
   
   // Friend system operations
@@ -497,6 +498,17 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(gameParticipants.userId, userId),
         eq(gameParticipants.gameRoomId, gameRoomId)
+      ));
+  }
+
+  async setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void> {
+    await db
+      .update(gameParticipants)
+      .set({ isReady })
+      .where(and(
+        eq(gameParticipants.userId, userId),
+        eq(gameParticipants.gameRoomId, roomId),
+        sql`${gameParticipants.leftAt} IS NULL`
       ));
   }
 

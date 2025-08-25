@@ -368,43 +368,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set ready status endpoint  
   app.post('/api/game-rooms/:roomId/ready', isAuthenticated, async (req: any, res) => {
     try {
+      console.log('Ready endpoint called with:', { roomId: req.params.roomId, isReady: req.body.isReady, userId: req.user.claims.sub });
+      
       const { roomId } = req.params;
       const { isReady } = req.body;
       const userId = req.user.claims.sub;
 
-      const gameRoom = await storage.getGameRoom(roomId);
-      if (!gameRoom) {
-        return res.status(404).json({ message: 'Room not found' });
+      // Use joinGameRoom instead of direct update to ensure user is properly added
+      try {
+        await storage.joinGameRoom(roomId, userId, 0); // Join with 0 bet for free room
+      } catch (error) {
+        console.log('User already in room or join failed:', error);
       }
 
-      // Update participant ready status - use players field 
-      const currentPlayers = Array.isArray(gameRoom.players) ? gameRoom.players : [];
-      
-      // Check if user is already in the room, if not add them
-      const userExists = currentPlayers.some((p: any) => p.userId === userId);
-      let updatedParticipants;
-      
-      if (userExists) {
-        updatedParticipants = currentPlayers.map((p: any) => 
-          p.userId === userId ? { ...p, isReady } : p
-        );
-      } else {
-        // Add user to room if not already present
-        updatedParticipants = [...currentPlayers, {
-          userId,
-          userName: req.user.email?.split('@')[0] || 'Player',
-          isReady,
-          joinedAt: new Date().toISOString()
-        }];
-      }
+      // Now update the ready status via gameParticipants table
+      await storage.setPlayerReady(roomId, userId, isReady);
 
-      console.log('Updating room with players:', updatedParticipants);
-      
-      await storage.updateGameRoom(gameRoom.code, {
-        players: updatedParticipants
-      });
-
-      res.json({ success: true, isReady, players: updatedParticipants });
+      res.json({ success: true, isReady });
     } catch (error) {
       console.error('Error updating ready status:', error);
       res.status(500).json({ message: 'Failed to update ready status' });
