@@ -49,7 +49,8 @@ export default function Settings() {
     
     // Set new timeout to debounce the API call
     const timeout = setTimeout(() => {
-      handleSettingChange(key, value[0]);
+      // Convert from 0-100 range to match database expectations
+      handleSettingChange(key, Math.round(value[0]));
     }, 300); // Wait 300ms after user stops dragging
     
     setVolumeTimeout(timeout);
@@ -118,17 +119,17 @@ export default function Settings() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="sound-volume" className="text-white">Volume</Label>
                   <span className="text-game-gold font-semibold">
-                    {Math.round((settings.soundVolume ?? 0.7) * 100)}%
+                    {settings.soundVolume ?? 50}%
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <VolumeX className="w-4 h-4 text-slate-400" />
                   <Slider
                     id="sound-volume"
-                    value={[settings.soundVolume ?? 0.7]}
+                    value={[settings.soundVolume ?? 50]}
                     onValueChange={(value) => handleVolumeChange('soundVolume', value)}
-                    max={1}
-                    step={0.1}
+                    max={100}
+                    step={5}
                     className="flex-1"
                     disabled={!settings.soundEnabled}
                     data-testid="slider-sound-volume"
@@ -159,17 +160,17 @@ export default function Settings() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="music-volume" className="text-white">Volume</Label>
                   <span className="text-game-gold font-semibold">
-                    {Math.round((settings.musicVolume ?? 0.5) * 100)}%
+                    {settings.musicVolume ?? 30}%
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <VolumeX className="w-4 h-4 text-slate-400" />
                   <Slider
                     id="music-volume"
-                    value={[settings.musicVolume ?? 0.5]}
+                    value={[settings.musicVolume ?? 30]}
                     onValueChange={(value) => handleVolumeChange('musicVolume', value)}
-                    max={1}
-                    step={0.1}
+                    max={100}
+                    step={5}
                     className="flex-1"
                     disabled={!settings.musicEnabled}
                     data-testid="slider-music-volume"
