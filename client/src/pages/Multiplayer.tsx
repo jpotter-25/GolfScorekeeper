@@ -231,7 +231,7 @@ export default function Multiplayer() {
               <span className="hidden sm:inline">Cosmetics</span>
             </Button>
             <Button 
-              onClick={() => setLocation('/settings')}
+              onClick={() => setLocation('/settings?return=/multiplayer')}
               className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm flex-1 sm:flex-none"
               data-testid="button-settings"
             >

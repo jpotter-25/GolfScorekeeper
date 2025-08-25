@@ -148,7 +148,7 @@ export default function Home() {
             Cosmetics
           </Button>
           <Button 
-            onClick={() => setLocation('/settings')}
+            onClick={() => setLocation('/settings?return=/')}
             className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200"
             data-testid="button-settings"
           >

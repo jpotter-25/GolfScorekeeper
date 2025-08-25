@@ -15,6 +15,9 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  
+  // Get return path from URL parameters
+  const returnPath = new URLSearchParams(window.location.search).get('return') || '/';
 
   const { data: settings, isLoading } = useQuery<UserSettings>({
     queryKey: ["/api/user/settings"],
@@ -202,7 +205,7 @@ export default function Settings() {
 
         <div className="mt-8 text-center">
           <Button 
-            onClick={() => setLocation("/")} 
+            onClick={() => setLocation(returnPath)} 
             className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200 px-8 py-3"
             data-testid="button-back"
           >
