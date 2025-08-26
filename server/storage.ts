@@ -375,8 +375,8 @@ export class DatabaseStorage implements IStorage {
         isActive: true,
         // Crown-based lobby management - creator gets crown
         crownHolderId: roomData.hostId,
-        isPublished: false, // Start as unpublished (private)
-        isPrivate: true,
+        isPublished: !roomData.isPrivate, // Publish public lobbies automatically
+        isPrivate: roomData.isPrivate || false,
         settingsLocked: false,
         lastActivityAt: new Date(),
         createdAt: new Date().toISOString()
