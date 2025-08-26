@@ -569,7 +569,7 @@ export class DatabaseStorage implements IStorage {
     // Filter out full rooms and add crown holder names
     const roomsWithNames = await Promise.all(
       rooms
-        .filter(room => room.currentPlayers < room.maxPlayers) // Only show non-full rooms
+        .filter(room => room.currentPlayers < (room.maxPlayers || 4)) // Only show non-full rooms
         .map(async (room) => {
           let crownHolderName = 'Unknown';
           if (room.crownHolderId) {
@@ -776,6 +776,18 @@ export class DatabaseStorage implements IStorage {
         eq(gameParticipants.userId, userId),
         eq(gameParticipants.gameRoomId, gameRoomId)
       ));
+  }
+
+  async deleteGameRoom(gameRoomId: string): Promise<void> {
+    // Delete participants first (foreign key constraint)
+    await db
+      .delete(gameParticipants)
+      .where(eq(gameParticipants.gameRoomId, gameRoomId));
+    
+    // Delete the game room
+    await db
+      .delete(gameRooms)
+      .where(eq(gameRooms.id, gameRoomId));
   }
 
   async setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void> {

@@ -1040,12 +1040,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update database
       await storage.leaveGameRoom(connection.userId, gameRoomId);
       
-      // Broadcast to remaining participants
-      await broadcastToRoom(gameRoomId, {
-        type: 'player_left',
-        userId: connection.userId,
-        gameRoomId
-      });
+      // Get room details for the broadcast
+      const gameRoom = await storage.getGameRoomById(gameRoomId);
+      
+      // Check if room is now empty and should be deleted
+      const remainingParticipants = await storage.getGameParticipants(gameRoomId);
+      const activeParticipants = remainingParticipants.filter(p => !p.leftAt);
+      
+      if (activeParticipants.length === 0) {
+        // Room is empty, delete it
+        console.log(`🗑️ Deleting empty room: ${gameRoom?.code || gameRoomId}`);
+        await storage.deleteGameRoom(gameRoomId);
+        
+        // Broadcast to all clients that the lobby was removed
+        broadcastToAll({
+          type: 'lobby_updated',
+          action: 'lobby_deleted',
+          roomCode: gameRoom?.code || gameRoomId
+        });
+      } else {
+        // Broadcast to remaining participants
+        await broadcastToRoom(gameRoomId, {
+          type: 'player_left',
+          userId: connection.userId,
+          gameRoomId
+        });
+        
+        // Also broadcast lobby update to all clients (player count changed)
+        broadcastToAll({
+          type: 'lobby_updated',
+          action: 'player_left',
+          roomCode: gameRoom?.code || gameRoomId
+        });
+      }
       
       connection.gameRoomId = undefined;
       ws.send(JSON.stringify({ type: 'room_left', gameRoomId }));
