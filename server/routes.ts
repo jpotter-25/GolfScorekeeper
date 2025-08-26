@@ -1400,21 +1400,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  function handleDisconnection(ws: WebSocket) {
+  async function handleDisconnection(ws: WebSocket) {
     const connection = findConnection(ws);
     if (connection) {
-      // Remove from active game room if in one
-      if (connection.gameRoomId) {
-        const room = activeGameRooms.get(connection.gameRoomId);
-        if (room) {
-          room.participants.delete(connection.userId);
-          room.spectators.delete(connection.userId);
+      // Handle room cleanup when user disconnects
+      if (connection.gameRoomId && connection.userId) {
+        try {
+          console.log(`🔌 Cleaning up disconnected user ${connection.userId} from room ${connection.gameRoomId}`);
           
-          // Broadcast disconnection
-          broadcastToRoom(connection.gameRoomId, {
-            type: 'player_disconnected',
-            userId: connection.userId
-          });
+          // Mark user as left in database
+          await storage.leaveGameRoom(connection.userId, connection.gameRoomId);
+          
+          // Remove from active game room
+          const room = activeGameRooms.get(connection.gameRoomId);
+          if (room) {
+            room.participants.delete(connection.userId);
+            room.spectators.delete(connection.userId);
+            
+            if (room.participants.size === 0 && room.spectators.size === 0) {
+              activeGameRooms.delete(connection.gameRoomId);
+            }
+          }
+          
+          // Check if room is now empty and should be deleted
+          const remainingParticipants = await storage.getGameParticipants(connection.gameRoomId);
+          const activeParticipants = remainingParticipants.filter(p => !p.leftAt);
+          
+          if (activeParticipants.length === 0) {
+            // Get room details for broadcast
+            const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
+            console.log(`🗑️ Deleting empty room after disconnect: ${gameRoom?.code || connection.gameRoomId}`);
+            await storage.deleteGameRoom(connection.gameRoomId);
+            
+            // Broadcast lobby deletion to all clients
+            broadcastToAll({
+              type: 'lobby_updated',
+              action: 'lobby_deleted',
+              roomCode: gameRoom?.code || connection.gameRoomId
+            });
+          } else {
+            // Get room details for broadcast
+            const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
+            
+            // Broadcast player left to remaining participants
+            await broadcastToRoom(connection.gameRoomId, {
+              type: 'player_left',
+              userId: connection.userId,
+              gameRoomId: connection.gameRoomId
+            });
+            
+            // Broadcast lobby update to all clients
+            broadcastToAll({
+              type: 'lobby_updated',
+              action: 'player_left',
+              roomCode: gameRoom?.code || connection.gameRoomId
+            });
+          }
+        } catch (error) {
+          console.error('Error cleaning up disconnected user:', error);
         }
       }
       
