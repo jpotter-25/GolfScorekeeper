@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { useMultiplayerGameLogic } from '@/hooks/useMultiplayerGameLogic';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useToast } from '@/hooks/use-toast';
 import { GameSettings, Player } from '@/types/game';
 
 interface MultiplayerPlayer extends Player {
@@ -42,6 +44,9 @@ export default function MultiplayerGame() {
     setPlayerReady,
     startMultiplayerGame
   } = useMultiplayerGameLogic(gameRoomId, user?.id || '');
+  
+  const { sendMessage } = useWebSocket();
+  const { toast } = useToast();
 
   // Get room ID from URL params and use HTTP polling instead of WebSocket
   useEffect(() => {
@@ -61,6 +66,16 @@ export default function MultiplayerGame() {
   // State for HTTP-based multiplayer (bypassing WebSocket issues)
   const [roomData, setRoomData] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  
+  // Update gameSettings to sync with room settings
+  useEffect(() => {
+    if (roomData?.settings) {
+      setGameSettings({
+        playerCount: roomData.maxPlayers || 4,
+        rounds: roomData.settings.rounds || 9
+      });
+    }
+  }, [roomData?.settings, roomData?.maxPlayers]);
 
   const loadRoomState = async (roomId: string) => {
     try {
@@ -78,6 +93,17 @@ export default function MultiplayerGame() {
       console.error('Failed to load room:', error);
     }
   };
+
+  // Real-time polling for room state updates
+  useEffect(() => {
+    if (!gameRoomId) return;
+    
+    const pollInterval = setInterval(() => {
+      loadRoomState(gameRoomId);
+    }, 2000); // Poll every 2 seconds
+    
+    return () => clearInterval(pollInterval);
+  }, [gameRoomId]);
 
   // Hide lobby when game starts
   useEffect(() => {
@@ -113,6 +139,47 @@ export default function MultiplayerGame() {
       console.error('Failed to set ready:', error);
     }
   };
+
+  // Handle settings updates - send to backend via WebSocket
+  const handleSettingsUpdate = useCallback(async (newSettings: typeof gameSettings) => {
+    if (!isHost || !gameRoomId) return;
+    
+    try {
+      // Send via WebSocket for real-time updates
+      if (connectionState === 'connected') {
+        sendMessage({
+          type: 'update_room_settings',
+          gameRoomId,
+          settings: {
+            rounds: newSettings.rounds,
+            maxPlayers: newSettings.playerCount
+          }
+        });
+      }
+      
+      // Also update via HTTP as fallback
+      const response = await fetch(`/api/game-rooms/${gameRoomId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          maxPlayers: newSettings.playerCount,
+          settings: { rounds: newSettings.rounds }
+        })
+      });
+      
+      if (response.ok) {
+        // Reload room state to reflect changes
+        await loadRoomState(gameRoomId);
+      }
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update room settings",
+        variant: "destructive"
+      });
+    }
+  }, [isHost, gameRoomId, connectionState, sendMessage, toast]);
 
   const getConnectionStatusBadge = () => {
     switch (connectionState) {
@@ -244,7 +311,11 @@ export default function MultiplayerGame() {
                         key={count}
                         variant={gameSettings.playerCount === count ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setGameSettings(prev => ({ ...prev, playerCount: count as 2 | 3 | 4 }))}
+                        onClick={() => {
+                          const newSettings = { ...gameSettings, playerCount: count as 2 | 3 | 4 };
+                          setGameSettings(newSettings);
+                          handleSettingsUpdate(newSettings);
+                        }}
                         disabled={!isHost}
                         data-testid={`button-players-${count}`}
                       >
@@ -262,7 +333,11 @@ export default function MultiplayerGame() {
                         key={rounds}
                         variant={gameSettings.rounds === rounds ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setGameSettings(prev => ({ ...prev, rounds: rounds as 5 | 9 }))}
+                        onClick={() => {
+                          const newSettings = { ...gameSettings, rounds: rounds as 5 | 9 };
+                          setGameSettings(newSettings);
+                          handleSettingsUpdate(newSettings);
+                        }}
                         disabled={!isHost}
                         data-testid={`button-rounds-${rounds}`}
                       >

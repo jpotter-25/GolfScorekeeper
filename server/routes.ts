@@ -329,6 +329,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Creator automatically joins and gets crown
       await storage.joinGameRoom(gameRoom.id, userId, betAmount);
+      
+      // Broadcast new lobby creation to all connected clients
+      broadcastToAll({
+        type: 'lobby_updated',
+        action: 'lobby_created',
+        roomCode: gameRoom.code
+      });
+      
       res.json({ code: gameRoom.code, room: gameRoom });
     } catch (error) {
       console.error("Error creating lobby:", error);
@@ -363,6 +371,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Join the room
       await storage.joinGameRoom(room.id, userId, betAmount);
+      
+      // Broadcast lobby update to all connected clients
+      broadcastToAll({
+        type: 'lobby_updated',
+        action: 'player_joined',
+        roomCode: room.code
+      });
+      
       res.json({ code: room.code, room });
     } catch (error) {
       console.error("Error joining lobby:", error);
@@ -413,6 +429,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error joining betting room:", error);
       res.status(500).json({ message: "Failed to join betting room" });
+    }
+  });
+
+  // Update room settings via HTTP (as fallback to WebSocket)
+  app.patch('/api/game-rooms/:roomId/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { roomId } = req.params;
+      const { maxPlayers, settings } = req.body;
+      
+      // Get the game room
+      const gameRoom = await storage.getGameRoomById(roomId);
+      if (!gameRoom) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      // Only crown holder can update settings
+      if (gameRoom.crownHolderId !== userId) {
+        return res.status(403).json({ message: "Only the crown holder can update room settings" });
+      }
+      
+      // Check if settings are locked
+      if (gameRoom.settingsLocked) {
+        return res.status(403).json({ message: "Settings are locked after lobby is published" });
+      }
+      
+      // Update the room
+      const updateData: any = {};
+      if (maxPlayers !== undefined) updateData.maxPlayers = maxPlayers;
+      if (settings !== undefined) updateData.settings = { ...gameRoom.settings, ...settings };
+      
+      await storage.updateGameRoomById(roomId, updateData);
+      
+      // Get updated room data
+      const updatedRoom = await storage.getGameRoomById(roomId);
+      res.json({ success: true, room: updatedRoom });
+    } catch (error) {
+      console.error("Error updating room settings:", error);
+      res.status(500).json({ message: "Failed to update room settings" });
     }
   });
 
@@ -1407,6 +1462,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: 'start_game',
         gameRoomId: room.id,
         settings
+      });
+      
+      // Broadcast lobby removal to all connected clients (room no longer available)
+      broadcastToAll({
+        type: 'lobby_updated',
+        action: 'game_started',
+        roomCode: room.code
       });
 
     } catch (error) {

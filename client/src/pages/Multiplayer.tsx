@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,7 @@ import { Users, Plus, GamepadIcon, Trophy, MessageCircle, UserPlus, ArrowLeft, H
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getCosmeticAsset } from "@/utils/cosmeticAssets";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import type { GameStats } from "@shared/schema";
 
 interface GameRoom {
@@ -50,6 +51,8 @@ export default function Multiplayer() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [friendCode, setFriendCode] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [isPrivateRoom, setIsPrivateRoom] = useState(false);
 
   // State for new consolidated lobby browsing
   const [stakeFilters, setStakeFilters] = useState<number[]>([]);
@@ -79,12 +82,24 @@ export default function Multiplayer() {
     retry: false,
   });
 
+  // WebSocket connection for real-time lobby updates
+  const { lastMessage } = useWebSocket();
+
   // Fetch ALL available lobbies
   const { data: allLobbiesData = [], isLoading: lobbiesLoading } = useQuery({
     queryKey: ['/api/game-rooms/all-lobbies'],
     queryFn: () => fetch('/api/game-rooms/all-lobbies').then(r => r.json()),
     refetchInterval: 5000, // Refresh every 5 seconds
   });
+
+  // Handle real-time lobby updates via WebSocket
+  React.useEffect(() => {
+    if (lastMessage?.type === 'lobby_updated') {
+      console.log('🏛️ Received lobby update:', lastMessage);
+      // Invalidate and refetch lobbies immediately for real-time updates
+      queryClient.invalidateQueries({ queryKey: ['/api/game-rooms/all-lobbies'] });
+    }
+  }, [lastMessage, queryClient]);
 
   // Filter lobbies based on selected stake filters
   const filteredLobbies = stakeFilters.length === 0 
@@ -125,7 +140,7 @@ export default function Multiplayer() {
 
   const handleCreateLobby = (betAmount: number) => {
     // Create new crown-managed lobby
-    const createData = { betAmount, maxPlayers: 4, rounds: 9, isPrivate: false };
+    const createData = { betAmount, maxPlayers: 4, rounds: 9, isPrivate: isPrivateRoom };
     
     fetch('/api/game-rooms/create-lobby', {
       method: 'POST',
@@ -204,6 +219,21 @@ export default function Multiplayer() {
       });
     },
   });
+
+  // Join room by code
+  const handleJoinByCode = () => {
+    if (!roomCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a room code",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Navigate to the multiplayer game with the room code
+    setLocation(`/multiplayer/game?room=${roomCode.toUpperCase()}`);
+  };
 
   // Get equipped avatar for display
   const equippedAvatar = userCosmetics.find(c => c.type === 'avatar' && c.isEquipped);
@@ -310,6 +340,38 @@ export default function Multiplayer() {
                 <Plus className="w-4 h-4 mr-2" />
                 Create Room
               </Button>
+            </div>
+
+            {/* Join by Room Code Section */}
+            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                  <i className="fas fa-key text-blue-400 text-lg"></i>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-white">Join Private Room</h4>
+                  <p className="text-slate-400 text-sm">Enter a room code to join a private lobby</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 max-w-md">
+                <input
+                  type="text"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  placeholder="Enter room code (e.g., ABC123)"
+                  className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                  data-testid="input-room-code"
+                  maxLength={6}
+                />
+                <Button
+                  onClick={handleJoinByCode}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 transition-all"
+                  data-testid="button-join-room-code"
+                >
+                  Join Room
+                </Button>
+              </div>
             </div>
 
             {/* Compact Stake Filters */}
@@ -561,6 +623,45 @@ export default function Multiplayer() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {/* Privacy Setting */}
+                  <div className="space-y-3">
+                    <h4 className="text-white font-semibold">Room Privacy</h4>
+                    <div className="flex gap-3">
+                      <Button
+                        variant={!isPrivateRoom ? "default" : "outline"}
+                        className={`flex-1 ${
+                          !isPrivateRoom 
+                            ? "bg-green-600 hover:bg-green-700 text-white" 
+                            : "border-slate-600 text-slate-300 hover:bg-slate-700"
+                        }`}
+                        onClick={() => setIsPrivateRoom(false)}
+                        data-testid="button-public-room"
+                      >
+                        <i className="fas fa-globe mr-2"></i>
+                        Public
+                      </Button>
+                      <Button
+                        variant={isPrivateRoom ? "default" : "outline"}
+                        className={`flex-1 ${
+                          isPrivateRoom 
+                            ? "bg-blue-600 hover:bg-blue-700 text-white" 
+                            : "border-slate-600 text-slate-300 hover:bg-slate-700"
+                        }`}
+                        onClick={() => setIsPrivateRoom(true)}
+                        data-testid="button-private-room"
+                      >
+                        <i className="fas fa-lock mr-2"></i>
+                        Private
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {isPrivateRoom 
+                        ? "Only players with the room code can join" 
+                        : "Room will appear in active lobbies for everyone"
+                      }
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-2">
                     {[
                       { stake: 0, label: "FREE", description: "Practice game", color: "bg-green-600 hover:bg-green-700" },

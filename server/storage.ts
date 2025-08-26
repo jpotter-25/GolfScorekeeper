@@ -566,26 +566,28 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
     
-    // Add crown holder names
+    // Filter out full rooms and add crown holder names
     const roomsWithNames = await Promise.all(
-      rooms.map(async (room) => {
-        let crownHolderName = 'Unknown';
-        if (room.crownHolderId) {
-          const crownHolder = await this.getUser(room.crownHolderId);
-          if (crownHolder) {
-            crownHolderName = crownHolder.firstName && crownHolder.lastName 
-              ? `${crownHolder.firstName} ${crownHolder.lastName}`
-              : crownHolder.email?.split('@')[0] || 'Player';
+      rooms
+        .filter(room => room.currentPlayers < room.maxPlayers) // Only show non-full rooms
+        .map(async (room) => {
+          let crownHolderName = 'Unknown';
+          if (room.crownHolderId) {
+            const crownHolder = await this.getUser(room.crownHolderId);
+            if (crownHolder) {
+              crownHolderName = crownHolder.firstName && crownHolder.lastName 
+                ? `${crownHolder.firstName} ${crownHolder.lastName}`
+                : crownHolder.email?.split('@')[0] || 'Player';
+            }
           }
-        }
-        
-        return {
-          ...room,
-          crownHolderName,
-          playerCount: room.currentPlayers,
-          rounds: (room.settings as any)?.rounds || 9
-        };
-      })
+          
+          return {
+            ...room,
+            crownHolderName,
+            playerCount: room.currentPlayers,
+            rounds: (room.settings as any)?.rounds || 9
+          };
+        })
     );
     
     return roomsWithNames;
