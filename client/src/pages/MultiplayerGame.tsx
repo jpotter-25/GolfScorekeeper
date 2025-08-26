@@ -66,17 +66,18 @@ export default function MultiplayerGame() {
   // State for HTTP-based multiplayer (bypassing WebSocket issues)
   const [roomData, setRoomData] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [isEditingSettings, setIsEditingSettings] = useState(false);
   
-  // Update gameSettings to sync with room settings
+  // Update gameSettings to sync with room settings (only when not actively editing)
   useEffect(() => {
-    if (roomData?.settings) {
+    if (roomData?.settings && !isEditingSettings) {
       setGameSettings({
         playerCount: roomData.maxPlayers || 4,
         rounds: roomData.settings.rounds || 9,
         mode: 'online'
       });
     }
-  }, [roomData?.settings, roomData?.maxPlayers]);
+  }, [roomData?.settings, roomData?.maxPlayers, isEditingSettings]);
 
   // Calculate isHost early to avoid hoisting issues
   const isHost = roomData?.hostId === user?.id;
@@ -98,16 +99,18 @@ export default function MultiplayerGame() {
     }
   };
 
-  // Real-time polling for room state updates
+  // Real-time polling for room state updates (pause during settings editing)
   useEffect(() => {
     if (!gameRoomId) return;
     
     const pollInterval = setInterval(() => {
-      loadRoomState(gameRoomId);
+      if (!isEditingSettings) {
+        loadRoomState(gameRoomId);
+      }
     }, 2000); // Poll every 2 seconds
     
     return () => clearInterval(pollInterval);
-  }, [gameRoomId]);
+  }, [gameRoomId, isEditingSettings]);
 
   // Hide lobby when game starts
   useEffect(() => {
@@ -148,7 +151,12 @@ export default function MultiplayerGame() {
   const handleSettingsUpdate = useCallback(async (newSettings: typeof gameSettings) => {
     if (!isHost || !gameRoomId) return;
     
+    setIsEditingSettings(true);
+    
     try {
+      // Update local state immediately for responsive UI
+      setGameSettings(newSettings);
+      
       // Send via WebSocket for real-time updates
       if (connectionState === 'connected') {
         sendMessage({
@@ -172,11 +180,17 @@ export default function MultiplayerGame() {
       });
       
       if (response.ok) {
-        // Reload room state to reflect changes
-        await loadRoomState(gameRoomId);
+        // Brief delay to allow server to process, then allow polling to resume
+        setTimeout(() => {
+          setIsEditingSettings(false);
+        }, 1000);
+      } else {
+        setIsEditingSettings(false);
+        throw new Error('Failed to update settings');
       }
     } catch (error) {
       console.error('Failed to update settings:', error);
+      setIsEditingSettings(false);
       toast({
         title: "Error",
         description: "Failed to update room settings",
