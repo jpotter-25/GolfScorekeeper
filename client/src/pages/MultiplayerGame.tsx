@@ -72,10 +72,14 @@ export default function MultiplayerGame() {
     if (roomData?.settings) {
       setGameSettings({
         playerCount: roomData.maxPlayers || 4,
-        rounds: roomData.settings.rounds || 9
+        rounds: roomData.settings.rounds || 9,
+        mode: 'online'
       });
     }
   }, [roomData?.settings, roomData?.maxPlayers]);
+
+  // Calculate isHost early to avoid hoisting issues
+  const isHost = roomData?.hostId === user?.id;
 
   const loadRoomState = async (roomId: string) => {
     try {
@@ -198,7 +202,6 @@ export default function MultiplayerGame() {
 
   // Use room data instead of WebSocket game state
   const connectedPlayersList = roomData?.players || [];
-  const isHost = roomData?.hostId === user?.id;
 
   if (showLobby) {
     return (
