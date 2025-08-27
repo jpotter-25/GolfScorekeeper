@@ -343,7 +343,24 @@ export function useMultiplayerGameLogic(
     });
   }, [sendMessage, multiplayerGameState?.gameRoomId]);
 
-  const startMultiplayerGame = useCallback((settings: GameSettings) => {
+  const startMultiplayerGame = useCallback((settings: GameSettings, isAutoStart = false) => {
+    // For auto-start (when room status changes to active), all players initialize locally
+    if (isAutoStart) {
+      console.log('🎮 Auto-starting game for player');
+      syncedGameLogic.startGame(settings);
+      setMultiplayerGameState(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ...syncedGameLogic.gameState!,
+          waitingForPlayers: false,
+          allPlayersReady: true
+        };
+      });
+      return;
+    }
+    
+    // Manual start by host
     if (!multiplayerGameState?.isHost) {
       toast({
         title: "Error",
@@ -358,7 +375,7 @@ export function useMultiplayerGameLogic(
       gameRoomId: multiplayerGameState.gameRoomId,
       settings
     });
-  }, [sendMessage, multiplayerGameState, toast]);
+  }, [sendMessage, multiplayerGameState, toast, syncedGameLogic]);
 
   // Sync local game state changes to multiplayer state
   useEffect(() => {

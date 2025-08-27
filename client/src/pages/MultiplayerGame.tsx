@@ -108,7 +108,7 @@ export default function MultiplayerGame() {
             };
             setGameSettings(settings);
             setShowLobby(false);
-            startMultiplayerGame(settings);
+            startMultiplayerGame(settings, true); // Pass true for auto-start
             return; // Exit early, game is starting
           }
         }
