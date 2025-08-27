@@ -67,17 +67,22 @@ export default function MultiplayerGame() {
   const [roomData, setRoomData] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState(0);
   
   // Update gameSettings to sync with room settings (only when not actively editing)
   useEffect(() => {
     if (roomData?.settings && !isEditingSettings) {
-      setGameSettings({
-        playerCount: roomData.maxPlayers || 4,
-        rounds: roomData.settings.rounds || 9,
-        mode: 'online'
-      });
+      // Don't overwrite if we just sent an update within the last 3 seconds
+      const timeSinceUpdate = Date.now() - lastUpdateTime;
+      if (timeSinceUpdate > 3000) {
+        setGameSettings({
+          playerCount: roomData.maxPlayers || 4,
+          rounds: roomData.settings.rounds || 9,
+          mode: 'online'
+        });
+      }
     }
-  }, [roomData?.settings, roomData?.maxPlayers, isEditingSettings]);
+  }, [roomData?.settings, roomData?.maxPlayers, isEditingSettings, lastUpdateTime]);
 
   // Calculate isHost early to avoid hoisting issues
   const isHost = roomData?.hostId === user?.id;
@@ -171,12 +176,12 @@ export default function MultiplayerGame() {
   const handleSettingsUpdate = useCallback(async (newSettings: typeof gameSettings) => {
     if (!isHost || !gameRoomId) return;
     
+    // Update local state immediately and track update time
+    setGameSettings(newSettings);
+    setLastUpdateTime(Date.now());
     setIsEditingSettings(true);
     
     try {
-      // Update local state immediately for responsive UI
-      setGameSettings(newSettings);
-      
       // Send via WebSocket for real-time updates
       if (connectionState === 'connected') {
         sendMessage({
@@ -204,10 +209,8 @@ export default function MultiplayerGame() {
       });
       
       if (response.ok) {
-        // Brief delay to allow server to process, then allow polling to resume
-        setTimeout(() => {
-          setIsEditingSettings(false);
-        }, 1000);
+        // Settings updated successfully - allow polling to resume immediately
+        setIsEditingSettings(false);
       } else {
         setIsEditingSettings(false);
         throw new Error('Failed to update settings');
