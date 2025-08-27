@@ -156,19 +156,45 @@ export default function MultiplayerGame() {
   const handlePlayerReady = async () => {
     try {
       const newReadyState = !isPlayerReady;
+      setIsPlayerReady(newReadyState); // Optimistic update
+      
       const response = await fetch(`/api/game-rooms/${gameRoomId}/ready`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', // FIXED: Use correct HTTP method
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cookie': document.cookie // FIXED: Include authentication
+        },
+        credentials: 'include', // FIXED: Include credentials
         body: JSON.stringify({ isReady: newReadyState })
       });
       
       if (response.ok) {
-        setIsPlayerReady(newReadyState);
-        // Reload room state to get updated participant list
-        await loadRoomState(gameRoomId);
+        const result = await response.json();
+        if (result.gameStarted) {
+          // FIXED: Handle auto-start
+          console.log('🚀 Game auto-started!', result.gameSettings);
+          setGameSettings(result.gameSettings);
+          setShowLobby(false);
+        } else {
+          // Reload room state to get updated participant list
+          await loadRoomState(gameRoomId);
+        }
+      } else {
+        setIsPlayerReady(!newReadyState); // Revert on error
+        toast({
+          title: "Error",
+          description: "Failed to update ready status",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Failed to set ready:', error);
+      setIsPlayerReady(!newReadyState); // Revert on error
+      toast({
+        title: "Error", 
+        description: "Failed to update ready status",
+        variant: "destructive"
+      });
     }
   };
 

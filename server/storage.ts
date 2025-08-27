@@ -713,17 +713,30 @@ export class DatabaseStorage implements IStorage {
       return existing[0];
     }
 
-    // Store bet amount but don't deduct coins until game starts
-    // Coins will be deducted when the game actually begins
+    // CRITICAL: Check room capacity before allowing join
+    const room = await this.getGameRoomById(roomId);
+    if (!room) {
+      throw new Error('Room not found');
+    }
 
-    // Get current participant count to assign player index
-    const participantCount = await db
+    const currentParticipants = await db
       .select({ count: sql<number>`count(*)` })
       .from(gameParticipants)
       .where(and(
         eq(gameParticipants.gameRoomId, roomId),
         sql`${gameParticipants.leftAt} IS NULL`
       ));
+    
+    const currentCount = currentParticipants[0].count;
+    if (currentCount >= (room.maxPlayers || 4)) {
+      throw new Error(`Room is full (${currentCount}/${room.maxPlayers})`);
+    }
+
+    // Store bet amount but don't deduct coins until game starts
+    // Coins will be deducted when the game actually begins
+
+    // Get current participant count to assign player index
+    const participantCount = currentParticipants;
 
     const [participant] = await db
       .insert(gameParticipants)
