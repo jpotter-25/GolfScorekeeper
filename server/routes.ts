@@ -509,6 +509,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
+        // Notify ALL players via WebSocket that the game is starting
+        await broadcastToRoom(gameRoom.id, {
+          type: 'start_game',
+          gameRoomId: gameRoom.code,
+          settings: { 
+            rounds: gameRoom.settings?.rounds || 9, 
+            mode: 'online', 
+            playerCount: activeParticipants.length 
+          }
+        });
+        
         // Remove from Active Lobbies since game started
         broadcastToAll({
           type: 'lobby_updated',
