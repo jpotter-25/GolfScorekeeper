@@ -292,8 +292,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get ALL available lobbies (for new consolidated view)
-  app.get('/api/game-rooms/all-lobbies', isAuthenticated, async (req: any, res) => {
+  // Get ALL available lobbies (for new consolidated view) - PUBLIC endpoint
+  app.get('/api/game-rooms/all-lobbies', async (req: any, res) => {
     try {
       const allLobbies = await storage.getAllPublishedLobbies();
       res.json(allLobbies);

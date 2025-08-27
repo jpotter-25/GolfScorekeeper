@@ -54,7 +54,7 @@ import {
   type InsertSocialPostLike,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, isNull } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -540,25 +540,9 @@ export class DatabaseStorage implements IStorage {
 
   // Get ALL published lobbies (for consolidated view)
   async getAllPublishedLobbies(): Promise<any[]> {
+    // First get all waiting rooms
     const rooms = await db
-      .select({
-        id: gameRooms.id,
-        code: gameRooms.code,
-        hostId: gameRooms.hostId,
-        crownHolderId: gameRooms.crownHolderId,
-        betAmount: gameRooms.betAmount,
-        prizePool: gameRooms.prizePool,
-        maxPlayers: gameRooms.maxPlayers,
-        settings: gameRooms.settings,
-        status: gameRooms.status,
-        isPrivate: gameRooms.isPrivate,
-        currentPlayers: sql<number>`(
-          SELECT COUNT(*) 
-          FROM ${gameParticipants} 
-          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
-          AND ${gameParticipants.leftAt} IS NULL
-        )`
-      })
+      .select()
       .from(gameRooms)
       .where(and(
         eq(gameRooms.isPublished, true),
@@ -566,9 +550,27 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
     
+    // Then get participant counts for each room
+    const roomsWithCounts = await Promise.all(
+      rooms.map(async (room) => {
+        const participants = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(gameParticipants)
+          .where(and(
+            eq(gameParticipants.gameRoomId, room.id),
+            isNull(gameParticipants.leftAt)
+          ));
+        
+        return {
+          ...room,
+          currentPlayers: participants[0]?.count || 0
+        };
+      })
+    )
+    
     // Filter out full rooms and add crown holder names
     const roomsWithNames = await Promise.all(
-      rooms
+      roomsWithCounts
         .filter(room => room.currentPlayers < (room.maxPlayers || 4)) // Only show non-full rooms
         .map(async (room) => {
           let crownHolderName = 'Unknown';
