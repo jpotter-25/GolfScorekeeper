@@ -471,6 +471,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user ready status in game room with auto-start logic
+  app.patch('/api/game-rooms/:gameRoomId/ready', isAuthenticated, async (req: any, res) => {
+    try {
+      const { gameRoomId } = req.params;
+      const { isReady } = req.body;
+      const userId = req.user.claims.sub;
+      
+      await storage.updateParticipantReady(gameRoomId, userId, isReady);
+      
+      // Check for auto-start (same logic as WebSocket)
+      const gameRoom = await storage.getGameRoomById(gameRoomId);
+      const allParticipants = await storage.getGameParticipants(gameRoomId);
+      const activeParticipants = allParticipants.filter(p => !p.leftAt);
+      const allPlayersReady = activeParticipants.length >= 2 && activeParticipants.every(p => p.isReady);
+      
+      if (allPlayersReady && gameRoom && gameRoom.status === 'waiting') {
+        console.log(`🚀 HTTP Auto-starting game for room ${gameRoom.code} - all ${activeParticipants.length} players ready`);
+        
+        // Update room status to 'active'
+        await storage.updateGameRoom(gameRoom.code, { status: 'active' });
+
+        // Deduct coins from all participants now that game is starting
+        for (const participant of activeParticipants) {
+          if (participant.betPaid > 0) {
+            try {
+              await storage.spendCurrency(participant.userId, participant.betPaid);
+            } catch (error) {
+              console.error(`Failed to deduct coins for user ${participant.userId}:`, error);
+            }
+          }
+        }
+
+        // Remove from Active Lobbies since game started
+        broadcastToAll({
+          type: 'lobby_updated',
+          action: 'lobby_deleted', 
+          roomCode: gameRoom.code
+        });
+        
+        res.json({ 
+          success: true, 
+          allPlayersReady: true,
+          gameStarted: true,
+          gameSettings: { 
+            rounds: gameRoom.settings?.rounds || 9, 
+            mode: 'online', 
+            playerCount: activeParticipants.length 
+          }
+        });
+        return;
+      }
+      
+      res.json({ 
+        success: true, 
+        allPlayersReady,
+        gameStarted: false
+      });
+    } catch (error) {
+      console.error('Update ready error:', error);
+      res.status(500).json({ error: 'Failed to update ready status' });
+    }
+  });
+
   // Multiplayer Game Room API Routes
   app.post('/api/game-rooms', isAuthenticated, async (req: any, res) => {
     try {
@@ -1110,6 +1173,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Auto-start the game if all players are ready
       if (allPlayersReady && gameRoom) {
+        console.log(`🚀 Auto-starting game for room ${gameRoom.code} - all ${allParticipants.length} players ready`);
+        
         // Update room status to 'active'
         await storage.updateGameRoom(gameRoom.code, { status: 'active' });
 
@@ -1124,11 +1189,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Auto-start the game
+        // Auto-start the game via WebSocket
         await broadcastToRoom(connection.gameRoomId, {
           type: 'start_game',
           gameRoomId: connection.gameRoomId,
-          settings: { rounds: 9, mode: 'online', playerCount: allParticipants.length }
+          settings: { rounds: gameRoom.settings?.rounds || 9, mode: 'online', playerCount: allParticipants.length }
+        });
+        
+        // Also remove from Active Lobbies since game started
+        broadcastToAll({
+          type: 'lobby_updated',
+          action: 'lobby_deleted', 
+          roomCode: gameRoom.code
         });
       }
       
