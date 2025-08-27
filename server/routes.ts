@@ -510,6 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Notify ALL players via WebSocket that the game is starting
+        console.log(`Broadcasting start_game to room ${gameRoom.id} with code ${gameRoom.code}`);
         await broadcastToRoom(gameRoom.id, {
           type: 'start_game',
           gameRoomId: gameRoom.code,

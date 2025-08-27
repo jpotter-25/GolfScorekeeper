@@ -95,6 +95,24 @@ export default function MultiplayerGame() {
         setRoomData(roomInfo);
         setGameRoomId(roomId);
         
+        // CRITICAL: Check if game has started (room is active)
+        if (roomInfo.status === 'active' && showLobby) {
+          console.log('🚀 Detected game started - room is active!');
+          const allPlayersReady = roomInfo.players?.every((p: any) => p.isReady);
+          if (allPlayersReady) {
+            // Game has started - initialize it
+            const settings = {
+              rounds: roomInfo.settings?.rounds || 9,
+              mode: 'online',
+              playerCount: roomInfo.players?.length || 2
+            };
+            setGameSettings(settings);
+            setShowLobby(false);
+            startMultiplayerGame(settings);
+            return; // Exit early, game is starting
+          }
+        }
+        
         // CRITICAL: Join room via WebSocket to enable auto-cleanup
         if (connectionState === 'connected' && user?.id) {
           sendMessage({
