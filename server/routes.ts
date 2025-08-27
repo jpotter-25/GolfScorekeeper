@@ -433,14 +433,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update room settings via HTTP (as fallback to WebSocket)
-  app.patch('/api/game-rooms/:roomId/settings', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/game-rooms/:roomCode/settings', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { roomId } = req.params;
+      const { roomCode } = req.params;
       const { maxPlayers, settings } = req.body;
       
-      // Get the game room
-      const gameRoom = await storage.getGameRoomById(roomId);
+      // Get the game room by code (consistent with other endpoints)
+      const gameRoom = await storage.getGameRoom(roomCode);
       if (!gameRoom) {
         return res.status(404).json({ message: "Room not found" });
       }
@@ -460,10 +460,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (maxPlayers !== undefined) updateData.maxPlayers = maxPlayers;
       if (settings !== undefined) updateData.settings = { ...gameRoom.settings, ...settings };
       
-      await storage.updateGameRoomById(roomId, updateData);
+      await storage.updateGameRoomById(gameRoom.id, updateData);
       
       // Get updated room data
-      const updatedRoom = await storage.getGameRoomById(roomId);
+      const updatedRoom = await storage.getGameRoomById(gameRoom.id);
       res.json({ success: true, room: updatedRoom });
     } catch (error) {
       console.error("Error updating room settings:", error);
