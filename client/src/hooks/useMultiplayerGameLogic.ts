@@ -349,39 +349,25 @@ export function useMultiplayerGameLogic(
       console.log('🎮 Auto-starting game for player');
       syncedGameLogic.startGame(settings);
       
-      // Wait for next tick to ensure game state is initialized
-      setTimeout(() => {
-        setMultiplayerGameState(prev => {
-          if (!prev) {
-            // If no previous state, initialize from scratch
-            const initialState = syncedGameLogic.gameState;
-            if (!initialState) return null;
-            
-            return {
-              ...initialState,
-              gameRoomId: gameRoomId,
-              hostId: prev?.hostId || '',
-              isHost: false,
-              connectedPlayers: prev?.connectedPlayers || {},
-              waitingForPlayers: false,
-              allPlayersReady: true
-            };
-          }
-          
-          const newGameState = syncedGameLogic.gameState;
-          if (!newGameState) return prev;
-          
-          return {
-            ...newGameState,
-            gameRoomId: prev.gameRoomId,
-            hostId: prev.hostId,
-            isHost: prev.isHost,
-            connectedPlayers: prev.connectedPlayers,
-            waitingForPlayers: false,
-            allPlayersReady: true
-          };
-        });
-      }, 0);
+      // Immediately set the multiplayer state - don't wait
+      const initialGameState = syncedGameLogic.gameState;
+      if (!initialGameState) {
+        console.error('Failed to initialize game state');
+        return;
+      }
+      
+      setMultiplayerGameState(prev => {
+        console.log('Setting multiplayer game state from auto-start', { prev, initialGameState });
+        return {
+          ...initialGameState,
+          gameRoomId: gameRoomId,
+          hostId: prev?.hostId || '',
+          isHost: prev?.isHost || false,
+          connectedPlayers: prev?.connectedPlayers || {},
+          waitingForPlayers: false,
+          allPlayersReady: true
+        };
+      });
       return;
     }
     
@@ -404,20 +390,24 @@ export function useMultiplayerGameLogic(
 
   // Sync local game state changes to multiplayer state
   useEffect(() => {
-    if (syncedGameLogic.gameState && multiplayerGameState) {
-      setMultiplayerGameState(prev => ({
-        ...prev!,
-        ...syncedGameLogic.gameState,
-        // Preserve multiplayer-specific fields
-        gameRoomId: prev!.gameRoomId,
-        hostId: prev!.hostId,
-        isHost: prev!.isHost,
-        connectedPlayers: prev!.connectedPlayers,
-        waitingForPlayers: prev!.waitingForPlayers,
-        allPlayersReady: prev!.allPlayersReady
-      }));
+    // Only sync if we have both states and the game has started (not waiting for players)
+    if (syncedGameLogic.gameState && multiplayerGameState && !multiplayerGameState.waitingForPlayers) {
+      setMultiplayerGameState(prev => {
+        if (!prev || prev.waitingForPlayers) return prev;
+        return {
+          ...prev,
+          ...syncedGameLogic.gameState,
+          // Preserve multiplayer-specific fields
+          gameRoomId: prev.gameRoomId,
+          hostId: prev.hostId,
+          isHost: prev.isHost,
+          connectedPlayers: prev.connectedPlayers,
+          waitingForPlayers: prev.waitingForPlayers,
+          allPlayersReady: prev.allPlayersReady
+        };
+      });
     }
-  }, [syncedGameLogic.gameState, multiplayerGameState?.gameRoomId]);
+  }, [syncedGameLogic.gameState, multiplayerGameState?.gameRoomId, multiplayerGameState?.waitingForPlayers]);
 
   return {
     gameState: multiplayerGameState,
