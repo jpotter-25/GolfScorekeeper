@@ -159,37 +159,40 @@ export default function MultiplayerGame() {
       setIsPlayerReady(newReadyState); // Optimistic update
       
       const response = await fetch(`/api/game-rooms/${gameRoomId}/ready`, {
-        method: 'PATCH', // FIXED: Use correct HTTP method
+        method: 'PATCH',
         headers: { 
-          'Content-Type': 'application/json',
-          'Cookie': document.cookie // FIXED: Include authentication
+          'Content-Type': 'application/json'
         },
-        credentials: 'include', // FIXED: Include credentials
+        credentials: 'include', // This ensures cookies are sent with the request
         body: JSON.stringify({ isReady: newReadyState })
       });
       
       if (response.ok) {
         const result = await response.json();
         if (result.gameStarted) {
-          // FIXED: Handle auto-start
+          // Handle auto-start when all players are ready
           console.log('🚀 Game auto-started!', result.gameSettings);
           setGameSettings(result.gameSettings);
           setShowLobby(false);
+          // Initialize the game
+          startMultiplayerGame(result.gameSettings);
         } else {
           // Reload room state to get updated participant list
           await loadRoomState(gameRoomId);
         }
       } else {
+        const errorText = await response.text();
+        console.error('Failed to update ready status:', response.status, errorText);
         setIsPlayerReady(!newReadyState); // Revert on error
         toast({
           title: "Error",
-          description: "Failed to update ready status",
+          description: "Failed to update ready status. Please try again.",
           variant: "destructive"
         });
       }
     } catch (error) {
       console.error('Failed to set ready:', error);
-      setIsPlayerReady(!newReadyState); // Revert on error
+      setIsPlayerReady(!isPlayerReady); // Revert on error
       toast({
         title: "Error", 
         description: "Failed to update ready status",
