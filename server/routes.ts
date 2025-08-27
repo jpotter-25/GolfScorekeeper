@@ -472,17 +472,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update user ready status in game room with auto-start logic
-  app.patch('/api/game-rooms/:gameRoomId/ready', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/game-rooms/:gameRoomCode/ready', isAuthenticated, async (req: any, res) => {
     try {
-      const { gameRoomId } = req.params;
+      const { gameRoomCode } = req.params;
       const { isReady } = req.body;
       const userId = req.user.claims.sub;
       
-      await storage.updateParticipantReady(gameRoomId, userId, isReady);
+      // Get the actual room by code first
+      const gameRoom = await storage.getGameRoom(gameRoomCode);
+      if (!gameRoom) {
+        return res.status(404).json({ message: 'Room not found' });
+      }
+      
+      // Now use the room ID for the update
+      await storage.updateParticipantReady(gameRoom.id, userId, isReady);
       
       // Check for auto-start (same logic as WebSocket)
-      const gameRoom = await storage.getGameRoomById(gameRoomId);
-      const allParticipants = await storage.getGameParticipants(gameRoomId);
+      const allParticipants = await storage.getGameParticipants(gameRoom.id);
       const activeParticipants = allParticipants.filter(p => !p.leftAt);
       const allPlayersReady = activeParticipants.length >= 2 && activeParticipants.every(p => p.isReady);
       
