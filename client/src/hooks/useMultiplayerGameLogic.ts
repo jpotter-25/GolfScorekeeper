@@ -348,15 +348,40 @@ export function useMultiplayerGameLogic(
     if (isAutoStart) {
       console.log('🎮 Auto-starting game for player');
       syncedGameLogic.startGame(settings);
-      setMultiplayerGameState(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          ...syncedGameLogic.gameState!,
-          waitingForPlayers: false,
-          allPlayersReady: true
-        };
-      });
+      
+      // Wait for next tick to ensure game state is initialized
+      setTimeout(() => {
+        setMultiplayerGameState(prev => {
+          if (!prev) {
+            // If no previous state, initialize from scratch
+            const initialState = syncedGameLogic.gameState;
+            if (!initialState) return null;
+            
+            return {
+              ...initialState,
+              gameRoomId: gameRoomId,
+              hostId: prev?.hostId || '',
+              isHost: false,
+              connectedPlayers: prev?.connectedPlayers || {},
+              waitingForPlayers: false,
+              allPlayersReady: true
+            };
+          }
+          
+          const newGameState = syncedGameLogic.gameState;
+          if (!newGameState) return prev;
+          
+          return {
+            ...newGameState,
+            gameRoomId: prev.gameRoomId,
+            hostId: prev.hostId,
+            isHost: prev.isHost,
+            connectedPlayers: prev.connectedPlayers,
+            waitingForPlayers: false,
+            allPlayersReady: true
+          };
+        });
+      }, 0);
       return;
     }
     
@@ -375,7 +400,7 @@ export function useMultiplayerGameLogic(
       gameRoomId: multiplayerGameState.gameRoomId,
       settings
     });
-  }, [sendMessage, multiplayerGameState, toast, syncedGameLogic]);
+  }, [sendMessage, multiplayerGameState, toast, syncedGameLogic, gameRoomId]);
 
   // Sync local game state changes to multiplayer state
   useEffect(() => {
