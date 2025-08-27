@@ -346,16 +346,23 @@ export function useMultiplayerGameLogic(
   const startMultiplayerGame = useCallback((settings: GameSettings, isAutoStart = false) => {
     // For auto-start (when room status changes to active), all players initialize locally
     if (isAutoStart) {
-      console.log('🎮 Auto-starting game for player');
-      syncedGameLogic.startGame(settings);
+      console.log('🎮 Auto-starting game for player with settings:', settings);
       
-      // Immediately set the multiplayer state - don't wait
-      const initialGameState = syncedGameLogic.gameState;
+      // Import initializeGame directly to get the game state immediately
+      const { initializeGame } = require('@/utils/gameLogic');
+      const initialGameState = initializeGame(settings);
+      
+      console.log('Created initial game state:', initialGameState);
+      
       if (!initialGameState) {
-        console.error('Failed to initialize game state');
+        console.error('Failed to create game state');
         return;
       }
       
+      // Set both the synced game logic state and multiplayer state
+      syncedGameLogic.startGame(settings);
+      
+      // Immediately set the multiplayer state with the initialized game
       setMultiplayerGameState(prev => {
         console.log('Setting multiplayer game state from auto-start', { prev, initialGameState });
         return {

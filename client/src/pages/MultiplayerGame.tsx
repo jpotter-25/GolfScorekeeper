@@ -55,8 +55,10 @@ export default function MultiplayerGame() {
     
     if (roomId) {
       setGameRoomId(roomId);
-      // Skip WebSocket for now - load room directly
-      loadRoomState(roomId);
+      // Wait a bit before loading to avoid 404
+      setTimeout(() => {
+        loadRoomState(roomId);
+      }, 500);
     } else {
       // Redirect back to multiplayer hub if no room specified
       setLocation('/multiplayer');
@@ -102,18 +104,23 @@ export default function MultiplayerGame() {
         
         // CRITICAL: Check if game has started (room is active)
         if (roomInfo.status === 'active' && showLobby) {
-          console.log('🚀 Detected game started - room is active!');
+          console.log('🚀 Detected game started - room is active!', roomInfo);
           const allPlayersReady = roomInfo.players?.every((p: any) => p.isReady);
           if (allPlayersReady) {
             // Game has started - initialize it
             const settings = {
               rounds: roomInfo.settings?.rounds || 9,
-              mode: 'online',
+              mode: 'online' as const,
               playerCount: roomInfo.players?.length || 2
             };
+            console.log('Initializing game with settings:', settings);
             setGameSettings(settings);
             setShowLobby(false);
-            startMultiplayerGame(settings, true); // Pass true for auto-start
+            
+            // Add small delay to ensure state is ready
+            setTimeout(() => {
+              startMultiplayerGame(settings, true); // Pass true for auto-start
+            }, 100);
             return; // Exit early, game is starting
           }
         }
