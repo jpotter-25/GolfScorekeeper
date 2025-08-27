@@ -87,9 +87,14 @@ export default function MultiplayerGame() {
   // Calculate isHost early to avoid hoisting issues
   const isHost = roomData?.hostId === user?.id;
 
-  const loadRoomState = async (roomId: string) => {
+  const loadRoomState = async (roomId: string, retryCount = 0) => {
     try {
       const response = await fetch(`/api/game-rooms/${roomId}`);
+      if (!response.ok && response.status === 404 && retryCount < 3) {
+        // Room might not be ready yet, retry after a short delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return loadRoomState(roomId, retryCount + 1);
+      }
       if (response.ok) {
         const roomInfo = await response.json();
         setRoomData(roomInfo);
@@ -192,8 +197,8 @@ export default function MultiplayerGame() {
           console.log('🚀 Game auto-started!', result.gameSettings);
           setGameSettings(result.gameSettings);
           setShowLobby(false);
-          // Initialize the game
-          startMultiplayerGame(result.gameSettings);
+          // Initialize the game with auto-start flag
+          startMultiplayerGame(result.gameSettings, true);
         } else {
           // Reload room state to get updated participant list
           await loadRoomState(gameRoomId);
