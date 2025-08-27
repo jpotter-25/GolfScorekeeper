@@ -585,40 +585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Set ready status endpoint  
-  app.post('/api/game-rooms/:roomId/ready', isAuthenticated, async (req: any, res) => {
-    try {
-      const { roomId } = req.params;
-      const { isReady } = req.body;
-      const userId = req.user.claims.sub;
-
-      console.log('Ready endpoint called with:', { roomId, isReady, userId });
-
-      const gameRoom = await storage.getGameRoom(roomId);
-      if (!gameRoom) {
-        return res.status(404).json({ message: 'Room not found' });
-      }
-
-      console.log('Found game room:', gameRoom.id);
-
-      // Use joinGameRoom with the correct room ID (not code)
-      try {
-        await storage.joinGameRoom(gameRoom.id, userId, 0);
-        console.log('User joined room successfully');
-      } catch (error) {
-        console.log('User already in room or join failed:', error);
-      }
-
-      // Now update the ready status via gameParticipants table  
-      await storage.setPlayerReady(gameRoom.id, userId, isReady);
-      console.log('Ready status updated:', { userId, isReady });
-
-      res.json({ success: true, isReady });
-    } catch (error) {
-      console.error('Error updating ready status:', error);
-      res.status(500).json({ message: 'Failed to update ready status' });
-    }
-  });
+  // REMOVED DUPLICATE POST ENDPOINT - Using PATCH above instead
 
   // Friend System API Routes
   app.get('/api/friends', isAuthenticated, async (req: any, res) => {

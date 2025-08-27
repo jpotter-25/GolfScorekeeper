@@ -584,7 +584,8 @@ export class DatabaseStorage implements IStorage {
           return {
             ...room,
             crownHolderName,
-            playerCount: room.currentPlayers,
+            playerCount: room.currentPlayers, // Make sure playerCount is set
+            currentPlayers: room.currentPlayers, // Keep both for compatibility
             rounds: (room.settings as any)?.rounds || 9
           };
         })
