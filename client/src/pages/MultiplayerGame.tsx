@@ -90,6 +90,15 @@ export default function MultiplayerGame() {
         setRoomData(roomInfo);
         setGameRoomId(roomId);
         
+        // CRITICAL: Join room via WebSocket to enable auto-cleanup
+        if (connectionState === 'connected' && user?.id) {
+          sendMessage({
+            type: 'join_room',
+            gameRoomId: roomId,
+            userId: user.id
+          });
+        }
+        
         // Check if current user is ready
         const currentUserParticipant = roomInfo.players?.find((p: any) => p.userId === user?.id);
         setIsPlayerReady(currentUserParticipant?.isReady || false);
@@ -98,6 +107,17 @@ export default function MultiplayerGame() {
       console.error('Failed to load room:', error);
     }
   };
+
+  // Ensure WebSocket room join when connection state changes
+  useEffect(() => {
+    if (connectionState === 'connected' && gameRoomId && user?.id) {
+      sendMessage({
+        type: 'join_room',
+        gameRoomId: gameRoomId,
+        userId: user.id
+      });
+    }
+  }, [connectionState, gameRoomId, user?.id, sendMessage]);
 
   // Real-time polling for room state updates (pause during settings editing)
   useEffect(() => {
