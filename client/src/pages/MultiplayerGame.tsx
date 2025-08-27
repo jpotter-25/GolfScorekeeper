@@ -169,10 +169,14 @@ export default function MultiplayerGame() {
         });
       }
       
-      // Also update via HTTP as fallback
+      // Also update via HTTP as fallback  
       const response = await fetch(`/api/game-rooms/${gameRoomId}/settings`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cookie': document.cookie
+        },
+        credentials: 'include',
         body: JSON.stringify({
           maxPlayers: newSettings.playerCount,
           settings: { rounds: newSettings.rounds }
