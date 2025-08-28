@@ -530,8 +530,8 @@ export class MultiplayerWebSocketHandler {
     if (maxPlayers) roomState.settings.maxPlayers = maxPlayers;
     if (betAmount !== undefined) roomState.settings.betAmount = betAmount;
     
-    // Update database
-    await this.storage.updateGameRoom(connection.gameRoomId, {
+    // Update database using room ID (not code)
+    await this.storage.updateGameRoomById(connection.gameRoomId, {
       rounds,
       maxPlayers,
       betAmount,
