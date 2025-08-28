@@ -54,7 +54,7 @@ import {
   type InsertSocialPostLike,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, inArray, isNull, exists } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -466,6 +466,10 @@ export class DatabaseStorage implements IStorage {
       .set(updates)
       .where(eq(gameRooms.id, roomId))
       .returning();
+    
+    // Trigger real-time lobby update when room settings change
+    await this.triggerLobbyUpdate();
+    
     return room;
   }
 
@@ -619,11 +623,48 @@ export class DatabaseStorage implements IStorage {
       })
     );
     
-    // Filter rooms with players and clean up empty ones
-    const filtered = roomsWithNames.filter(room => room.playerCount > 0);
+    // Filter rooms: exclude empty AND full rooms from active lobbies
+    const filtered = roomsWithNames.filter(room => 
+      room.playerCount > 0 && room.playerCount < (room.maxPlayers || 4)
+    );
     await this.cleanupEmptyRooms();
     
     return filtered;
+  }
+
+  // Cleanup abandoned sessions (players who joined but haven't been active for 30+ minutes)
+  async cleanupAbandonedSessions(): Promise<void> {
+    console.log('🕐 Cleaning up abandoned sessions...');
+    
+    try {
+      // Mark players as left if they joined more than 30 minutes ago and room is still 'waiting'
+      const cutoffTime = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
+      
+      const result = await db
+        .update(gameParticipants)
+        .set({ leftAt: new Date() })
+        .where(and(
+          isNull(gameParticipants.leftAt), // Still "active"
+          sql`${gameParticipants.joinedAt} < ${cutoffTime.toISOString()}`, // Joined more than 30 min ago
+          exists(
+            db.select()
+              .from(gameRooms)
+              .where(and(
+                eq(gameRooms.id, gameParticipants.gameRoomId),
+                eq(gameRooms.status, 'waiting') // Only waiting rooms
+              ))
+          )
+        ));
+
+      const updatedCount = result.rowCount || 0;
+      if (updatedCount > 0) {
+        console.log(`⏰ Marked ${updatedCount} abandoned players as left`);
+        // Trigger real-time lobby update after cleaning up sessions
+        await this.triggerLobbyUpdate();
+      }
+    } catch (error) {
+      console.error('❌ Failed to cleanup abandoned sessions:', error);
+    }
   }
 
   // Cleanup method to delete rooms with 0 players
@@ -866,6 +907,9 @@ export class DatabaseStorage implements IStorage {
         eq(gameParticipants.gameRoomId, roomId),
         sql`${gameParticipants.leftAt} IS NULL`
       ));
+    
+    // Trigger real-time lobby update when ready status changes
+    await this.triggerLobbyUpdate();
   }
 
   async getGameRoomParticipants(roomId: string): Promise<any[]> {

@@ -17,6 +17,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Connect WebSocket handler to storage for real-time updates
   (storage as any).setWebSocketHandler(multiplayerHandler);
 
+  // Set up automatic cleanup every 5 minutes
+  setInterval(async () => {
+    try {
+      await (storage as any).cleanupEmptyRooms();
+      await (storage as any).cleanupAbandonedSessions();
+    } catch (error) {
+      console.error('❌ Automatic cleanup failed:', error);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
