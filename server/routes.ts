@@ -308,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/game-rooms/create-lobby', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { betAmount, maxPlayers = 4, rounds = 9, isPrivate = true } = req.body;
+      const { betAmount, maxPlayers = 4, rounds = 9, isPrivate = false } = req.body;
       
       // Check if user has enough coins for non-free games
       if (betAmount > 0) {
@@ -325,7 +325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hostId: userId,
         betAmount,
         maxPlayers,
-        settings: { rounds, mode: 'online' }
+        settings: { rounds, mode: 'online' },
+        isPrivate
       });
       
       // Creator automatically joins and gets crown

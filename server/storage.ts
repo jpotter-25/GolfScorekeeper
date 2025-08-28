@@ -377,6 +377,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBettingRoom(roomData: any): Promise<GameRoom> {
+    const { isPrivate = false } = roomData;
     const [room] = await db
       .insert(gameRooms)
       .values({
@@ -387,8 +388,8 @@ export class DatabaseStorage implements IStorage {
         isActive: true,
         // Crown-based lobby management - creator gets crown
         crownHolderId: roomData.hostId,
-        isPublished: false, // Start as unpublished (private)
-        isPrivate: true,
+        isPublished: !isPrivate, // Publish if not private
+        isPrivate,
         settingsLocked: false,
         lastActivityAt: new Date(),
         createdAt: new Date().toISOString()
