@@ -317,15 +317,22 @@ export function useMultiplayerGameLogic(
       // We'll send the join message when connection becomes ready
     }
     
-    // Initialize basic multiplayer state
-    setMultiplayerGameState({
-      ...syncedGameLogic.gameState!,
-      gameRoomId: roomId,
-      hostId: '',
-      isHost: false,
-      connectedPlayers: {},
-      waitingForPlayers: true,
-      allPlayersReady: false
+    // Initialize basic multiplayer state only if not already set
+    setMultiplayerGameState(prev => {
+      if (prev?.gameRoomId === roomId) {
+        // Already in this room, just ensure we're connected
+        console.log('Already in room, preserving state');
+        return prev;
+      }
+      return {
+        ...syncedGameLogic.gameState!,
+        gameRoomId: roomId,
+        hostId: '',
+        isHost: false,
+        connectedPlayers: {},
+        waitingForPlayers: true,
+        allPlayersReady: false
+      };
     });
   }, [wsJoinGameRoom, syncedGameLogic.gameState, connectionState]);
 

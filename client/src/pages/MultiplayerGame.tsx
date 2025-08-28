@@ -117,10 +117,15 @@ export default function MultiplayerGame() {
             setGameSettings(settings);
             setShowLobby(false);
             
-            // Add small delay to ensure state is ready
+            // First ensure we're in the room via WebSocket
+            if (user?.id) {
+              joinGameRoom(roomId);
+            }
+            
+            // Then start the game
             setTimeout(() => {
               startMultiplayerGame(settings, true); // Pass true for auto-start
-            }, 100);
+            }, 200);
             return; // Exit early, game is starting
           }
         }
