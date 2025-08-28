@@ -118,7 +118,8 @@ export default function MultiplayerGame() {
             setShowLobby(false);
             
             // Start the game immediately - we're already in the room
-            startMultiplayerGame(settings, true); // Pass true for auto-start
+            console.log('🎮 AUTO-STARTING GAME with settings:', settings);
+            startMultiplayerGame(settings); // Auto-start detected from room status
             return; // Exit early, game is starting
           }
         }
@@ -203,7 +204,7 @@ export default function MultiplayerGame() {
           setGameSettings(result.gameSettings);
           setShowLobby(false);
           // Initialize the game with auto-start flag
-          startMultiplayerGame(result.gameSettings, true);
+          startMultiplayerGame(result.gameSettings);
         } else {
           // Reload room state to get updated participant list
           await loadRoomState(gameRoomId);
@@ -487,13 +488,31 @@ export default function MultiplayerGame() {
     );
   }
 
+  // Debug logging
+  console.log('🔍 GAME VIEW CHECK:', {
+    hasGameState: !!gameState,
+    waitingForPlayers: gameState?.waitingForPlayers,
+    showLobby,
+    gamePhase: gameState?.gamePhase,
+    currentPlayerIndex: gameState?.currentPlayerIndex,
+    currentRound: gameState?.currentRound
+  });
+
   // Game view (when game is active)
-  if (!gameState || gameState.waitingForPlayers) {
+  const activeGameState = gameState;
+  
+  if (!activeGameState || (activeGameState.waitingForPlayers && showLobby)) {
+    console.log('⏳ Showing loading screen - no active game state');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-game-gold mx-auto"></div>
           <p className="text-white text-lg">Loading game...</p>
+          <p className="text-white text-xs opacity-50">
+            State: {activeGameState ? 'exists' : 'null'}, 
+            Waiting: {String(activeGameState?.waitingForPlayers)},
+            Lobby: {String(showLobby)}
+          </p>
         </div>
       </div>
     );
