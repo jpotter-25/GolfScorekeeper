@@ -119,7 +119,7 @@ export default function MultiplayerGame() {
             
             // Start the game immediately - we're already in the room
             console.log('🎮 AUTO-STARTING GAME with settings:', settings);
-            startMultiplayerGame(settings); // Auto-start detected from room status
+            startMultiplayerGame(settings, true); // Pass true for auto-start
             return; // Exit early, game is starting
           }
         }
@@ -204,7 +204,7 @@ export default function MultiplayerGame() {
           setGameSettings(result.gameSettings);
           setShowLobby(false);
           // Initialize the game with auto-start flag
-          startMultiplayerGame(result.gameSettings);
+          startMultiplayerGame(result.gameSettings, true);
         } else {
           // Reload room state to get updated participant list
           await loadRoomState(gameRoomId);
