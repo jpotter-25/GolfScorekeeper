@@ -3,6 +3,7 @@ import { useWebSocket } from './useWebSocket';
 import { useGameLogic } from './useGameLogic';
 import { GameState, GameSettings, GameAction, Player } from '@/types/game';
 import { useToast } from './use-toast';
+import { initializeGame } from '@/utils/gameLogic';
 
 export interface MultiplayerGameState extends GameState {
   gameRoomId: string;
@@ -348,8 +349,7 @@ export function useMultiplayerGameLogic(
     if (isAutoStart) {
       console.log('🎮 Auto-starting game for player with settings:', settings);
       
-      // Import initializeGame directly to get the game state immediately
-      const { initializeGame } = require('@/utils/gameLogic');
+      // Create the game state directly
       const initialGameState = initializeGame(settings);
       
       console.log('Created initial game state:', initialGameState);
