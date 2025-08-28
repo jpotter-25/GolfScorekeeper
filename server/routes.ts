@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { MultiplayerWebSocketHandler } from "./websocket-handler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -737,24 +738,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   
-  // WebSocket server setup for real-time multiplayer
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  // Initialize comprehensive multiplayer WebSocket handler
+  const multiplayerHandler = new MultiplayerWebSocketHandler(app, storage, httpServer);
   
-  // Store active connections with user information
-  const activeConnections = new Map<string, {
-    ws: WebSocket;
-    userId: string;
-    gameRoomId?: string;
-    isSpectator?: boolean;
-  }>();
+  // The old WebSocket implementation has been replaced by MultiplayerWebSocketHandler
+  // which provides comprehensive multiplayer functionality including:
+  // - Authoritative server architecture
+  // - Real-time lobby updates
+  // - Host migration system
+  // - Connection resilience
+  // - AI takeover for disconnected players
   
-  // Store game rooms with active players
-  const activeGameRooms = new Map<string, {
-    participants: Set<string>;
-    spectators: Set<string>;
-    gameState?: any;
-  }>();
-
+  /* Old implementation commented out - keeping for reference
   wss.on('connection', (ws, req) => {
     console.log('WebSocket connection established');
     
@@ -1414,8 +1409,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ws.send(JSON.stringify({ type: 'error', message: 'Failed to start game' }));
     }
   }
-
-  // Idle detection system for crown holders
+  */ // End of old WebSocket implementation
+  
+  // The idle detection is now handled in the MultiplayerWebSocketHandler
+  // keeping legacy idle detection temporarily for backward compatibility
+  /*
   setInterval(async () => {
     try {
       // Get all active rooms with crown holders
@@ -1471,6 +1469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Idle detection error:', error);
     }
   }, 60000); // Check every minute
-
+  */
+  
   return httpServer;
 }

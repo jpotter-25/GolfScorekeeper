@@ -3,6 +3,7 @@ import { useAuth } from './useAuth';
 
 export interface WebSocketMessage {
   type: string;
+  timestamp?: number;
   [key: string]: any;
 }
 
@@ -11,10 +12,16 @@ export interface WebSocketHook {
   isConnected: boolean;
   connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
   sendMessage: (message: WebSocketMessage) => void;
-  joinGameRoom: (gameRoomId: string) => void;
+  createRoom: (rounds: number, maxPlayers: number, betAmount: number, isPrivate: boolean, password?: string) => void;
+  joinGameRoom: (gameRoomId: string, password?: string) => void;
   leaveGameRoom: (gameRoomId: string) => void;
   sendChatMessage: (content: string, gameRoomId?: string) => void;
   sendGameAction: (action: string, data: any) => void;
+  toggleReady: (isReady: boolean) => void;
+  startGame: () => void;
+  updateRoomSettings: (settings: any) => void;
+  transferCrown: (targetUserId: string) => void;
+  rejoinRoom: (roomCode: string) => void;
   lastMessage: WebSocketMessage | null;
   messages: WebSocketMessage[];
   clearMessages: () => void;
@@ -184,7 +191,19 @@ export function useWebSocket(): WebSocketHook {
     }
   }, [socket, isAuthenticated, connectionState]);
 
-  const joinGameRoom = useCallback((gameRoomId: string) => {
+  const createRoom = useCallback((rounds: number, maxPlayers: number, betAmount: number, isPrivate: boolean, password?: string) => {
+    console.log('🏠 createRoom called with:', { rounds, maxPlayers, betAmount, isPrivate });
+    sendMessage({
+      type: 'create_room',
+      rounds,
+      maxPlayers,
+      betAmount,
+      isPrivate,
+      password
+    });
+  }, [sendMessage]);
+
+  const joinGameRoom = useCallback((gameRoomId: string, password?: string) => {
     console.log('🎯 joinGameRoom called with:', gameRoomId, {
       socketReady: socket?.readyState === WebSocket.OPEN,
       isAuthenticated,
@@ -193,7 +212,8 @@ export function useWebSocket(): WebSocketHook {
     });
     sendMessage({
       type: 'join_room',
-      gameRoomId
+      roomCode: gameRoomId,
+      password
     });
   }, [sendMessage, socket?.readyState, isAuthenticated, connectionState, pendingMessages.length]);
 
@@ -216,7 +236,46 @@ export function useWebSocket(): WebSocketHook {
     sendMessage({
       type: 'game_action',
       action,
-      data
+      actionData: data
+    });
+  }, [sendMessage]);
+
+  const toggleReady = useCallback((isReady: boolean) => {
+    console.log('✅ toggleReady called:', isReady);
+    sendMessage({
+      type: 'ready_toggle',
+      isReady
+    });
+  }, [sendMessage]);
+
+  const startGame = useCallback(() => {
+    console.log('🚀 startGame called');
+    sendMessage({
+      type: 'start_game'
+    });
+  }, [sendMessage]);
+
+  const updateRoomSettings = useCallback((settings: any) => {
+    console.log('⚙️ updateRoomSettings called:', settings);
+    sendMessage({
+      type: 'update_room_settings',
+      ...settings
+    });
+  }, [sendMessage]);
+
+  const transferCrown = useCallback((targetUserId: string) => {
+    console.log('👑 transferCrown called:', targetUserId);
+    sendMessage({
+      type: 'transfer_crown',
+      targetUserId
+    });
+  }, [sendMessage]);
+
+  const rejoinRoom = useCallback((roomCode: string) => {
+    console.log('🔄 rejoinRoom called:', roomCode);
+    sendMessage({
+      type: 'rejoin_room',
+      roomCode
     });
   }, [sendMessage]);
 
@@ -246,10 +305,16 @@ export function useWebSocket(): WebSocketHook {
     isConnected,
     connectionState,
     sendMessage,
+    createRoom,
     joinGameRoom,
     leaveGameRoom,
     sendChatMessage,
     sendGameAction,
+    toggleReady,
+    startGame,
+    updateRoomSettings,
+    transferCrown,
+    rejoinRoom,
     lastMessage,
     messages,
     clearMessages

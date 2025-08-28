@@ -162,6 +162,7 @@ export const gameRooms = pgTable("game_rooms", {
   crownHolderId: varchar("crown_holder_id").references(() => users.id), // Who has lobby management crown
   isPublished: boolean("is_published").default(false), // Whether lobby is public for joining
   isPrivate: boolean("is_private").default(false), // Whether lobby requires invites
+  password: varchar("password"), // Password for private rooms
   settingsLocked: boolean("settings_locked").default(false), // Prevent changes after publishing
   
   // Idle management for crown holders
@@ -170,16 +171,19 @@ export const gameRooms = pgTable("game_rooms", {
   
   players: jsonb("players").notNull(), // array of player objects
   gameState: jsonb("game_state"),
+  serverGameState: jsonb("server_game_state"), // Authoritative server state
   settings: jsonb("settings").notNull(),
+  rounds: integer("rounds").notNull().default(9), // 5 or 9 rounds
   createdAt: text("created_at"),
   isActive: boolean("is_active"),
   maxPlayers: integer("max_players"),
-  status: varchar("status"),
+  status: varchar("status"), // waiting, active, finished
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
   betAmount: integer("bet_amount").notNull().default(0), // coins required to join
   prizePool: integer("prize_pool").notNull().default(0), // total coins in the pot
   payouts: jsonb("payouts"), // stores final payouts for each player
+  lastActionTimestamp: timestamp("last_action_timestamp"), // Server timestamp for last action
 });
 
 // Game participants - tracks who's in each game
@@ -198,6 +202,12 @@ export const gameParticipants = pgTable("game_participants", {
   isAiReplacement: boolean("is_ai_replacement").default(false), // Replaced by AI after leaving
   leftDuringGame: boolean("left_during_game").default(false), // Left after game started
   penaltyApplied: integer("penalty_applied").default(0), // Penalty coins deducted
+  
+  // Connection management
+  isConnected: boolean("is_connected").default(true),
+  lastConnectionAt: timestamp("last_connection_at").defaultNow(),
+  disconnectedAt: timestamp("disconnected_at"),
+  connectionId: varchar("connection_id"), // Current WebSocket connection ID
   
   joinedAt: timestamp("joined_at").defaultNow(),
   leftAt: timestamp("left_at"),

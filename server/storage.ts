@@ -129,6 +129,18 @@ export interface IStorage {
   likeSocialPost(postId: string, userId: string): Promise<SocialPostLike>;
   unlikeSocialPost(postId: string, userId: string): Promise<void>;
   getSocialFeed(userId: string, limit?: number): Promise<SocialPost[]>;
+  
+  // New multiplayer operations
+  getPublicLobbies(): Promise<any[]>;
+  deleteGameRoom(roomId: string): Promise<void>;
+  updateParticipantConnection(roomId: string, userId: string, isConnected: boolean, connectionId: string | null): Promise<void>;
+  updateParticipantAI(roomId: string, userId: string, isAI: boolean): Promise<void>;
+  updateParticipantResult(roomId: string, userId: string, placement: number, payout: number): Promise<void>;
+  awardCurrency(userId: string, amount: number): Promise<void>;
+  awardExperience(userId: string, amount: number): Promise<void>;
+  saveGameHistory(data: any): Promise<void>;
+  getGameRoomById(id: string): Promise<GameRoom | undefined>;
+  updateGameRoomById(roomId: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -916,17 +928,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getChatHistory(gameRoomId?: string, limit: number = 50): Promise<ChatMessage[]> {
-    let query = db.select().from(chatMessages);
-    
     if (gameRoomId) {
-      query = query.where(eq(chatMessages.gameRoomId, gameRoomId));
+      return await db
+        .select()
+        .from(chatMessages)
+        .where(eq(chatMessages.gameRoomId, gameRoomId))
+        .orderBy(desc(chatMessages.createdAt))
+        .limit(limit);
     } else {
-      query = query.where(sql`${chatMessages.gameRoomId} IS NULL`);
+      return await db
+        .select()
+        .from(chatMessages)
+        .where(sql`${chatMessages.gameRoomId} IS NULL`)
+        .orderBy(desc(chatMessages.createdAt))
+        .limit(limit);
     }
-    
-    return await query
-      .orderBy(desc(chatMessages.createdAt))
-      .limit(limit);
   }
 
   // Tournament operations
@@ -959,13 +975,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTournaments(status?: string): Promise<Tournament[]> {
-    let query = db.select().from(tournaments);
-    
     if (status) {
-      query = query.where(eq(tournaments.status, status));
+      return await db
+        .select()
+        .from(tournaments)
+        .where(eq(tournaments.status, status))
+        .orderBy(desc(tournaments.createdAt));
     }
-    
-    return await query.orderBy(desc(tournaments.createdAt));
+    return await db
+      .select()
+      .from(tournaments)
+      .orderBy(desc(tournaments.createdAt));
   }
 
   async getTournamentParticipants(tournamentId: string): Promise<TournamentParticipant[]> {
@@ -1069,6 +1089,131 @@ export class DatabaseStorage implements IStorage {
       .where(eq(socialPosts.isPublic, true))
       .orderBy(desc(socialPosts.createdAt))
       .limit(limit);
+  }
+  
+  // New multiplayer operations implementation
+  async getPublicLobbies(): Promise<any[]> {
+    const rooms = await db
+      .select({
+        id: gameRooms.id,
+        code: gameRooms.code,
+        hostId: gameRooms.hostId,
+        hostName: users.firstName,
+        playerCount: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${gameParticipants} 
+          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
+          AND ${gameParticipants.leftAt} IS NULL
+        )`,
+        maxPlayers: gameRooms.maxPlayers,
+        betAmount: gameRooms.betAmount,
+        rounds: gameRooms.rounds,
+        status: gameRooms.status
+      })
+      .from(gameRooms)
+      .leftJoin(users, eq(gameRooms.hostId, users.id))
+      .where(and(
+        eq(gameRooms.isPublished, true),
+        eq(gameRooms.isPrivate, false),
+        eq(gameRooms.status, 'waiting')
+      ));
+    
+    return rooms.map(room => ({
+      ...room,
+      hostName: room.hostName || 'Player'
+    }));
+  }
+  
+  async deleteGameRoom(roomId: string): Promise<void> {
+    // Delete participants first
+    await db.delete(gameParticipants).where(eq(gameParticipants.gameRoomId, roomId));
+    // Then delete the room
+    await db.delete(gameRooms).where(eq(gameRooms.id, roomId));
+  }
+  
+  async updateParticipantConnection(roomId: string, userId: string, isConnected: boolean, connectionId: string | null): Promise<void> {
+    await db
+      .update(gameParticipants)
+      .set({
+        isConnected,
+        connectionId,
+        lastConnectionAt: isConnected ? new Date() : undefined,
+        disconnectedAt: !isConnected ? new Date() : undefined
+      })
+      .where(and(
+        eq(gameParticipants.gameRoomId, roomId),
+        eq(gameParticipants.userId, userId)
+      ));
+  }
+  
+  async updateParticipantAI(roomId: string, userId: string, isAI: boolean): Promise<void> {
+    await db
+      .update(gameParticipants)
+      .set({
+        isAiReplacement: isAI
+      })
+      .where(and(
+        eq(gameParticipants.gameRoomId, roomId),
+        eq(gameParticipants.userId, userId)
+      ));
+  }
+  
+  async updateParticipantResult(roomId: string, userId: string, placement: number, payout: number): Promise<void> {
+    await db
+      .update(gameParticipants)
+      .set({
+        finalPlacement: placement,
+        payout
+      })
+      .where(and(
+        eq(gameParticipants.gameRoomId, roomId),
+        eq(gameParticipants.userId, userId)
+      ));
+  }
+  
+  async awardCurrency(userId: string, amount: number): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        currency: sql`${users.currency} + ${amount}`
+      })
+      .where(eq(users.id, userId));
+  }
+  
+  async awardExperience(userId: string, amount: number): Promise<void> {
+    const [user] = await db
+      .update(users)
+      .set({
+        experience: sql`${users.experience} + ${amount}`
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    // Check for level up
+    const newLevel = Math.floor((user.experience || 0) / 100) + 1;
+    if (newLevel > (user.level || 1)) {
+      await db
+        .update(users)
+        .set({ level: newLevel })
+        .where(eq(users.id, userId));
+    }
+  }
+  
+  async saveGameHistory(data: any): Promise<void> {
+    await db
+      .insert(gameHistory)
+      .values({
+        userId: data.userId,
+        gameMode: data.gameMode,
+        playerCount: data.playerCount,
+        rounds: data.rounds,
+        finalScore: data.finalScore,
+        placement: data.placement,
+        won: data.won,
+        xpEarned: data.xpEarned,
+        coinsEarned: data.coinsEarned,
+        gameDuration: data.gameDuration
+      });
   }
 
   // Helper method to generate unique friend codes
