@@ -410,9 +410,9 @@ export class DatabaseStorage implements IStorage {
         status: gameRooms.status,
         currentPlayers: sql<number>`(
           SELECT COUNT(*) 
-          FROM ${gameParticipants} 
-          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
-          AND ${gameParticipants.leftAt} IS NULL
+          FROM game_participants 
+          WHERE game_participants.game_room_id = game_rooms.id
+          AND game_participants.left_at IS NULL
         )`
       })
       .from(gameRooms)
@@ -509,9 +509,9 @@ export class DatabaseStorage implements IStorage {
         isPrivate: gameRooms.isPrivate,
         currentPlayers: sql<number>`(
           SELECT COUNT(*) 
-          FROM ${gameParticipants} 
-          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
-          AND ${gameParticipants.leftAt} IS NULL
+          FROM game_participants 
+          WHERE game_participants.game_room_id = game_rooms.id
+          AND game_participants.left_at IS NULL
         )`
       })
       .from(gameRooms)
@@ -568,9 +568,9 @@ export class DatabaseStorage implements IStorage {
         isPrivate: gameRooms.isPrivate,
         currentPlayers: sql<number>`(
           SELECT COUNT(*) 
-          FROM ${gameParticipants} 
-          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
-          AND ${gameParticipants.leftAt} IS NULL
+          FROM game_participants 
+          WHERE game_participants.game_room_id = game_rooms.id
+          AND game_participants.left_at IS NULL
         )`
       })
       .from(gameRooms)
