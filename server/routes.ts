@@ -13,6 +13,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Initialize comprehensive multiplayer WebSocket handler
   const multiplayerHandler = new MultiplayerWebSocketHandler(app, storage, httpServer);
+  
+  // Connect WebSocket handler to storage for real-time updates
+  (storage as any).setWebSocketHandler(multiplayerHandler);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {

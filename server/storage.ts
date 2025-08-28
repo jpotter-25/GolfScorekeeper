@@ -54,7 +54,7 @@ import {
   type InsertSocialPostLike,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, inArray } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -144,6 +144,22 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private wsHandler?: any; // Reference to WebSocket handler for real-time updates
+
+  public setWebSocketHandler(handler: any) {
+    this.wsHandler = handler;
+  }
+
+  private async triggerLobbyUpdate() {
+    if (this.wsHandler && typeof this.wsHandler.broadcastLobbyUpdate === 'function') {
+      try {
+        await this.wsHandler.broadcastLobbyUpdate();
+      } catch (error) {
+        console.error('Failed to broadcast lobby update:', error);
+      }
+    }
+  }
+
   // User operations (required for Replit Auth)
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -603,11 +619,51 @@ export class DatabaseStorage implements IStorage {
       })
     );
     
-    // Debug logging
-    console.log('DEBUG getAllPublishedLobbies: roomsWithNames before filtering:', roomsWithNames);
+    // Filter rooms with players and clean up empty ones
     const filtered = roomsWithNames.filter(room => room.playerCount > 0);
-    console.log('DEBUG getAllPublishedLobbies: filtered rooms:', filtered);
+    await this.cleanupEmptyRooms();
+    
     return filtered;
+  }
+
+  // Cleanup method to delete rooms with 0 players
+  async cleanupEmptyRooms(): Promise<void> {
+    console.log('🧹 Starting cleanup of empty rooms...');
+    
+    // Find rooms with 0 players
+    const emptyRooms = await db
+      .select({ 
+        id: gameRooms.id, 
+        code: gameRooms.code,
+        currentPlayers: sql<number>`(
+          SELECT COUNT(*) 
+          FROM game_participants 
+          WHERE game_participants.game_room_id = game_rooms.id
+          AND game_participants.left_at IS NULL
+        )`
+      })
+      .from(gameRooms)
+      .where(eq(gameRooms.status, 'waiting'));
+    
+    const roomsToDelete = emptyRooms.filter(room => room.currentPlayers === 0);
+    
+    if (roomsToDelete.length > 0) {
+      console.log(`🗑️ Deleting ${roomsToDelete.length} empty rooms:`, roomsToDelete.map(r => r.code));
+      
+      // Delete participants first (foreign key constraint)
+      for (const room of roomsToDelete) {
+        await db.delete(gameParticipants).where(eq(gameParticipants.gameRoomId, room.id));
+      }
+      
+      // Delete the rooms
+      await db.delete(gameRooms).where(
+        inArray(gameRooms.id, roomsToDelete.map(r => r.id))
+      );
+      
+      console.log(`✅ Successfully deleted ${roomsToDelete.length} empty rooms`);
+    } else {
+      console.log('✅ No empty rooms to clean up');
+    }
   }
 
   async createCrownLobby(userId: string, options: {
@@ -762,6 +818,9 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(gameRooms.id, roomId));
 
+    // Trigger real-time lobby update
+    await this.triggerLobbyUpdate();
+    
     return participant;
   }
 
@@ -793,6 +852,9 @@ export class DatabaseStorage implements IStorage {
         eq(gameParticipants.userId, userId),
         eq(gameParticipants.gameRoomId, gameRoomId)
       ));
+    
+    // Trigger real-time lobby update
+    await this.triggerLobbyUpdate();
   }
 
   async setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void> {

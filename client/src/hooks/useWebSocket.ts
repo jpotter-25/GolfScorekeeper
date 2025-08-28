@@ -106,6 +106,15 @@ export function useWebSocket(): WebSocketHook {
           } else if (message.type === 'auth_error') {
             console.error('❌ WebSocket authentication failed:', message.message);
             setConnectionState('error');
+          } else if (message.type === 'lobby_update') {
+            // Handle real-time lobby updates
+            console.log('🏠 Received lobby update:', message.lobbies);
+            // Trigger React Query invalidation for lobby data
+            const queryClient = (window as any).__reactQueryClient__;
+            if (queryClient) {
+              queryClient.invalidateQueries({ queryKey: ['/api/game-rooms/all-lobbies'] });
+              queryClient.setQueryData(['/api/game-rooms/all-lobbies'], message.lobbies);
+            }
           }
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);

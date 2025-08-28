@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +50,7 @@ export default function Multiplayer() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const websocket = useWebSocket();
   const [friendCode, setFriendCode] = useState("");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
 
@@ -80,11 +82,16 @@ export default function Multiplayer() {
     retry: false,
   });
 
-  // Fetch ALL available lobbies
+  // Make QueryClient available for WebSocket updates
+  useEffect(() => {
+    (window as any).__reactQueryClient__ = queryClient;
+  }, [queryClient]);
+
+  // Fetch ALL available lobbies (with reduced polling since we have real-time updates)
   const { data: allLobbiesData = [], isLoading: lobbiesLoading } = useQuery({
     queryKey: ['/api/game-rooms/all-lobbies'],
     queryFn: () => fetch('/api/game-rooms/all-lobbies').then(r => r.json()),
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 30000, // Reduced to 30 seconds since WebSocket provides real-time updates
   });
 
   // Filter lobbies based on selected stake filters
