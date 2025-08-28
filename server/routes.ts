@@ -9,6 +9,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  const httpServer = createServer(app);
+  
+  // Initialize comprehensive multiplayer WebSocket handler
+  const multiplayerHandler = new MultiplayerWebSocketHandler(app, storage, httpServer);
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
@@ -497,6 +502,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.setPlayerReady(gameRoom.id, userId, isReady);
       console.log('Ready status updated:', { userId, isReady });
 
+      // Check if all players are ready
+      const participants = await storage.getGameRoomParticipants(gameRoom.id);
+      const allReady = participants.length >= 2 && participants.every(p => p.isReady);
+
+      // Broadcast ready status change to all players in the room via WebSocket
+      await multiplayerHandler.broadcastToRoom(gameRoom.id, {
+        type: 'player_ready_changed',
+        userId,
+        isReady,
+        allReady,
+        timestamp: Date.now()
+      });
+
       res.json({ success: true, isReady });
     } catch (error) {
       console.error('Error updating ready status:', error);
@@ -737,11 +755,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  const httpServer = createServer(app);
-  
-  // Initialize comprehensive multiplayer WebSocket handler
-  const multiplayerHandler = new MultiplayerWebSocketHandler(app, storage, httpServer);
-  
   // The old WebSocket implementation has been replaced by MultiplayerWebSocketHandler
   // which provides comprehensive multiplayer functionality including:
   // - Authoritative server architecture

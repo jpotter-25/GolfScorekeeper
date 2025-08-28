@@ -1113,7 +1113,7 @@ export class MultiplayerWebSocketHandler {
     });
   }
   
-  private async broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
+  public async broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     const roomState = this.rooms.get(roomId);
     if (!roomState) return;
     
