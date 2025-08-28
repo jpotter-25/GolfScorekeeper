@@ -100,6 +100,8 @@ export interface IStorage {
   setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void>;
   getGameRoomParticipants(roomId: string): Promise<any[]>;
   updateGameState(gameRoomId: string, gameState: any): Promise<void>;
+  cleanupEmptyRooms(): Promise<void>;
+  cleanupAbandonedSessions(): Promise<void>;
   
   // Friend system operations
   sendFriendRequest(requesterId: string, addresseeId: string): Promise<Friendship>;
@@ -457,6 +459,10 @@ export class DatabaseStorage implements IStorage {
       .set(updates)
       .where(eq(gameRooms.code, code))
       .returning();
+    
+    // Trigger real-time lobby update when room settings change
+    await this.triggerLobbyUpdate();
+    
     return room;
   }
 
