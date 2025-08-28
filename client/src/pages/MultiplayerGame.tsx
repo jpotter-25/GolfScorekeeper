@@ -1,9 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { useMultiplayerGameLogic } from '@/hooks/useMultiplayerGameLogic';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { useToast } from '@/hooks/use-toast';
 import { GameSettings, Player } from '@/types/game';
 
 interface MultiplayerPlayer extends Player {
@@ -44,9 +42,6 @@ export default function MultiplayerGame() {
     setPlayerReady,
     startMultiplayerGame
   } = useMultiplayerGameLogic(gameRoomId, user?.id || '');
-  
-  const { sendMessage } = useWebSocket();
-  const { toast } = useToast();
 
   // Get room ID from URL params and use HTTP polling instead of WebSocket
   useEffect(() => {
@@ -55,10 +50,8 @@ export default function MultiplayerGame() {
     
     if (roomId) {
       setGameRoomId(roomId);
-      // Wait a bit before loading to avoid 404
-      setTimeout(() => {
-        loadRoomState(roomId);
-      }, 500);
+      // Skip WebSocket for now - load room directly
+      loadRoomState(roomId);
     } else {
       // Redirect back to multiplayer hub if no room specified
       setLocation('/multiplayer');
@@ -68,70 +61,14 @@ export default function MultiplayerGame() {
   // State for HTTP-based multiplayer (bypassing WebSocket issues)
   const [roomData, setRoomData] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
-  const [isEditingSettings, setIsEditingSettings] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState(0);
-  
-  // Update gameSettings to sync with room settings (only when not actively editing)
-  useEffect(() => {
-    if (roomData?.settings && !isEditingSettings) {
-      // Don't overwrite if we just sent an update within the last 3 seconds
-      const timeSinceUpdate = Date.now() - lastUpdateTime;
-      if (timeSinceUpdate > 3000) {
-        setGameSettings({
-          playerCount: roomData.maxPlayers || 4,
-          rounds: roomData.settings.rounds || 9,
-          mode: 'online'
-        });
-      }
-    }
-  }, [roomData?.settings, roomData?.maxPlayers, isEditingSettings, lastUpdateTime]);
 
-  // Calculate isHost early to avoid hoisting issues
-  const isHost = roomData?.hostId === user?.id;
-
-  const loadRoomState = async (roomId: string, retryCount = 0) => {
+  const loadRoomState = async (roomId: string) => {
     try {
       const response = await fetch(`/api/game-rooms/${roomId}`);
-      if (!response.ok && response.status === 404 && retryCount < 3) {
-        // Room might not be ready yet, retry after a short delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return loadRoomState(roomId, retryCount + 1);
-      }
       if (response.ok) {
         const roomInfo = await response.json();
         setRoomData(roomInfo);
         setGameRoomId(roomId);
-        
-        // CRITICAL: Check if game has started (room is active)
-        if (roomInfo.status === 'active' && showLobby) {
-          console.log('🚀 Detected game started - room is active!', roomInfo);
-          const allPlayersReady = roomInfo.players?.every((p: any) => p.isReady);
-          if (allPlayersReady) {
-            // Game has started - initialize it
-            const settings = {
-              rounds: roomInfo.settings?.rounds || 9,
-              mode: 'online' as const,
-              playerCount: roomInfo.players?.length || 2
-            };
-            console.log('Initializing game with settings:', settings);
-            setGameSettings(settings);
-            setShowLobby(false);
-            
-            // Start the game immediately - we're already in the room
-            console.log('🎮 AUTO-STARTING GAME with settings:', settings);
-            startMultiplayerGame(settings, true); // Pass true for auto-start
-            return; // Exit early, game is starting
-          }
-        }
-        
-        // CRITICAL: Join room via WebSocket to enable auto-cleanup
-        if (connectionState === 'connected' && user?.id) {
-          sendMessage({
-            type: 'join_room',
-            gameRoomId: roomId,
-            userId: user.id
-          });
-        }
         
         // Check if current user is ready
         const currentUserParticipant = roomInfo.players?.find((p: any) => p.userId === user?.id);
@@ -141,30 +78,6 @@ export default function MultiplayerGame() {
       console.error('Failed to load room:', error);
     }
   };
-
-  // Ensure WebSocket room join when connection state changes
-  useEffect(() => {
-    if (connectionState === 'connected' && gameRoomId && user?.id) {
-      sendMessage({
-        type: 'join_room',
-        gameRoomId: gameRoomId,
-        userId: user.id
-      });
-    }
-  }, [connectionState, gameRoomId, user?.id, sendMessage]);
-
-  // Real-time polling for room state updates (only in lobby, pause during settings editing)
-  useEffect(() => {
-    if (!gameRoomId || !showLobby) return; // Stop polling when game starts
-    
-    const pollInterval = setInterval(() => {
-      if (!isEditingSettings) {
-        loadRoomState(gameRoomId);
-      }
-    }, 2000); // Poll every 2 seconds
-    
-    return () => clearInterval(pollInterval);
-  }, [gameRoomId, isEditingSettings, showLobby]);
 
   // Hide lobby when game starts
   useEffect(() => {
@@ -185,104 +98,21 @@ export default function MultiplayerGame() {
   const handlePlayerReady = async () => {
     try {
       const newReadyState = !isPlayerReady;
-      setIsPlayerReady(newReadyState); // Optimistic update
-      
       const response = await fetch(`/api/game-rooms/${gameRoomId}/ready`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include', // This ensures cookies are sent with the request
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isReady: newReadyState })
       });
       
       if (response.ok) {
-        const result = await response.json();
-        if (result.gameStarted) {
-          // Handle auto-start when all players are ready
-          console.log('🚀 Game auto-started!', result.gameSettings);
-          setGameSettings(result.gameSettings);
-          setShowLobby(false);
-          // Initialize the game with auto-start flag
-          startMultiplayerGame(result.gameSettings, true);
-        } else {
-          // Reload room state to get updated participant list
-          await loadRoomState(gameRoomId);
-        }
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to update ready status:', response.status, errorText);
-        setIsPlayerReady(!newReadyState); // Revert on error
-        toast({
-          title: "Error",
-          description: "Failed to update ready status. Please try again.",
-          variant: "destructive"
-        });
+        setIsPlayerReady(newReadyState);
+        // Reload room state to get updated participant list
+        await loadRoomState(gameRoomId);
       }
     } catch (error) {
       console.error('Failed to set ready:', error);
-      setIsPlayerReady(!isPlayerReady); // Revert on error
-      toast({
-        title: "Error", 
-        description: "Failed to update ready status",
-        variant: "destructive"
-      });
     }
   };
-
-  // Handle settings updates - send to backend via WebSocket
-  const handleSettingsUpdate = useCallback(async (newSettings: typeof gameSettings) => {
-    if (!isHost || !gameRoomId) return;
-    
-    // Update local state immediately and track update time
-    setGameSettings(newSettings);
-    setLastUpdateTime(Date.now());
-    setIsEditingSettings(true);
-    
-    try {
-      // Send via WebSocket for real-time updates
-      if (connectionState === 'connected') {
-        sendMessage({
-          type: 'update_room_settings',
-          gameRoomId,
-          settings: {
-            rounds: newSettings.rounds,
-            maxPlayers: newSettings.playerCount
-          }
-        });
-      }
-      
-      // Also update via HTTP as fallback  
-      const response = await fetch(`/api/game-rooms/${gameRoomId}/settings`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cookie': document.cookie
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          maxPlayers: newSettings.playerCount,
-          settings: { rounds: newSettings.rounds }
-        })
-      });
-      
-      if (response.ok) {
-        // Settings updated successfully - allow polling to resume immediately
-        setIsEditingSettings(false);
-      } else {
-        setIsEditingSettings(false);
-        throw new Error('Failed to update settings');
-      }
-    } catch (error) {
-      console.error('Failed to update settings:', error);
-      setIsEditingSettings(false);
-      toast({
-        title: "Error",
-        description: "Failed to update room settings",
-        variant: "destructive"
-      });
-    }
-  }, [isHost, gameRoomId, connectionState, sendMessage, toast]);
 
   const getConnectionStatusBadge = () => {
     switch (connectionState) {
@@ -301,6 +131,7 @@ export default function MultiplayerGame() {
 
   // Use room data instead of WebSocket game state
   const connectedPlayersList = roomData?.players || [];
+  const isHost = roomData?.hostId === user?.id;
 
   if (showLobby) {
     return (
@@ -413,11 +244,7 @@ export default function MultiplayerGame() {
                         key={count}
                         variant={gameSettings.playerCount === count ? "default" : "outline"}
                         size="sm"
-                        onClick={() => {
-                          const newSettings = { ...gameSettings, playerCount: count as 2 | 3 | 4 };
-                          setGameSettings(newSettings);
-                          handleSettingsUpdate(newSettings);
-                        }}
+                        onClick={() => setGameSettings(prev => ({ ...prev, playerCount: count as 2 | 3 | 4 }))}
                         disabled={!isHost}
                         data-testid={`button-players-${count}`}
                       >
@@ -435,11 +262,7 @@ export default function MultiplayerGame() {
                         key={rounds}
                         variant={gameSettings.rounds === rounds ? "default" : "outline"}
                         size="sm"
-                        onClick={() => {
-                          const newSettings = { ...gameSettings, rounds: rounds as 5 | 9 };
-                          setGameSettings(newSettings);
-                          handleSettingsUpdate(newSettings);
-                        }}
+                        onClick={() => setGameSettings(prev => ({ ...prev, rounds: rounds as 5 | 9 }))}
                         disabled={!isHost}
                         data-testid={`button-rounds-${rounds}`}
                       >
@@ -488,31 +311,13 @@ export default function MultiplayerGame() {
     );
   }
 
-  // Debug logging
-  console.log('🔍 GAME VIEW CHECK:', {
-    hasGameState: !!gameState,
-    waitingForPlayers: gameState?.waitingForPlayers,
-    showLobby,
-    gamePhase: gameState?.gamePhase,
-    currentPlayerIndex: gameState?.currentPlayerIndex,
-    currentRound: gameState?.currentRound
-  });
-
   // Game view (when game is active)
-  const activeGameState = gameState;
-  
-  if (!activeGameState || (activeGameState.waitingForPlayers && showLobby)) {
-    console.log('⏳ Showing loading screen - no active game state');
+  if (!gameState || gameState.waitingForPlayers) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-game-gold mx-auto"></div>
           <p className="text-white text-lg">Loading game...</p>
-          <p className="text-white text-xs opacity-50">
-            State: {activeGameState ? 'exists' : 'null'}, 
-            Waiting: {String(activeGameState?.waitingForPlayers)},
-            Lobby: {String(showLobby)}
-          </p>
         </div>
       </div>
     );

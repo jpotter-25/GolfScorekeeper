@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,6 @@ import { Users, Plus, GamepadIcon, Trophy, MessageCircle, UserPlus, ArrowLeft, H
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getCosmeticAsset } from "@/utils/cosmeticAssets";
-import { useWebSocket } from "@/hooks/useWebSocket";
 import type { GameStats } from "@shared/schema";
 
 interface GameRoom {
@@ -51,8 +50,6 @@ export default function Multiplayer() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [friendCode, setFriendCode] = useState("");
-  const [roomCode, setRoomCode] = useState("");
-  const [isPrivateRoom, setIsPrivateRoom] = useState(false);
 
   // State for new consolidated lobby browsing
   const [stakeFilters, setStakeFilters] = useState<number[]>([]);
@@ -82,24 +79,12 @@ export default function Multiplayer() {
     retry: false,
   });
 
-  // WebSocket connection for real-time lobby updates
-  const { lastMessage } = useWebSocket();
-
   // Fetch ALL available lobbies
   const { data: allLobbiesData = [], isLoading: lobbiesLoading } = useQuery({
     queryKey: ['/api/game-rooms/all-lobbies'],
     queryFn: () => fetch('/api/game-rooms/all-lobbies').then(r => r.json()),
     refetchInterval: 5000, // Refresh every 5 seconds
   });
-
-  // Handle real-time lobby updates via WebSocket
-  React.useEffect(() => {
-    if (lastMessage?.type === 'lobby_updated') {
-      console.log('🏛️ Received lobby update:', lastMessage);
-      // Invalidate and refetch lobbies immediately for real-time updates
-      queryClient.invalidateQueries({ queryKey: ['/api/game-rooms/all-lobbies'] });
-    }
-  }, [lastMessage, queryClient]);
 
   // Filter lobbies based on selected stake filters
   const filteredLobbies = stakeFilters.length === 0 
@@ -140,7 +125,7 @@ export default function Multiplayer() {
 
   const handleCreateLobby = (betAmount: number) => {
     // Create new crown-managed lobby
-    const createData = { betAmount, maxPlayers: 4, rounds: 9, isPrivate: isPrivateRoom };
+    const createData = { betAmount, maxPlayers: 4, rounds: 9, isPrivate: false };
     
     fetch('/api/game-rooms/create-lobby', {
       method: 'POST',
@@ -150,7 +135,7 @@ export default function Multiplayer() {
     .then(r => r.json())
     .then(data => {
       if (data.code) {
-        window.location.href = `/multiplayer/game?room=${data.code}`;
+        window.location.href = `/multiplayer/lobby/${data.code}`;
       }
     })
     .catch(error => {
@@ -174,7 +159,7 @@ export default function Multiplayer() {
     .then(r => r.json())
     .then(data => {
       if (data.code) {
-        window.location.href = `/multiplayer/game?room=${data.code}`;
+        window.location.href = `/multiplayer/lobby/${data.code}`;
       }
     })
     .catch(error => {
@@ -220,21 +205,6 @@ export default function Multiplayer() {
     },
   });
 
-  // Join room by code
-  const handleJoinByCode = () => {
-    if (!roomCode.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a room code",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Navigate to the multiplayer game with the room code
-    setLocation(`/multiplayer/game?room=${roomCode.toUpperCase()}`);
-  };
-
   // Get equipped avatar for display
   const equippedAvatar = userCosmetics.find(c => c.type === 'avatar' && c.isEquipped);
   const avatarAsset = equippedAvatar ? getCosmeticAsset(equippedAvatar.id) : null;
@@ -242,7 +212,7 @@ export default function Multiplayer() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       {/* Header */}
-      <header className="bg-slate-800/90 backdrop-blur-sm border-b border-slate-700/50 p-4">
+      <header className="bg-slate-800/90 backdrop-blur-sm border-b-2 border-game-gold/30 p-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button
@@ -276,7 +246,7 @@ export default function Multiplayer() {
             <Button
               variant="outline"
               onClick={() => setLocation("/settings")}
-              className="bg-slate-800/80 backdrop-blur-sm border border-slate-600 text-slate-300 hover:bg-slate-700 hover:border-slate-500 hover:text-white transition-all duration-200 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm flex-1 sm:flex-none"
+              className="bg-slate-800/80 backdrop-blur-sm border-2 border-game-gold/50 text-game-gold hover:bg-slate-700 hover:border-game-gold hover:shadow-lg hover:shadow-game-gold/20 transition-all duration-200 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm flex-1 sm:flex-none"
               data-testid="button-settings"
             >
               <i className="fas fa-cog text-xs sm:text-sm sm:mr-2"></i>
@@ -286,329 +256,413 @@ export default function Multiplayer() {
         </div>
       </header>
 
-      {/* Separator space */}
-      <div className="h-6"></div>
-
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-lg p-1 gap-0.5">
-          <TabsTrigger 
-            value="rooms" 
-            className="relative text-slate-300 font-medium transition-all duration-300 px-2 py-1.5 rounded-lg text-sm hover:bg-slate-700/50 hover:text-white data-[state=active]:text-black data-[state=active]:bg-gradient-to-r data-[state=active]:from-game-gold data-[state=active]:to-yellow-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-game-gold/50 focus-visible:ring-inset" 
-            data-testid="tab-rooms"
-          >
-            <GamepadIcon className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
-            <span className="hidden sm:inline truncate">Game Lobbies</span>
-            <span className="sm:hidden truncate">Lobbies</span>
+        <TabsList className="grid w-full grid-cols-3 bg-slate-800/90 backdrop-blur-sm border-2 border-game-gold/30">
+          <TabsTrigger value="rooms" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-rooms">
+            <GamepadIcon className="w-4 h-4 mr-2" />
+            Game Lobbies
           </TabsTrigger>
-          <TabsTrigger 
-            value="friends" 
-            className="relative text-slate-300 font-medium transition-all duration-300 px-2 py-1.5 rounded-lg text-sm hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset" 
-            data-testid="tab-friends"
-          >
-            <Users className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
-            <span className="hidden sm:inline truncate">Friends ({friends.length})</span>
-            <span className="sm:hidden truncate">Friends</span>
+          <TabsTrigger value="friends" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-friends">
+            <Users className="w-4 h-4 mr-2" />
+            Friends ({friends.length})
           </TabsTrigger>
-          <TabsTrigger 
-            value="tournaments" 
-            className="relative text-slate-300 font-medium transition-all duration-300 px-2 py-1.5 rounded-lg text-sm hover:bg-slate-700/50 hover:text-white data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-inset" 
-            data-testid="tab-tournaments"
-          >
-            <Trophy className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
-            <span className="hidden sm:inline truncate">Tournaments</span>
-            <span className="sm:hidden truncate">Tournaments</span>
+          <TabsTrigger value="tournaments" className="text-white data-[state=active]:text-game-gold data-[state=active]:bg-slate-700/50" data-testid="tab-tournaments">
+            <Trophy className="w-4 h-4 mr-2" />
+            Tournaments
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="rooms" className="space-y-6">
-          {/* Streamlined Lobby Browser */}
-          <div className="space-y-6">
-            {/* Simple Header with Action */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-700/50">
-              <div>
-                <h3 className="text-2xl font-bold text-white">Game Lobbies</h3>
-                <p className="text-slate-400 text-sm mt-1">
-                  Join active games or create your own room
-                </p>
+          {/* Enhanced Lobby Browser */}
+          <div className="space-y-8">
+            {/* Hero Header Section */}
+            <div className="relative bg-gradient-to-r from-slate-800/90 via-slate-700/90 to-slate-800/90 rounded-2xl border border-game-gold/20 p-6 overflow-hidden">
+              {/* Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute inset-0 bg-gradient-to-br from-game-gold/20 to-transparent"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-game-gold/10 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl"></div>
               </div>
               
-              <Button 
-                className="bg-game-gold hover:bg-game-gold/90 text-black font-semibold px-6 py-2 transition-all"
-                onClick={() => setShowCreateRoom(true)}
-                data-testid="button-create-room"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Room
-              </Button>
-            </div>
-
-            {/* Join by Room Code Section */}
-            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                  <i className="fas fa-key text-blue-400 text-lg"></i>
+              <div className="relative flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-r from-game-gold to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <i className="fas fa-users text-black text-xl"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-bold text-white">Game Lobbies</h3>
+                      <p className="text-game-gold/90 font-medium">Multiplayer Gaming Hub</p>
+                    </div>
+                  </div>
+                  <p className="text-slate-300 text-lg leading-relaxed">
+                    Join competitive lobbies, filter by stake levels, or create your own room to challenge players worldwide
+                  </p>
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <i className="fas fa-clock text-sm"></i>
+                      <span className="text-sm">Live updates every 5s</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <i className="fas fa-trophy text-sm"></i>
+                      <span className="text-sm">Crown holder system</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-lg font-semibold text-white">Join Private Room</h4>
-                  <p className="text-slate-400 text-sm">Enter a room code to join a private lobby</p>
+                
+                {/* Enhanced Create Room Button */}
+                <div className="flex flex-col items-end gap-3">
+                  <Button 
+                    className="bg-gradient-to-r from-game-gold to-yellow-500 hover:from-game-gold/90 hover:to-yellow-500/90 text-black font-bold px-8 py-3 text-lg shadow-xl hover:shadow-game-gold/25 transform hover:scale-105 transition-all duration-200"
+                    onClick={() => setShowCreateRoom(true)}
+                    data-testid="button-create-room"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Create Room
+                  </Button>
+                  <p className="text-slate-400 text-sm">Become crown holder</p>
                 </div>
               </div>
-              
-              <div className="flex gap-3 max-w-md">
-                <input
-                  type="text"
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  placeholder="Enter room code (e.g., ABC123)"
-                  className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-                  data-testid="input-room-code"
-                  maxLength={6}
-                />
-                <Button
-                  onClick={handleJoinByCode}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 transition-all"
-                  data-testid="button-join-room-code"
-                >
-                  Join Room
-                </Button>
-              </div>
             </div>
 
-            {/* Compact Stake Filters */}
-            <div className="space-y-3">
+            {/* Enhanced Stake Filters */}
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-semibold text-white">Filter by Stakes</h4>
+                <div>
+                  <h4 className="text-xl font-bold text-white flex items-center gap-2">
+                    <i className="fas fa-filter text-game-gold"></i>
+                    Filter by Stakes
+                  </h4>
+                  <p className="text-slate-400 text-sm mt-1">Choose your preferred betting level</p>
+                </div>
                 {stakeFilters.length > 0 && (
                   <Button 
                     variant="outline" 
-                    size="sm"
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:border-slate-400 transition-all"
                     onClick={clearFilters}
                   >
-                    Clear ({stakeFilters.length})
+                    <i className="fas fa-times mr-2"></i>
+                    Clear All ({stakeFilters.length})
                   </Button>
                 )}
               </div>
               
-              {/* Enhanced Filter Buttons */}
-              <div className="flex flex-wrap gap-3">
+              {/* Premium Stake Filter Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
-                  { 
-                    stake: 0, 
-                    label: "FREE", 
-                    icon: "fas fa-heart",
-                    activeColor: "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25",
-                    inactiveColor: "bg-green-500/10 border-green-500/40 text-green-400 hover:bg-green-500/20 hover:border-green-500/60 hover:text-green-300"
-                  },
-                  { 
-                    stake: 10, 
-                    label: "10 coins", 
-                    icon: "fas fa-coins",
-                    activeColor: "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg shadow-blue-500/25",
-                    inactiveColor: "bg-blue-500/10 border-blue-500/40 text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/60 hover:text-blue-300"
-                  },
-                  { 
-                    stake: 50, 
-                    label: "50 coins", 
-                    icon: "fas fa-fire",
-                    activeColor: "bg-gradient-to-r from-yellow-500 to-amber-600 text-black shadow-lg shadow-yellow-500/25",
-                    inactiveColor: "bg-yellow-500/10 border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/20 hover:border-yellow-500/60 hover:text-yellow-300"
-                  },
-                  { 
-                    stake: 100, 
-                    label: "100 coins", 
-                    icon: "fas fa-lightning",
-                    activeColor: "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/25",
-                    inactiveColor: "bg-orange-500/10 border-orange-500/40 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/60 hover:text-orange-300"
-                  },
-                  { 
-                    stake: 500, 
-                    label: "500 coins", 
-                    icon: "fas fa-crown",
-                    activeColor: "bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/25",
-                    inactiveColor: "bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20 hover:border-red-500/60 hover:text-red-300"
-                  },
-                  { 
-                    stake: 1000, 
-                    label: "1K coins", 
-                    icon: "fas fa-star",
-                    activeColor: "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/25",
-                    inactiveColor: "bg-purple-500/10 border-purple-500/40 text-purple-400 hover:bg-purple-500/20 hover:border-purple-500/60 hover:text-purple-300"
-                  }
-                ].map(({ stake, label, icon, activeColor, inactiveColor }) => {
+                  { stake: 0, label: "FREE", icon: "fas fa-heart", color: "green", gradient: "from-green-500 to-emerald-600" },
+                  { stake: 10, label: "10", icon: "fas fa-seedling", color: "blue", gradient: "from-blue-500 to-cyan-600" },
+                  { stake: 50, label: "50", icon: "fas fa-fire", color: "yellow", gradient: "from-yellow-500 to-amber-600" },
+                  { stake: 100, label: "100", icon: "fas fa-lightning", color: "orange", gradient: "from-orange-500 to-red-500" },
+                  { stake: 500, label: "500", icon: "fas fa-crown", color: "red", gradient: "from-red-500 to-pink-600" },
+                  { stake: 1000, label: "1K", icon: "fas fa-star", color: "purple", gradient: "from-purple-500 to-indigo-600" }
+                ].map(({ stake, label, icon, color, gradient }) => {
                   const isActive = stakeFilters.includes(stake);
                   
                   return (
-                    <Button
+                    <div
                       key={stake}
-                      variant="outline"
-                      size="sm"
-                      className={`relative overflow-hidden border transition-all duration-300 font-semibold px-4 py-2 ${
-                        isActive ? activeColor : inactiveColor
+                      className={`relative group cursor-pointer transition-all duration-300 ${
+                        isActive ? 'scale-105' : 'hover:scale-102'
                       }`}
                       onClick={() => toggleStakeFilter(stake)}
                       data-testid={`filter-stake-${stake}`}
                     >
-                      <i className={`${icon} mr-2 text-sm`}></i>
-                      {label}
-                      {isActive && (
-                        <div className="absolute inset-0 bg-white/10 rounded animate-pulse"></div>
-                      )}
-                    </Button>
+                      <div className={`relative p-4 rounded-xl border-2 transition-all duration-300 ${
+                        isActive 
+                          ? `bg-gradient-to-r ${gradient} border-white/30 shadow-lg shadow-${color}-500/20`
+                          : `bg-slate-800/80 border-slate-600 hover:border-slate-500 hover:bg-slate-700/80`
+                      }`}>
+                        {/* Background glow effect for active state */}
+                        {isActive && (
+                          <div className={`absolute inset-0 bg-gradient-to-r ${gradient} rounded-xl blur-sm opacity-20 -z-10`}></div>
+                        )}
+                        
+                        <div className="text-center">
+                          <div className={`w-8 h-8 mx-auto mb-2 rounded-lg flex items-center justify-center ${
+                            isActive ? 'bg-white/20' : `bg-${color}-500/20`
+                          }`}>
+                            <i className={`${icon} text-sm ${isActive ? 'text-white' : `text-${color}-400`}`}></i>
+                          </div>
+                          <div className={`font-bold text-sm ${isActive ? 'text-white' : 'text-slate-300'}`}>
+                            {label}
+                          </div>
+                          <div className={`text-xs ${isActive ? 'text-white/80' : 'text-slate-400'}`}>
+                            {stake === 0 ? 'coins' : 'coins'}
+                          </div>
+                        </div>
+                        
+                        {/* Active indicator */}
+                        {isActive && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                            <i className="fas fa-check text-xs text-green-600"></i>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
+              
+              {/* Filter Summary */}
+              {stakeFilters.length > 0 && (
+                <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                  <div className="flex items-center gap-2 text-sm">
+                    <i className="fas fa-info-circle text-blue-400"></i>
+                    <span className="text-slate-300">
+                      Showing lobbies for: 
+                      <span className="text-white font-semibold ml-1">
+                        {stakeFilters.map(s => s === 0 ? 'FREE' : `${s} coins`).join(', ')}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Streamlined Lobbies Section */}
-            <div className="space-y-4">
-              {/* Simple section header */}
+            {/* Enhanced Lobbies Section */}
+            <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-semibold text-white">
-                  Active Lobbies {!lobbiesLoading && `(${sortedLobbies.length})`}
+                <h4 className="text-xl font-bold text-white flex items-center gap-2">
+                  <i className="fas fa-gamepad text-game-gold"></i>
+                  Active Lobbies 
+                  {!lobbiesLoading && (
+                    <span className="bg-slate-700/80 text-slate-300 px-3 py-1 rounded-full text-sm font-normal ml-2">
+                      {sortedLobbies.length} available
+                    </span>
+                  )}
                 </h4>
                 {!lobbiesLoading && sortedLobbies.length > 0 && (
-                  <div className="text-slate-400 text-sm">Live</div>
+                  <div className="text-slate-400 text-sm">
+                    <i className="fas fa-sync-alt mr-1"></i>
+                    Auto-refresh active
+                  </div>
                 )}
               </div>
 
               {lobbiesLoading ? (
-                <div className="text-center py-8">
-                  <i className="fas fa-spinner fa-spin text-game-gold text-2xl mb-3"></i>
-                  <p className="text-slate-400">Loading lobbies...</p>
+                <div className="relative">
+                  <div className="bg-gradient-to-r from-slate-800/90 via-slate-700/90 to-slate-800/90 rounded-2xl border border-slate-600/50 p-12">
+                    <div className="text-center">
+                      <div className="relative mb-6">
+                        <div className="w-16 h-16 mx-auto bg-game-gold/20 rounded-full flex items-center justify-center">
+                          <i className="fas fa-spinner fa-spin text-game-gold text-2xl"></i>
+                        </div>
+                        <div className="absolute inset-0 bg-game-gold/10 rounded-full animate-ping"></div>
+                      </div>
+                      <h5 className="text-white font-semibold text-lg mb-2">Loading Lobbies</h5>
+                      <p className="text-slate-400">Searching for active games...</p>
+                    </div>
+                  </div>
                 </div>
               ) : sortedLobbies.length === 0 ? (
-                <div className="text-center py-12 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                  <i className="fas fa-inbox text-slate-400 text-3xl mb-4"></i>
-                  <h5 className="text-white font-semibold mb-2">
-                    {stakeFilters.length > 0 ? "No lobbies match your filters" : "No active lobbies"}
-                  </h5>
-                  <p className="text-slate-400 mb-6">
-                    {stakeFilters.length > 0 
-                      ? "Try different stake filters or create a new lobby" 
-                      : "Be the first to create a lobby!"
-                    }
-                  </p>
-                  <div className="flex gap-3 justify-center">
-                    <Button 
-                      className="bg-game-gold hover:bg-game-gold/90 text-black font-semibold"
-                      onClick={() => setShowCreateRoom(true)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Lobby
-                    </Button>
-                    {stakeFilters.length > 0 && (
-                      <Button 
-                        variant="outline"
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                        onClick={clearFilters}
-                      >
-                        Clear Filters
-                      </Button>
-                    )}
+                <div className="relative">
+                  <div className="bg-gradient-to-br from-slate-800/90 via-slate-700/90 to-slate-800/90 rounded-2xl border border-slate-600/50 p-12 overflow-hidden">
+                    {/* Background decoration */}
+                    <div className="absolute inset-0 opacity-5">
+                      <div className="absolute top-4 left-4 w-20 h-20 border-2 border-game-gold rounded-lg rotate-12"></div>
+                      <div className="absolute bottom-4 right-4 w-16 h-16 border-2 border-blue-500 rounded-full"></div>
+                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-2 border-purple-500 rounded-full opacity-50"></div>
+                    </div>
+                    
+                    <div className="text-center relative">
+                      <div className="w-24 h-24 mx-auto bg-gradient-to-r from-slate-600 to-slate-700 rounded-2xl flex items-center justify-center mb-6 shadow-xl">
+                        <i className={`fas ${stakeFilters.length > 0 ? 'fa-search-minus' : 'fa-inbox'} text-slate-300 text-3xl`}></i>
+                      </div>
+                      
+                      <h5 className="text-white font-bold text-xl mb-3">
+                        {stakeFilters.length > 0 ? "No Matches Found" : "No Active Lobbies"}
+                      </h5>
+                      <p className="text-slate-400 text-lg leading-relaxed mb-8 max-w-md mx-auto">
+                        {stakeFilters.length > 0 
+                          ? "No lobbies match your selected stake filters. Try adjusting your preferences or create a new lobby."
+                          : "The lobby is empty right now. Be the pioneer and create the first game for others to join!"
+                        }
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Button 
+                          className="bg-gradient-to-r from-game-gold to-yellow-500 hover:from-game-gold/90 hover:to-yellow-500/90 text-black font-bold px-6 py-3 shadow-lg hover:shadow-game-gold/20 transform hover:scale-105 transition-all"
+                          onClick={() => setShowCreateRoom(true)}
+                        >
+                          <Plus className="w-5 h-5 mr-2" />
+                          Create First Lobby
+                        </Button>
+                        {stakeFilters.length > 0 && (
+                          <Button 
+                            variant="outline"
+                            className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:border-slate-400 px-6 py-3"
+                            onClick={clearFilters}
+                          >
+                            <i className="fas fa-times mr-2"></i>
+                            Clear Filters
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
                 <>
-                  {/* Clean Lobby List */}
-                  <div className="grid gap-4">
-                    {sortedLobbies.map((lobby: any) => {
-                      const userCoins = user?.currency || 0;
-                      const canJoin = userCoins >= lobby.betAmount && lobby.playerCount < lobby.maxPlayers;
-                      
-                      const stakeColors = {
-                        0: "border-l-green-500 bg-green-500/5",
-                        10: "border-l-blue-500 bg-blue-500/5",
-                        50: "border-l-yellow-500 bg-yellow-500/5",
-                        100: "border-l-orange-500 bg-orange-500/5",
-                        500: "border-l-red-500 bg-red-500/5",
-                        1000: "border-l-purple-500 bg-purple-500/5"
-                      };
-                      
-                      const badgeColors = {
-                        0: "bg-green-600",
-                        10: "bg-blue-600",
-                        50: "bg-yellow-600",
-                        100: "bg-orange-600",
-                        500: "bg-red-600",
-                        1000: "bg-purple-600"
-                      };
-                      
-                      return (
-                        <Card 
-                          key={lobby.code} 
-                          className={`bg-slate-800/80 border border-slate-700 border-l-4 hover:bg-slate-800 transition-colors ${
-                            stakeColors[lobby.betAmount as keyof typeof stakeColors] || "border-l-slate-600 bg-slate-800/5"
-                          }`}
-                          data-testid={`lobby-card-${lobby.code}`}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              {/* Lobby Info */}
-                              <div className="flex items-center gap-4 flex-1">
-                                <div className="w-10 h-10 bg-game-gold/20 rounded-lg flex items-center justify-center">
-                                  <i className="fas fa-crown text-game-gold text-sm"></i>
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-1">
-                                    <h5 className="text-white font-semibold">{lobby.crownHolderName}</h5>
-                                    <Badge className={`${
-                                      badgeColors[lobby.betAmount as keyof typeof badgeColors] || "bg-slate-600"
-                                    } text-white text-xs px-2 py-1`}>
-                                      {lobby.betAmount === 0 ? 'FREE' : `${lobby.betAmount} coins`}
-                                    </Badge>
+                  {/* Enhanced Horizontal Scrolling Lobby Cards */}
+                  <div className="relative">
+                    <div 
+                      className="flex gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800"
+                      style={{ scrollbarWidth: 'thin' }}
+                    >
+                      {sortedLobbies.map((lobby: any) => {
+                        const userCoins = user?.currency || 0;
+                        const canJoin = userCoins >= lobby.betAmount && lobby.playerCount < lobby.maxPlayers;
+                        
+                        const stakeConfig = {
+                          0: { 
+                            color: "border-green-500/60 hover:border-green-400 shadow-green-500/10",
+                            badge: "bg-gradient-to-r from-green-500 to-emerald-600",
+                            glow: "shadow-green-500/20"
+                          },
+                          10: { 
+                            color: "border-blue-500/60 hover:border-blue-400 shadow-blue-500/10", 
+                            badge: "bg-gradient-to-r from-blue-500 to-cyan-600",
+                            glow: "shadow-blue-500/20"
+                          },
+                          50: { 
+                            color: "border-yellow-500/60 hover:border-yellow-400 shadow-yellow-500/10",
+                            badge: "bg-gradient-to-r from-yellow-500 to-amber-600",
+                            glow: "shadow-yellow-500/20"
+                          },
+                          100: { 
+                            color: "border-orange-500/60 hover:border-orange-400 shadow-orange-500/10",
+                            badge: "bg-gradient-to-r from-orange-500 to-red-500", 
+                            glow: "shadow-orange-500/20"
+                          },
+                          500: { 
+                            color: "border-red-500/60 hover:border-red-400 shadow-red-500/10",
+                            badge: "bg-gradient-to-r from-red-500 to-pink-600",
+                            glow: "shadow-red-500/20"
+                          },
+                          1000: { 
+                            color: "border-purple-500/60 hover:border-purple-400 shadow-purple-500/10",
+                            badge: "bg-gradient-to-r from-purple-500 to-indigo-600",
+                            glow: "shadow-purple-500/20"
+                          }
+                        };
+                        
+                        const config = stakeConfig[lobby.betAmount as keyof typeof stakeConfig] || {
+                          color: "border-slate-600 hover:border-slate-500",
+                          badge: "bg-slate-600",
+                          glow: "shadow-slate-500/10"
+                        };
+                        
+                        return (
+                          <Card 
+                            key={lobby.code} 
+                            className={`bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border-2 shadow-xl transition-all duration-300 min-w-[340px] snap-start hover:transform hover:scale-102 ${config.color}`}
+                            data-testid={`lobby-card-${lobby.code}`}
+                          >
+                            <CardHeader className="pb-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-12 h-12 bg-gradient-to-r from-game-gold/30 to-yellow-500/30 rounded-xl flex items-center justify-center shadow-lg border border-game-gold/20">
+                                    <i className="fas fa-crown text-game-gold text-lg"></i>
                                   </div>
-                                  <div className="flex items-center gap-4 text-sm text-slate-400">
-                                    <span>Room: {lobby.code}</span>
-                                    <span>•</span>
-                                    <span>{lobby.playerCount}/{lobby.maxPlayers} players</span>
-                                    <span>•</span>
-                                    <span>{lobby.rounds} rounds</span>
-                                    <span>•</span>
-                                    <span className="text-game-gold">
-                                      {lobby.prizePool || (lobby.betAmount * 4)} coins prize
-                                    </span>
+                                  <div>
+                                    <CardTitle className="text-white text-lg font-bold">{lobby.crownHolderName}</CardTitle>
+                                    <CardDescription className="text-slate-400 text-sm font-medium">
+                                      Room • {lobby.code}
+                                    </CardDescription>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-white font-bold text-xl">
+                                    {lobby.playerCount}<span className="text-slate-400 text-base">/{lobby.maxPlayers}</span>
+                                  </div>
+                                  <div className="text-slate-400 text-xs uppercase tracking-wider">players</div>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            
+                            <CardContent className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50">
+                                  <div className="text-slate-400 text-xs uppercase tracking-wider mb-1">Entry Fee</div>
+                                  <Badge className={`${config.badge} text-white font-bold text-sm px-3 py-1`}>
+                                    {lobby.betAmount === 0 ? 'FREE' : `${lobby.betAmount} coins`}
+                                  </Badge>
+                                </div>
+                                <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50">
+                                  <div className="text-slate-400 text-xs uppercase tracking-wider mb-1">Prize Pool</div>
+                                  <div className="text-game-gold font-bold text-sm">
+                                    {lobby.prizePool || (lobby.betAmount * 4)} coins
                                   </div>
                                 </div>
                               </div>
                               
-                              {/* Join Button */}
+                              <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-400 text-sm">Rounds:</span>
+                                  <span className="text-white font-semibold">{lobby.rounds}</span>
+                                </div>
+                              </div>
+                              
                               <Button 
-                                className={`ml-4 ${
+                                className={`w-full py-3 font-bold text-sm transition-all duration-200 ${
                                   canJoin 
-                                    ? "bg-blue-600 hover:bg-blue-700 text-white" 
-                                    : "bg-slate-600 text-slate-400 cursor-not-allowed"
+                                    ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-blue-500/20 transform hover:scale-105" 
+                                    : "bg-slate-700 text-slate-400 cursor-not-allowed"
                                 }`}
                                 onClick={() => canJoin && handleJoinLobby(lobby.code, lobby.betAmount)}
                                 disabled={!canJoin}
                                 data-testid={`join-lobby-${lobby.code}`}
                               >
                                 {lobby.playerCount >= lobby.maxPlayers ? (
-                                  <>Lobby Full</>
+                                  <>
+                                    <i className="fas fa-lock mr-2"></i>
+                                    Lobby Full
+                                  </>
                                 ) : userCoins < lobby.betAmount ? (
-                                  <>Need {lobby.betAmount}</>
+                                  <>
+                                    <i className="fas fa-coins mr-2"></i>
+                                    Need {lobby.betAmount} coins
+                                  </>
                                 ) : (
-                                  <>Join</>
+                                  <>
+                                    <i className="fas fa-sign-in-alt mr-2"></i>
+                                    Join Lobby
+                                  </>
                                 )}
                               </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Enhanced Scroll Indicators */}
+                    {sortedLobbies.length > 1 && (
+                      <div className="absolute top-1/2 transform -translate-y-1/2 left-4 right-4 flex justify-between pointer-events-none">
+                        <div className="bg-slate-900/90 backdrop-blur-sm text-slate-400 px-3 py-2 rounded-lg text-sm shadow-lg border border-slate-700/50">
+                          <i className="fas fa-chevron-left mr-1"></i>
+                          Scroll for more
+                        </div>
+                        <div className="bg-slate-900/90 backdrop-blur-sm text-slate-400 px-3 py-2 rounded-lg text-sm shadow-lg border border-slate-700/50">
+                          More lobbies
+                          <i className="fas fa-chevron-right ml-1"></i>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
             </div>
           </div>
 
-          {/* Simplified Create Room Modal */}
+          {/* Create Room Modal */}
           {showCreateRoom && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <Card className="bg-slate-800 border-slate-700 w-full max-w-lg">
-                <CardHeader className="pb-4">
+              <Card className="bg-slate-800 border-slate-700 w-full max-w-md">
+                <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-white text-xl">Create New Room</CardTitle>
+                    <CardTitle className="text-white">Create New Room</CardTitle>
                     <Button 
                       variant="ghost" 
                       size="sm"
@@ -619,99 +673,44 @@ export default function Multiplayer() {
                     </Button>
                   </div>
                   <CardDescription className="text-slate-300">
-                    Select stake level for your lobby
+                    Choose your stake amount to create a new lobby
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Privacy Setting */}
-                  <div className="space-y-3">
-                    <h4 className="text-white font-semibold">Room Privacy</h4>
-                    <div className="flex gap-3">
-                      <Button
-                        variant={!isPrivateRoom ? "default" : "outline"}
-                        className={`flex-1 ${
-                          !isPrivateRoom 
-                            ? "bg-green-600 hover:bg-green-700 text-white" 
-                            : "border-slate-600 text-slate-300 hover:bg-slate-700"
-                        }`}
-                        onClick={() => setIsPrivateRoom(false)}
-                        data-testid="button-public-room"
-                      >
-                        <i className="fas fa-globe mr-2"></i>
-                        Public
-                      </Button>
-                      <Button
-                        variant={isPrivateRoom ? "default" : "outline"}
-                        className={`flex-1 ${
-                          isPrivateRoom 
-                            ? "bg-blue-600 hover:bg-blue-700 text-white" 
-                            : "border-slate-600 text-slate-300 hover:bg-slate-700"
-                        }`}
-                        onClick={() => setIsPrivateRoom(true)}
-                        data-testid="button-private-room"
-                      >
-                        <i className="fas fa-lock mr-2"></i>
-                        Private
-                      </Button>
-                    </div>
-                    <p className="text-xs text-slate-400">
-                      {isPrivateRoom 
-                        ? "Only players with the room code can join" 
-                        : "Room will appear in active lobbies for everyone"
-                      }
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2">
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
                     {[
-                      { stake: 0, label: "FREE", description: "Practice game", color: "bg-green-600 hover:bg-green-700" },
-                      { stake: 10, label: "10 coins", description: "Low stakes", color: "bg-blue-600 hover:bg-blue-700" },
-                      { stake: 50, label: "50 coins", description: "Medium stakes", color: "bg-yellow-600 hover:bg-yellow-700" },
-                      { stake: 100, label: "100 coins", description: "High stakes", color: "bg-orange-600 hover:bg-orange-700" },
-                      { stake: 500, label: "500 coins", description: "Elite stakes", color: "bg-red-600 hover:bg-red-700" },
-                      { stake: 1000, label: "1,000 coins", description: "Legendary stakes", color: "bg-purple-600 hover:bg-purple-700" }
-                    ].map(({ stake, label, description, color }) => {
+                      { stake: 0, label: "FREE", color: "bg-green-600 hover:bg-green-700 border-green-500" },
+                      { stake: 10, label: "10 coins", color: "bg-blue-600 hover:bg-blue-700 border-blue-500" },
+                      { stake: 50, label: "50 coins", color: "bg-yellow-600 hover:bg-yellow-700 border-yellow-500" },
+                      { stake: 100, label: "100 coins", color: "bg-orange-600 hover:bg-orange-700 border-orange-500" },
+                      { stake: 500, label: "500 coins", color: "bg-red-600 hover:bg-red-700 border-red-500" },
+                      { stake: 1000, label: "1,000 coins", color: "bg-purple-600 hover:bg-purple-700 border-purple-500" }
+                    ].map(({ stake, label, color }) => {
                       const userCoins = user?.currency || 0;
                       const canAfford = stake === 0 || userCoins >= stake;
                       
                       return (
                         <Button
                           key={stake}
-                          variant="outline"
-                          className={`justify-between h-12 ${
-                            canAfford 
-                              ? "border-slate-600 text-white hover:bg-slate-700 hover:border-slate-500"
-                              : "border-slate-700 text-slate-500 cursor-not-allowed"
+                          className={`${color} text-white border ${
+                            !canAfford ? "opacity-50 cursor-not-allowed" : ""
                           }`}
                           onClick={() => canAfford && handleCreateRoom(stake)}
                           disabled={!canAfford}
                           data-testid={`create-room-${stake}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-3 h-3 rounded-full ${
-                              stake === 0 ? "bg-green-500" :
-                              stake <= 50 ? "bg-blue-500" :
-                              stake <= 100 ? "bg-orange-500" :
-                              stake <= 500 ? "bg-red-500" : "bg-purple-500"
-                            }`}></div>
-                            <div className="text-left">
-                              <div className="font-semibold">{label}</div>
-                              <div className="text-xs text-slate-400">{description}</div>
-                            </div>
-                          </div>
-                          {!canAfford && stake > 0 ? (
-                            <span className="text-xs text-slate-500">Need {stake}</span>
-                          ) : (
-                            <i className="fas fa-arrow-right text-slate-400"></i>
+                          {label}
+                          {!canAfford && stake > 0 && (
+                            <div className="text-xs opacity-75 mt-1">Need {stake}</div>
                           )}
                         </Button>
                       );
                     })}
                   </div>
                   
-                  <div className="text-sm text-slate-400 bg-slate-900/50 p-3 rounded border border-slate-700/50">
-                    <i className="fas fa-crown mr-2 text-game-gold"></i>
-                    You'll become the crown holder and control lobby settings
+                  <div className="text-xs text-slate-400 bg-slate-900/50 p-3 rounded">
+                    <i className="fas fa-info-circle mr-1"></i>
+                    As room creator, you'll be the crown holder and can control lobby settings.
                   </div>
                 </CardContent>
               </Card>

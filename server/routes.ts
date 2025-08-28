@@ -292,8 +292,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get ALL available lobbies (for new consolidated view) - PUBLIC endpoint
-  app.get('/api/game-rooms/all-lobbies', async (req: any, res) => {
+  // Get ALL available lobbies (for new consolidated view)
+  app.get('/api/game-rooms/all-lobbies', isAuthenticated, async (req: any, res) => {
     try {
       const allLobbies = await storage.getAllPublishedLobbies();
       res.json(allLobbies);
@@ -329,14 +329,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Creator automatically joins and gets crown
       await storage.joinGameRoom(gameRoom.id, userId, betAmount);
-      
-      // Broadcast new lobby creation to all connected clients
-      broadcastToAll({
-        type: 'lobby_updated',
-        action: 'lobby_created',
-        roomCode: gameRoom.code
-      });
-      
       res.json({ code: gameRoom.code, room: gameRoom });
     } catch (error) {
       console.error("Error creating lobby:", error);
@@ -371,14 +363,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Join the room
       await storage.joinGameRoom(room.id, userId, betAmount);
-      
-      // Broadcast lobby update to all connected clients
-      broadcastToAll({
-        type: 'lobby_updated',
-        action: 'player_joined',
-        roomCode: room.code
-      });
-      
       res.json({ code: room.code, room });
     } catch (error) {
       console.error("Error joining lobby:", error);
@@ -429,126 +413,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error joining betting room:", error);
       res.status(500).json({ message: "Failed to join betting room" });
-    }
-  });
-
-  // Update room settings via HTTP (as fallback to WebSocket)
-  app.patch('/api/game-rooms/:roomCode/settings', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { roomCode } = req.params;
-      const { maxPlayers, settings } = req.body;
-      
-      // Get the game room by code (consistent with other endpoints)
-      const gameRoom = await storage.getGameRoom(roomCode);
-      if (!gameRoom) {
-        return res.status(404).json({ message: "Room not found" });
-      }
-      
-      // Only crown holder can update settings
-      if (gameRoom.crownHolderId !== userId) {
-        return res.status(403).json({ message: "Only the crown holder can update room settings" });
-      }
-      
-      // Check if settings are locked
-      if (gameRoom.settingsLocked) {
-        return res.status(403).json({ message: "Settings are locked after lobby is published" });
-      }
-      
-      // Update the room
-      const updateData: any = {};
-      if (maxPlayers !== undefined) updateData.maxPlayers = maxPlayers;
-      if (settings !== undefined) updateData.settings = { ...gameRoom.settings, ...settings };
-      
-      await storage.updateGameRoomById(gameRoom.id, updateData);
-      
-      // Get updated room data
-      const updatedRoom = await storage.getGameRoomById(gameRoom.id);
-      res.json({ success: true, room: updatedRoom });
-    } catch (error) {
-      console.error("Error updating room settings:", error);
-      res.status(500).json({ message: "Failed to update room settings" });
-    }
-  });
-
-  // Update user ready status in game room with auto-start logic
-  app.patch('/api/game-rooms/:gameRoomCode/ready', isAuthenticated, async (req: any, res) => {
-    try {
-      const { gameRoomCode } = req.params;
-      const { isReady } = req.body;
-      const userId = req.user.claims.sub;
-      
-      // Get the actual room by code first
-      const gameRoom = await storage.getGameRoom(gameRoomCode);
-      if (!gameRoom) {
-        return res.status(404).json({ message: 'Room not found' });
-      }
-      
-      // Now use the room ID for the update
-      await storage.updateParticipantReady(gameRoom.id, userId, isReady);
-      
-      // Check for auto-start (same logic as WebSocket)
-      const allParticipants = await storage.getGameParticipants(gameRoom.id);
-      const activeParticipants = allParticipants.filter(p => !p.leftAt);
-      const allPlayersReady = activeParticipants.length >= 2 && activeParticipants.every(p => p.isReady);
-      
-      if (allPlayersReady && gameRoom && gameRoom.status === 'waiting') {
-        console.log(`🚀 HTTP Auto-starting game for room ${gameRoom.code} - all ${activeParticipants.length} players ready`);
-        
-        // Update room status to 'active'
-        await storage.updateGameRoom(gameRoom.code, { status: 'active' });
-
-        // Deduct coins from all participants now that game is starting
-        for (const participant of activeParticipants) {
-          if (participant.betPaid > 0) {
-            try {
-              await storage.spendCurrency(participant.userId, participant.betPaid);
-            } catch (error) {
-              console.error(`Failed to deduct coins for user ${participant.userId}:`, error);
-            }
-          }
-        }
-
-        // Notify ALL players via WebSocket that the game is starting
-        console.log(`Broadcasting start_game to room ${gameRoom.id} with code ${gameRoom.code}`);
-        await broadcastToRoom(gameRoom.id, {
-          type: 'start_game',
-          gameRoomId: gameRoom.code,
-          settings: { 
-            rounds: gameRoom.settings?.rounds || 9, 
-            mode: 'online', 
-            playerCount: activeParticipants.length 
-          }
-        });
-        
-        // Remove from Active Lobbies since game started
-        broadcastToAll({
-          type: 'lobby_updated',
-          action: 'lobby_deleted', 
-          roomCode: gameRoom.code
-        });
-        
-        res.json({ 
-          success: true, 
-          allPlayersReady: true,
-          gameStarted: true,
-          gameSettings: { 
-            rounds: gameRoom.settings?.rounds || 9, 
-            mode: 'online', 
-            playerCount: activeParticipants.length 
-          }
-        });
-        return;
-      }
-      
-      res.json({ 
-        success: true, 
-        allPlayersReady,
-        gameStarted: false
-      });
-    } catch (error) {
-      console.error('Update ready error:', error);
-      res.status(500).json({ error: 'Failed to update ready status' });
     }
   });
 
@@ -603,7 +467,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // REMOVED DUPLICATE POST ENDPOINT - Using PATCH above instead
+  // Set ready status endpoint  
+  app.post('/api/game-rooms/:roomId/ready', isAuthenticated, async (req: any, res) => {
+    try {
+      const { roomId } = req.params;
+      const { isReady } = req.body;
+      const userId = req.user.claims.sub;
+
+      console.log('Ready endpoint called with:', { roomId, isReady, userId });
+
+      const gameRoom = await storage.getGameRoom(roomId);
+      if (!gameRoom) {
+        return res.status(404).json({ message: 'Room not found' });
+      }
+
+      console.log('Found game room:', gameRoom.id);
+
+      // Use joinGameRoom with the correct room ID (not code)
+      try {
+        await storage.joinGameRoom(gameRoom.id, userId, 0);
+        console.log('User joined room successfully');
+      } catch (error) {
+        console.log('User already in room or join failed:', error);
+      }
+
+      // Now update the ready status via gameParticipants table  
+      await storage.setPlayerReady(gameRoom.id, userId, isReady);
+      console.log('Ready status updated:', { userId, isReady });
+
+      res.json({ success: true, isReady });
+    } catch (error) {
+      console.error('Error updating ready status:', error);
+      res.status(500).json({ message: 'Failed to update ready status' });
+    }
+  });
 
   // Friend System API Routes
   app.get('/api/friends', isAuthenticated, async (req: any, res) => {
@@ -1088,39 +985,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update database
       await storage.leaveGameRoom(connection.userId, gameRoomId);
       
-      // Get room details for the broadcast
-      const gameRoom = await storage.getGameRoomById(gameRoomId);
-      
-      // Check if room is now empty and should be deleted
-      const remainingParticipants = await storage.getGameParticipants(gameRoomId);
-      const activeParticipants = remainingParticipants.filter(p => !p.leftAt);
-      
-      if (activeParticipants.length === 0) {
-        // Room is empty, delete it
-        console.log(`🗑️ Deleting empty room: ${gameRoom?.code || gameRoomId}`);
-        await storage.deleteGameRoom(gameRoomId);
-        
-        // Broadcast to all clients that the lobby was removed
-        broadcastToAll({
-          type: 'lobby_updated',
-          action: 'lobby_deleted',
-          roomCode: gameRoom?.code || gameRoomId
-        });
-      } else {
-        // Broadcast to remaining participants
-        await broadcastToRoom(gameRoomId, {
-          type: 'player_left',
-          userId: connection.userId,
-          gameRoomId
-        });
-        
-        // Also broadcast lobby update to all clients (player count changed)
-        broadcastToAll({
-          type: 'lobby_updated',
-          action: 'player_left',
-          roomCode: gameRoom?.code || gameRoomId
-        });
-      }
+      // Broadcast to remaining participants
+      await broadcastToRoom(gameRoomId, {
+        type: 'player_left',
+        userId: connection.userId,
+        gameRoomId
+      });
       
       connection.gameRoomId = undefined;
       ws.send(JSON.stringify({ type: 'room_left', gameRoomId }));
@@ -1158,8 +1028,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Auto-start the game if all players are ready
       if (allPlayersReady && gameRoom) {
-        console.log(`🚀 Auto-starting game for room ${gameRoom.code} - all ${allParticipants.length} players ready`);
-        
         // Update room status to 'active'
         await storage.updateGameRoom(gameRoom.code, { status: 'active' });
 
@@ -1174,18 +1042,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Auto-start the game via WebSocket
+        // Auto-start the game
         await broadcastToRoom(connection.gameRoomId, {
           type: 'start_game',
           gameRoomId: connection.gameRoomId,
-          settings: { rounds: gameRoom.settings?.rounds || 9, mode: 'online', playerCount: allParticipants.length }
-        });
-        
-        // Also remove from Active Lobbies since game started
-        broadcastToAll({
-          type: 'lobby_updated',
-          action: 'lobby_deleted', 
-          roomCode: gameRoom.code
+          settings: { rounds: 9, mode: 'online', playerCount: allParticipants.length }
         });
       }
       
@@ -1457,64 +1318,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  async function handleDisconnection(ws: WebSocket) {
+  function handleDisconnection(ws: WebSocket) {
     const connection = findConnection(ws);
     if (connection) {
-      // Handle room cleanup when user disconnects
-      if (connection.gameRoomId && connection.userId) {
-        try {
-          console.log(`🔌 Cleaning up disconnected user ${connection.userId} from room ${connection.gameRoomId}`);
+      // Remove from active game room if in one
+      if (connection.gameRoomId) {
+        const room = activeGameRooms.get(connection.gameRoomId);
+        if (room) {
+          room.participants.delete(connection.userId);
+          room.spectators.delete(connection.userId);
           
-          // Mark user as left in database
-          await storage.leaveGameRoom(connection.userId, connection.gameRoomId);
-          
-          // Remove from active game room
-          const room = activeGameRooms.get(connection.gameRoomId);
-          if (room) {
-            room.participants.delete(connection.userId);
-            room.spectators.delete(connection.userId);
-            
-            if (room.participants.size === 0 && room.spectators.size === 0) {
-              activeGameRooms.delete(connection.gameRoomId);
-            }
-          }
-          
-          // Check if room is now empty and should be deleted
-          const remainingParticipants = await storage.getGameParticipants(connection.gameRoomId);
-          const activeParticipants = remainingParticipants.filter(p => !p.leftAt);
-          
-          if (activeParticipants.length === 0) {
-            // Get room details for broadcast
-            const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
-            console.log(`🗑️ Deleting empty room after disconnect: ${gameRoom?.code || connection.gameRoomId}`);
-            await storage.deleteGameRoom(connection.gameRoomId);
-            
-            // Broadcast lobby deletion to all clients
-            broadcastToAll({
-              type: 'lobby_updated',
-              action: 'lobby_deleted',
-              roomCode: gameRoom?.code || connection.gameRoomId
-            });
-          } else {
-            // Get room details for broadcast
-            const gameRoom = await storage.getGameRoomById(connection.gameRoomId);
-            
-            // Broadcast player left to remaining participants
-            await broadcastToRoom(connection.gameRoomId, {
-              type: 'player_left',
-              userId: connection.userId,
-              gameRoomId: connection.gameRoomId
-            });
-            
-            // Broadcast lobby update to all clients
-            broadcastToAll({
-              type: 'lobby_updated',
-              action: 'player_left',
-              roomCode: gameRoom?.code || connection.gameRoomId
-            });
-          }
-        } catch (error) {
-          console.error('Error cleaning up disconnected user:', error);
+          // Broadcast disconnection
+          broadcastToRoom(connection.gameRoomId, {
+            type: 'player_disconnected',
+            userId: connection.userId
+          });
         }
       }
       
@@ -1589,13 +1407,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: 'start_game',
         gameRoomId: room.id,
         settings
-      });
-      
-      // Broadcast lobby removal to all connected clients (room no longer available)
-      broadcastToAll({
-        type: 'lobby_updated',
-        action: 'game_started',
-        roomCode: room.code
       });
 
     } catch (error) {

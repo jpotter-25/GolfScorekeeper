@@ -107,7 +107,6 @@ export function useWebSocket(): WebSocketHook {
 
       newSocket.onclose = (event) => {
         console.log('🔌 WebSocket disconnected:', event.code, event.reason, 'wasAuthenticated:', isAuthenticated);
-        console.error('🔴 DISCONNECT STACK:', new Error().stack);
         setIsConnected(false);
         setIsAuthenticated(false);
         setConnectionState('disconnected');
@@ -134,7 +133,7 @@ export function useWebSocket(): WebSocketHook {
       };
 
       newSocket.onerror = (error) => {
-        console.error('WebSocket error:', error, 'readyState:', newSocket.readyState);
+        console.error('WebSocket error:', error);
         setConnectionState('error');
       };
 
@@ -226,8 +225,11 @@ export function useWebSocket(): WebSocketHook {
     if (user?.id && !socket) {
       connect();
     }
-    // Remove disconnect from dependency cleanup - only disconnect on unmount
-  }, [user?.id, connect, socket]);
+
+    return () => {
+      disconnect();
+    };
+  }, [user?.id, connect, disconnect, socket]);
 
   // Cleanup on unmount
   useEffect(() => {

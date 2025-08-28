@@ -54,7 +54,7 @@ import {
   type InsertSocialPostLike,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, isNull } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -375,8 +375,8 @@ export class DatabaseStorage implements IStorage {
         isActive: true,
         // Crown-based lobby management - creator gets crown
         crownHolderId: roomData.hostId,
-        isPublished: !roomData.isPrivate, // Publish public lobbies automatically
-        isPrivate: roomData.isPrivate || false,
+        isPublished: false, // Start as unpublished (private)
+        isPrivate: true,
         settingsLocked: false,
         lastActivityAt: new Date(),
         createdAt: new Date().toISOString()
@@ -540,9 +540,25 @@ export class DatabaseStorage implements IStorage {
 
   // Get ALL published lobbies (for consolidated view)
   async getAllPublishedLobbies(): Promise<any[]> {
-    // First get all waiting rooms
     const rooms = await db
-      .select()
+      .select({
+        id: gameRooms.id,
+        code: gameRooms.code,
+        hostId: gameRooms.hostId,
+        crownHolderId: gameRooms.crownHolderId,
+        betAmount: gameRooms.betAmount,
+        prizePool: gameRooms.prizePool,
+        maxPlayers: gameRooms.maxPlayers,
+        settings: gameRooms.settings,
+        status: gameRooms.status,
+        isPrivate: gameRooms.isPrivate,
+        currentPlayers: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${gameParticipants} 
+          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
+          AND ${gameParticipants.leftAt} IS NULL
+        )`
+      })
       .from(gameRooms)
       .where(and(
         eq(gameRooms.isPublished, true),
@@ -550,47 +566,26 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
     
-    // Then get participant counts for each room
-    const roomsWithCounts = await Promise.all(
+    // Add crown holder names
+    const roomsWithNames = await Promise.all(
       rooms.map(async (room) => {
-        const participants = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(gameParticipants)
-          .where(and(
-            eq(gameParticipants.gameRoomId, room.id),
-            isNull(gameParticipants.leftAt)
-          ));
+        let crownHolderName = 'Unknown';
+        if (room.crownHolderId) {
+          const crownHolder = await this.getUser(room.crownHolderId);
+          if (crownHolder) {
+            crownHolderName = crownHolder.firstName && crownHolder.lastName 
+              ? `${crownHolder.firstName} ${crownHolder.lastName}`
+              : crownHolder.email?.split('@')[0] || 'Player';
+          }
+        }
         
         return {
           ...room,
-          currentPlayers: participants[0]?.count || 0
+          crownHolderName,
+          playerCount: room.currentPlayers,
+          rounds: (room.settings as any)?.rounds || 9
         };
       })
-    )
-    
-    // Filter out full rooms and add crown holder names
-    const roomsWithNames = await Promise.all(
-      roomsWithCounts
-        .filter(room => room.currentPlayers < (room.maxPlayers || 4)) // Only show non-full rooms
-        .map(async (room) => {
-          let crownHolderName = 'Unknown';
-          if (room.crownHolderId) {
-            const crownHolder = await this.getUser(room.crownHolderId);
-            if (crownHolder) {
-              crownHolderName = crownHolder.firstName && crownHolder.lastName 
-                ? `${crownHolder.firstName} ${crownHolder.lastName}`
-                : crownHolder.email?.split('@')[0] || 'Player';
-            }
-          }
-          
-          return {
-            ...room,
-            crownHolderName,
-            playerCount: room.currentPlayers, // Make sure playerCount is set
-            currentPlayers: room.currentPlayers, // Keep both for compatibility
-            rounds: (room.settings as any)?.rounds || 9
-          };
-        })
     );
     
     return roomsWithNames;
@@ -716,30 +711,17 @@ export class DatabaseStorage implements IStorage {
       return existing[0];
     }
 
-    // CRITICAL: Check room capacity before allowing join
-    const room = await this.getGameRoomById(roomId);
-    if (!room) {
-      throw new Error('Room not found');
-    }
+    // Store bet amount but don't deduct coins until game starts
+    // Coins will be deducted when the game actually begins
 
-    const currentParticipants = await db
+    // Get current participant count to assign player index
+    const participantCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(gameParticipants)
       .where(and(
         eq(gameParticipants.gameRoomId, roomId),
         sql`${gameParticipants.leftAt} IS NULL`
       ));
-    
-    const currentCount = currentParticipants[0].count;
-    if (currentCount >= (room.maxPlayers || 4)) {
-      throw new Error(`Room is full (${currentCount}/${room.maxPlayers})`);
-    }
-
-    // Store bet amount but don't deduct coins until game starts
-    // Coins will be deducted when the game actually begins
-
-    // Get current participant count to assign player index
-    const participantCount = currentParticipants;
 
     const [participant] = await db
       .insert(gameParticipants)
@@ -792,18 +774,6 @@ export class DatabaseStorage implements IStorage {
         eq(gameParticipants.userId, userId),
         eq(gameParticipants.gameRoomId, gameRoomId)
       ));
-  }
-
-  async deleteGameRoom(gameRoomId: string): Promise<void> {
-    // Delete participants first (foreign key constraint)
-    await db
-      .delete(gameParticipants)
-      .where(eq(gameParticipants.gameRoomId, gameRoomId));
-    
-    // Delete the game room
-    await db
-      .delete(gameRooms)
-      .where(eq(gameRooms.id, gameRoomId));
   }
 
   async setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void> {

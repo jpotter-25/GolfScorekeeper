@@ -3,7 +3,6 @@ import { useWebSocket } from './useWebSocket';
 import { useGameLogic } from './useGameLogic';
 import { GameState, GameSettings, GameAction, Player } from '@/types/game';
 import { useToast } from './use-toast';
-import { initializeGame } from '@/utils/gameLogic';
 
 export interface MultiplayerGameState extends GameState {
   gameRoomId: string;
@@ -73,12 +72,11 @@ export function useMultiplayerGameLogic(
       connectedPlayersCount: Object.keys(multiplayerGameState?.connectedPlayers || {}).length
     });
     
-    // Join room if connected and have a room ID (whether waiting or in game)
-    if (connectionState === 'connected' && multiplayerGameState?.gameRoomId && !multiplayerGameState.connectedPlayers[userId]) {
-      console.log('✅ Auto-join conditions met! Sending join room message for:', multiplayerGameState.gameRoomId);
+    if (connectionState === 'connected' && multiplayerGameState?.gameRoomId && multiplayerGameState.waitingForPlayers && !multiplayerGameState.connectedPlayers[userId]) {
+      console.log('✅ Auto-join conditions met! Sending delayed join room message for:', multiplayerGameState.gameRoomId);
       wsJoinGameRoom(multiplayerGameState.gameRoomId);
     }
-  }, [connectionState, multiplayerGameState?.gameRoomId, multiplayerGameState?.connectedPlayers, userId, wsJoinGameRoom]);
+  }, [connectionState, multiplayerGameState?.gameRoomId, multiplayerGameState?.waitingForPlayers, multiplayerGameState?.connectedPlayers, userId, wsJoinGameRoom]);
 
   // Handle incoming WebSocket messages
   useEffect(() => {
@@ -317,22 +315,15 @@ export function useMultiplayerGameLogic(
       // We'll send the join message when connection becomes ready
     }
     
-    // Initialize basic multiplayer state only if not already set
-    setMultiplayerGameState(prev => {
-      if (prev?.gameRoomId === roomId) {
-        // Already in this room, just ensure we're connected
-        console.log('Already in room, preserving state');
-        return prev;
-      }
-      return {
-        ...syncedGameLogic.gameState!,
-        gameRoomId: roomId,
-        hostId: '',
-        isHost: false,
-        connectedPlayers: {},
-        waitingForPlayers: true,
-        allPlayersReady: false
-      };
+    // Initialize basic multiplayer state
+    setMultiplayerGameState({
+      ...syncedGameLogic.gameState!,
+      gameRoomId: roomId,
+      hostId: '',
+      isHost: false,
+      connectedPlayers: {},
+      waitingForPlayers: true,
+      allPlayersReady: false
     });
   }, [wsJoinGameRoom, syncedGameLogic.gameState, connectionState]);
 
@@ -352,47 +343,7 @@ export function useMultiplayerGameLogic(
     });
   }, [sendMessage, multiplayerGameState?.gameRoomId]);
 
-  const startMultiplayerGame = useCallback((settings: GameSettings, isAutoStart = false) => {
-    // For auto-start (when room status changes to active), all players initialize locally
-    if (isAutoStart) {
-      console.log('🎮 Auto-starting game for player with settings:', settings);
-      
-      // Create the game state directly
-      const initialGameState = initializeGame(settings);
-      
-      console.log('Created initial game state:', initialGameState);
-      
-      if (!initialGameState) {
-        console.error('Failed to create game state');
-        return;
-      }
-      
-      // Set both the synced game logic state and multiplayer state
-      syncedGameLogic.startGame(settings);
-      
-      // Immediately set the multiplayer state with the initialized game
-      setMultiplayerGameState(prev => {
-        console.log('Setting multiplayer game state from auto-start', { prev, initialGameState });
-        return {
-          ...initialGameState,
-          gameRoomId: gameRoomId,
-          hostId: prev?.hostId || '',
-          isHost: prev?.isHost || false,
-          connectedPlayers: prev?.connectedPlayers || {},
-          waitingForPlayers: false,
-          allPlayersReady: true
-        };
-      });
-      
-      // Join the WebSocket room for game communication
-      if (connectionState === 'connected' && gameRoomId) {
-        console.log('Joining WebSocket room for game:', gameRoomId);
-        wsJoinGameRoom(gameRoomId);
-      }
-      return;
-    }
-    
-    // Manual start by host
+  const startMultiplayerGame = useCallback((settings: GameSettings) => {
     if (!multiplayerGameState?.isHost) {
       toast({
         title: "Error",
@@ -407,28 +358,24 @@ export function useMultiplayerGameLogic(
       gameRoomId: multiplayerGameState.gameRoomId,
       settings
     });
-  }, [sendMessage, multiplayerGameState, toast, syncedGameLogic, gameRoomId, connectionState, wsJoinGameRoom]);
+  }, [sendMessage, multiplayerGameState, toast]);
 
   // Sync local game state changes to multiplayer state
   useEffect(() => {
-    // Only sync if we have both states and the game has started (not waiting for players)
-    if (syncedGameLogic.gameState && multiplayerGameState && !multiplayerGameState.waitingForPlayers) {
-      setMultiplayerGameState(prev => {
-        if (!prev || prev.waitingForPlayers) return prev;
-        return {
-          ...prev,
-          ...syncedGameLogic.gameState,
-          // Preserve multiplayer-specific fields
-          gameRoomId: prev.gameRoomId,
-          hostId: prev.hostId,
-          isHost: prev.isHost,
-          connectedPlayers: prev.connectedPlayers,
-          waitingForPlayers: prev.waitingForPlayers,
-          allPlayersReady: prev.allPlayersReady
-        };
-      });
+    if (syncedGameLogic.gameState && multiplayerGameState) {
+      setMultiplayerGameState(prev => ({
+        ...prev!,
+        ...syncedGameLogic.gameState,
+        // Preserve multiplayer-specific fields
+        gameRoomId: prev!.gameRoomId,
+        hostId: prev!.hostId,
+        isHost: prev!.isHost,
+        connectedPlayers: prev!.connectedPlayers,
+        waitingForPlayers: prev!.waitingForPlayers,
+        allPlayersReady: prev!.allPlayersReady
+      }));
     }
-  }, [syncedGameLogic.gameState, multiplayerGameState?.gameRoomId, multiplayerGameState?.waitingForPlayers]);
+  }, [syncedGameLogic.gameState, multiplayerGameState?.gameRoomId]);
 
   return {
     gameState: multiplayerGameState,
