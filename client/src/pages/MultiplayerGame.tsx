@@ -117,15 +117,8 @@ export default function MultiplayerGame() {
             setGameSettings(settings);
             setShowLobby(false);
             
-            // First ensure we're in the room via WebSocket
-            if (user?.id) {
-              joinGameRoom(roomId);
-            }
-            
-            // Then start the game
-            setTimeout(() => {
-              startMultiplayerGame(settings, true); // Pass true for auto-start
-            }, 200);
+            // Start the game immediately - we're already in the room
+            startMultiplayerGame(settings, true); // Pass true for auto-start
             return; // Exit early, game is starting
           }
         }
@@ -159,9 +152,9 @@ export default function MultiplayerGame() {
     }
   }, [connectionState, gameRoomId, user?.id, sendMessage]);
 
-  // Real-time polling for room state updates (pause during settings editing)
+  // Real-time polling for room state updates (only in lobby, pause during settings editing)
   useEffect(() => {
-    if (!gameRoomId) return;
+    if (!gameRoomId || !showLobby) return; // Stop polling when game starts
     
     const pollInterval = setInterval(() => {
       if (!isEditingSettings) {
@@ -170,7 +163,7 @@ export default function MultiplayerGame() {
     }, 2000); // Poll every 2 seconds
     
     return () => clearInterval(pollInterval);
-  }, [gameRoomId, isEditingSettings]);
+  }, [gameRoomId, isEditingSettings, showLobby]);
 
   // Hide lobby when game starts
   useEffect(() => {
