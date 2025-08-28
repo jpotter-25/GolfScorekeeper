@@ -576,6 +576,7 @@ export class DatabaseStorage implements IStorage {
       .from(gameRooms)
       .where(and(
         eq(gameRooms.isPublished, true),
+        eq(gameRooms.isPrivate, false),
         eq(gameRooms.status, 'waiting')
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
@@ -602,8 +603,11 @@ export class DatabaseStorage implements IStorage {
       })
     );
     
-    // Filter out rooms with no players
-    return roomsWithNames.filter(room => room.playerCount > 0);
+    // Debug logging
+    console.log('DEBUG getAllPublishedLobbies: roomsWithNames before filtering:', roomsWithNames);
+    const filtered = roomsWithNames.filter(room => room.playerCount > 0);
+    console.log('DEBUG getAllPublishedLobbies: filtered rooms:', filtered);
+    return filtered;
   }
 
   async createCrownLobby(userId: string, options: {
