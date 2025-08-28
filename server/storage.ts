@@ -543,7 +543,8 @@ export class DatabaseStorage implements IStorage {
       })
     );
     
-    return roomsWithNames;
+    // Filter out rooms with no players
+    return roomsWithNames.filter(room => room.playerCount > 0);
   }
 
   // Alias for consistency
@@ -601,7 +602,8 @@ export class DatabaseStorage implements IStorage {
       })
     );
     
-    return roomsWithNames;
+    // Filter out rooms with no players
+    return roomsWithNames.filter(room => room.playerCount > 0);
   }
 
   async createCrownLobby(userId: string, options: {
@@ -1119,10 +1121,13 @@ export class DatabaseStorage implements IStorage {
         eq(gameRooms.status, 'waiting')
       ));
     
-    return rooms.map(room => ({
-      ...room,
-      hostName: room.hostName || 'Player'
-    }));
+    // Filter out rooms with no players and return with host names
+    return rooms
+      .filter(room => room.playerCount > 0)
+      .map(room => ({
+        ...room,
+        hostName: room.hostName || 'Player'
+      }));
   }
   
   async deleteGameRoom(roomId: string): Promise<void> {
