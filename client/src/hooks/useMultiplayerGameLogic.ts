@@ -73,11 +73,12 @@ export function useMultiplayerGameLogic(
       connectedPlayersCount: Object.keys(multiplayerGameState?.connectedPlayers || {}).length
     });
     
-    if (connectionState === 'connected' && multiplayerGameState?.gameRoomId && multiplayerGameState.waitingForPlayers && !multiplayerGameState.connectedPlayers[userId]) {
-      console.log('✅ Auto-join conditions met! Sending delayed join room message for:', multiplayerGameState.gameRoomId);
+    // Join room if connected and have a room ID (whether waiting or in game)
+    if (connectionState === 'connected' && multiplayerGameState?.gameRoomId && !multiplayerGameState.connectedPlayers[userId]) {
+      console.log('✅ Auto-join conditions met! Sending join room message for:', multiplayerGameState.gameRoomId);
       wsJoinGameRoom(multiplayerGameState.gameRoomId);
     }
-  }, [connectionState, multiplayerGameState?.gameRoomId, multiplayerGameState?.waitingForPlayers, multiplayerGameState?.connectedPlayers, userId, wsJoinGameRoom]);
+  }, [connectionState, multiplayerGameState?.gameRoomId, multiplayerGameState?.connectedPlayers, userId, wsJoinGameRoom]);
 
   // Handle incoming WebSocket messages
   useEffect(() => {
@@ -375,6 +376,12 @@ export function useMultiplayerGameLogic(
           allPlayersReady: true
         };
       });
+      
+      // Join the WebSocket room for game communication
+      if (connectionState === 'connected' && gameRoomId) {
+        console.log('Joining WebSocket room for game:', gameRoomId);
+        wsJoinGameRoom(gameRoomId);
+      }
       return;
     }
     
@@ -393,7 +400,7 @@ export function useMultiplayerGameLogic(
       gameRoomId: multiplayerGameState.gameRoomId,
       settings
     });
-  }, [sendMessage, multiplayerGameState, toast, syncedGameLogic, gameRoomId]);
+  }, [sendMessage, multiplayerGameState, toast, syncedGameLogic, gameRoomId, connectionState, wsJoinGameRoom]);
 
   // Sync local game state changes to multiplayer state
   useEffect(() => {
