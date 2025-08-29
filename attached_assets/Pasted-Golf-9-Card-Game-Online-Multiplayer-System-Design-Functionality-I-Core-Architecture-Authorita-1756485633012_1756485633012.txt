@@ -1,0 +1,202 @@
+Golf 9 Card Game - Online Multiplayer System Design & Functionality
+I. Core Architecture
+Authoritative server + dumb clients: Server validates all moves, owns the clock, and is the single source of truth. Clients render + send intents.
+Optimistic UI + server reconciliation. Client animates local move; server echoes the authoritative result. If mismatch, client snaps to server state.
+Time sync. Server timestamps all actions; clients display serverTs based timers (e.g., turn timeout).
+
+A. Real-Time Communication
+•	Any lobby setting change, players leave or join a room, player count 1/X players, Room gets purged, delisted, or listed – should all be visually and logically updated as applicable.
+o	Examples:
+	If the lobby host changes the player settings from 4 players to 2 players, then that should be reflected visually, in real time,  for all players in that room. If that room is currently not full, it will also be displayed in the “Active Lobbies” section, the lobby that had the player setting change, should also visually reflect, in real time, how many players are currently in that lobby for visual awareness to players looking for a room to join.
+	If a lobby is full, it should visually be delisted from the “active lobbies” section in real-time.
+	If I lobby was full but now has empty slots because a player left the lobby, it should be listed back onto the “Active Lobbies” section in real-time.
+	If no players are in a room, that room should be purged and delisted in real time.
+II. Lobby & Room System
+A. Main Multiplayer Hub
+1.	Two sections:
+•	Active Lobbies (public rooms waiting for players)
+1.	Displayed by room cards.
+•	Private Lobbies (private rooms waiting for players)
+1.	Can only be joined if provided with password set by host, or from a direct friend invite.
+2.	Room Display Cards:
+•	Room name and code
+•	Host indicator with crown icon
+•	Player count (X/Y format)
+•	Bet amount (if applicable)
+•	Join button when space available
+B. Room Creation
+1.	Host privileges: First player becomes host
+2.	Configurable settings:
+•	Rounds: 5 or 9
+•	Max players: 2-4
+•	Bet amount: 0-100 coins
+•	Private/Public toggle
+1.	If private lobby, it shows as locked on the room card and can only be joined if provided with password set by host, or from a direct friend invite.
+3.	Auto-generated 6-character room codes
+4.	Real-time settings sync
+C. Room States
+•	Waiting: Players joining, can modify settings
+•	Active: Game in progress, no new players
+•	Finished: Game complete, showing results
+III. Game Flow & Transitions
+A. Lobby Phase
+1.	Player Management:
+•	Real-time player join/leave notifications
+•	Ready/Not Ready toggle system
+•	Visual ready indicators (green checkmarks)
+•	Connected player avatars and names
+2.	Auto-Start Mechanism:
+•	Triggers when all players mark ready
+•	Broadcasts game start to all participants
+•	Synchronizes initial game state
+B. Game Initialization
+1.	Transition from lobby to game:
+•	Lobby UI hides automatically
+•	Game state initialization
+C. In-Game Features
+1.	Turn-based gameplay:
+•	Current player indicator
+•	Action validation before broadcast
+•	Real-time card movements
+•	Score updates after each round
+2.	Connection resilience:
+•	Rejoin capability if disconnected
+•	"Connection lost" modal with retry
+IV. Host System Integration
+A. Host Privileges
+•	Special visual indicator (golden crown icon)
+•	Deterministic host migration. Next host = lowest join order still connected; migration triggers a room-wide HOST_CHANGED event.V. Edge Cases & Business Rules
+A. Room Management
+•	Auto-delete empty rooms after all players leave
+•	Host migration if original host disconnects
+•	Maximum 4 players per room enforced
+•	Duplicate join prevention via database constraints
+B. Game Start Conditions
+•	Minimum 2 players required
+•	All players must be ready for auto-start
+•	Settings locked once game begins
+C. Disconnection Handling
+•	5-minute timeout for reconnection
+•	AI auto takeover for disconnected players
+•	Game always continues once started, until all rounds are played.
+VI. Future Enhancements (Planned)
+A. Tournament Mode
+•	Bracket system
+•	Scheduled tournaments
+•	Entry fees and prize pools
+B. Friend System
+•	Friend codes for direct invites
+•	Private room passwords
+•	Friend list integration
+C. Premium Features
+•	Custom table themes
+•	Animated card backs
+•	Victory celebrations
+•	Chat emotes
+Security & Abuse Prevention
+•	Rate limits & flood protection per IP/user/room.
+•	Audit log (append-only) for payouts, bet changes, host transfers.
+
+Room Lobby Updates: Complete Flow Report
+What the Lobby System Does
+The lobby system shows players a live list of available game rooms they can join. This list needs to stay accurate in real-time so players see exactly what's happening right now.
+
+When Updates Happen
+1. Creating a New Room
+What happens: Someone clicks "Create Room"
+
+New room gets saved to database
+Room appears in everyone's lobby list immediately
+Shows "1/4 players" (or whatever max is set)
+All connected players see the new room pop up
+2. Player Joins a Room
+What happens: Someone clicks "Join" on a lobby
+
+Player gets added to the room in database
+Player count updates (like "1/4" becomes "2/4")
+Everyone sees the updated player count in their lobby list
+If room becomes full, it disappears from available lobbies
+3. Player Leaves Voluntarily
+What happens: Someone clicks "Leave Room" button
+
+Player gets marked as "left" in database with timestamp
+Player count drops (like "2/4" becomes "1/4")
+Room reappears in lobby list if it was full before
+Everyone sees the updated count
+4. Player Disconnects (Browser Close/Network Issue)
+What happens: Someone closes browser or loses internet
+
+WebSocket connection breaks
+System immediately marks them as "left" in database
+Player gets removed from room memory
+If room becomes empty, entire room gets deleted
+Everyone sees the room either update player count or disappear completely
+5. Room Settings Change
+What happens: Host changes max players, rounds, or bet amount
+
+New settings get saved to database
+Lobby list updates to show new info (like "1/2 players, 5 rounds")
+All players see the changes instantly
+6. Player Ready Status Change
+What happens: Someone clicks "Ready" or "Not Ready"
+
+Ready status gets saved to database
+Other players in the room see the change
+Lobby list doesn't change (this is internal to room)
+7. Game Starts
+What happens: All players are ready and room is full
+
+Room status changes to "active" in database
+Room completely disappears from lobby list
+No one can join anymore
+8. Game Ends
+What happens: Game finishes, players return to lobby
+
+Room either gets deleted or reset for another game
+If reset, room reappears in lobby list
+Players can join again
+9. Automatic Cleanup
+What happens: System runs cleanup every 5 minutes
+
+Finds rooms with no active players
+Deletes empty rooms from database
+Removes abandoned player records
+Updates everyone's lobby list to remove ghost rooms
+How Updates Reach Everyone
+The Update Chain:
+Something changes (player joins, leaves, settings change, etc.)
+Database gets updated with the new information
+System sends message to all connected players via WebSocket
+Everyone's screen updates to show the current state
+What Everyone Sees:
+Room name (like "john.potter.m's Room")
+Current players vs max (like "2/4 players")
+Game settings (rounds, bet amount)
+Room code (like "ABC123")
+Join button (if room has space)
+Why Real-Time Updates Matter
+Without Real-Time Updates:
+Players see outdated information
+Try to join full rooms
+See rooms that don't exist
+Get confused about what's actually available
+With Real-Time Updates:
+Always see current state
+Only see rooms they can actually join
+No ghost rooms or wrong player counts
+Smooth, responsive experience
+Edge Cases the System Handles
+Phantom Players:
+When someone's connection breaks badly, they might stay "in" a room in database
+Cleanup system finds these and marks them as left
+Prevents rooms from showing wrong player counts
+Empty Rooms:
+When last player leaves, room gets deleted immediately
+No empty rooms clutter the lobby list
+Resources get freed up properly
+Network Issues:
+If updates fail to send, system retries
+Players get fresh data when they reconnect
+No permanent inconsistencies
+The Bottom Line
+Every action that affects a room triggers an immediate update to everyone's lobby list. The system works hard to make sure what you see on screen matches exactly what's in the database, and everyone sees the same thing at the same time.

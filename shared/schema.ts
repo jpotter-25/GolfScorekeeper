@@ -152,56 +152,92 @@ export const userSettings = pgTable("user_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Multiplayer game rooms
+// Multiplayer game rooms (updated for spec compliance)
 export const gameRooms = pgTable("game_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(),
+  code: text("code").notNull().unique(), // 6-character room code
+  name: varchar("name").notNull().default('Room'), // Room name
   hostId: varchar("host_id").notNull().references(() => users.id),
   
-  // Crown-based lobby management
-  crownHolderId: varchar("crown_holder_id").references(() => users.id), // Who has lobby management crown
-  isPublished: boolean("is_published").default(false), // Whether lobby is public for joining
-  isPrivate: boolean("is_private").default(false), // Whether lobby requires invites
-  settingsLocked: boolean("settings_locked").default(false), // Prevent changes after publishing
+  // Room visibility and access
+  visibility: varchar("visibility").notNull().default('public'), // 'public' | 'private'
+  passwordHash: varchar("password_hash"), // For private rooms
   
-  // Idle management for crown holders
-  lastActivityAt: timestamp("last_activity_at").defaultNow(),
-  idleWarningAt: timestamp("idle_warning_at"), // When 4-minute warning was sent
+  // Room configuration
+  maxPlayers: integer("max_players").notNull().default(4), // 2-4 players
+  rounds: integer("rounds").notNull().default(9), // 5 or 9 rounds
+  betAmount: integer("bet_amount").notNull().default(0), // 0-100 coins per spec
   
-  players: jsonb("players").notNull(), // array of player objects
+  // Room state management
+  state: varchar("state").notNull().default('waiting'), // 'waiting' | 'active' | 'finished'
+  playerCount: integer("player_count").notNull().default(0), // Current number of players
+  
+  // Crown system (kept for compatibility)
+  crownHolderId: varchar("crown_holder_id").references(() => users.id),
+  
+  // Game state
   gameState: jsonb("game_state"),
-  settings: jsonb("settings").notNull(),
-  createdAt: text("created_at"),
-  isActive: boolean("is_active"),
-  maxPlayers: integer("max_players"),
-  status: varchar("status"),
+  settings: jsonb("settings").notNull().default('{}'),
+  players: jsonb("players").notNull().default('[]'), // array of player objects
+  
+  // Activity tracking
+  lastActivityAt: timestamp("last_activity_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
-  betAmount: integer("bet_amount").notNull().default(0), // coins required to join
-  prizePool: integer("prize_pool").notNull().default(0), // total coins in the pot
+  
+  // Prize pool and payouts
+  prizePool: integer("prize_pool").notNull().default(0),
   payouts: jsonb("payouts"), // stores final payouts for each player
+  
+  // Legacy fields (kept for compatibility)
+  isPublished: boolean("is_published").default(false),
+  isPrivate: boolean("is_private").default(false),
+  settingsLocked: boolean("settings_locked").default(false),
+  idleWarningAt: timestamp("idle_warning_at"),
+  isActive: boolean("is_active"),
+  status: varchar("status"),
 });
 
-// Game participants - tracks who's in each game
+// Game participants - tracks who's in each game (enhanced for spec)
 export const gameParticipants = pgTable("game_participants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  gameRoomId: varchar("game_room_id").notNull().references(() => gameRooms.id),
+  gameRoomId: varchar("game_room_id").notNull().references(() => gameRooms.id, { onDelete: 'cascade' }),
   userId: varchar("user_id").notNull().references(() => users.id),
-  playerIndex: integer("player_index").notNull(), // 0, 1, 2, 3
-  betPaid: integer("bet_paid").notNull().default(0), // coins paid to join
-  finalPlacement: integer("final_placement"), // 1st, 2nd, 3rd, 4th
-  payout: integer("payout").default(0), // coins won
+  
+  // Player order and status
+  joinOrder: integer("join_order").notNull(), // 1, 2, 3, 4 (determines host succession)
+  playerIndex: integer("player_index").notNull(), // 0, 1, 2, 3 (seat position)
+  isHost: boolean("is_host").notNull().default(false),
   isReady: boolean("is_ready").default(false),
   isSpectator: boolean("is_spectator").default(false),
   
-  // AI replacement system
-  isAiReplacement: boolean("is_ai_replacement").default(false), // Replaced by AI after leaving
-  leftDuringGame: boolean("left_during_game").default(false), // Left after game started
-  penaltyApplied: integer("penalty_applied").default(0), // Penalty coins deducted
+  // Connection status
+  connected: boolean("connected").notNull().default(true),
+  connectionId: varchar("connection_id"), // WebSocket connection ID
+  lastSeenAt: timestamp("last_seen_at").defaultNow(),
   
+  // Game data
+  betPaid: integer("bet_paid").notNull().default(0),
+  scoreByRound: jsonb("score_by_round").default('[]'), // Array of scores per round
+  totalScore: integer("total_score").default(0),
+  finalPlacement: integer("final_placement"), // 1st, 2nd, 3rd, 4th
+  payout: integer("payout").default(0),
+  
+  // AI takeover system (5-minute rejoin window)
+  isAiReplacement: boolean("is_ai_replacement").default(false),
+  leftDuringGame: boolean("left_during_game").default(false),
+  disconnectedAt: timestamp("disconnected_at"),
+  canRejoinUntil: timestamp("can_rejoin_until"), // 5 minutes after disconnect
+  penaltyApplied: integer("penalty_applied").default(0),
+  
+  // Timestamps
   joinedAt: timestamp("joined_at").defaultNow(),
   leftAt: timestamp("left_at"),
-});
+}, (table) => [
+  index("idx_room_user").on(table.gameRoomId, table.userId),
+]);
 
 // Friend relationships
 export const friendships = pgTable("friendships", {
@@ -277,6 +313,16 @@ export const gameSpectators = pgTable("game_spectators", {
   userId: varchar("user_id").notNull().references(() => users.id),
   joinedAt: timestamp("joined_at").defaultNow(),
   leftAt: timestamp("left_at"),
+});
+
+// Room audit log for tracking events
+export const roomAuditLog = pgTable("room_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roomId: varchar("room_id").notNull(),
+  actorId: varchar("actor_id"), // User who triggered the event
+  type: varchar("type").notNull(), // 'payout', 'bet_change', 'host_transfer', 'settings_change', etc.
+  payload: jsonb("payload"), // Event-specific data
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Social sharing posts
@@ -365,6 +411,11 @@ export const insertGameSpectatorSchema = createInsertSchema(gameSpectators).omit
   leftAt: true,
 });
 
+export const insertRoomAuditLogSchema = createInsertSchema(roomAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertSocialPostSchema = createInsertSchema(socialPosts).omit({
   id: true,
   createdAt: true,
@@ -413,6 +464,7 @@ export type Tournament = typeof tournaments.$inferSelect;
 export type TournamentParticipant = typeof tournamentParticipants.$inferSelect;
 export type TournamentMatch = typeof tournamentMatches.$inferSelect;
 export type GameSpectator = typeof gameSpectators.$inferSelect;
+export type RoomAuditLog = typeof roomAuditLog.$inferSelect;
 export type SocialPost = typeof socialPosts.$inferSelect;
 export type SocialPostLike = typeof socialPostLikes.$inferSelect;
 export type Achievement = typeof achievements.$inferSelect;
@@ -431,6 +483,7 @@ export type InsertTournament = z.infer<typeof insertTournamentSchema>;
 export type InsertTournamentParticipant = z.infer<typeof insertTournamentParticipantSchema>;
 export type InsertTournamentMatch = z.infer<typeof insertTournamentMatchSchema>;
 export type InsertGameSpectator = z.infer<typeof insertGameSpectatorSchema>;
+export type InsertRoomAuditLog = z.infer<typeof insertRoomAuditLogSchema>;
 export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
 export type InsertSocialPostLike = z.infer<typeof insertSocialPostLikeSchema>;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,7 @@ import { Users, Plus, GamepadIcon, Trophy, MessageCircle, UserPlus, ArrowLeft, H
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getCosmeticAsset } from "@/utils/cosmeticAssets";
+import { wsManager, type RoomCard } from "@/lib/websocket";
 import type { GameStats } from "@shared/schema";
 
 interface GameRoom {
@@ -55,6 +56,9 @@ export default function Multiplayer() {
   // State for new consolidated lobby browsing
   const [stakeFilters, setStakeFilters] = useState<number[]>([]);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [wsRooms, setWsRooms] = useState<RoomCard[]>([]);
+  const [isWsConnected, setIsWsConnected] = useState(false);
+  const wsInitialized = useRef(false);
 
   // Fetch friends
   const { data: friends = [] } = useQuery<Friend[]>({
@@ -80,20 +84,95 @@ export default function Multiplayer() {
     retry: false,
   });
 
-  // Fetch ALL available lobbies
+  // Initialize WebSocket connection
+  useEffect(() => {
+    if (!user?.id || wsInitialized.current) return;
+    
+    wsInitialized.current = true;
+    
+    // Connect to WebSocket server
+    wsManager.connect(user.id).then(() => {
+      setIsWsConnected(true);
+      // Subscribe to room list updates
+      wsManager.subscribeToRoomList();
+    }).catch(error => {
+      console.error('WebSocket connection failed:', error);
+      setIsWsConnected(false);
+    });
+    
+    // Set up WebSocket event listeners
+    wsManager.on('room:list:snapshot', (message) => {
+      setWsRooms(message.rooms || []);
+    });
+    
+    wsManager.on('room:list:diff', (message) => {
+      if (message.added) {
+        setWsRooms(prev => [...prev, ...message.added]);
+      }
+      if (message.updated) {
+        setWsRooms(prev => prev.map(room => {
+          const updated = message.updated.find((r: RoomCard) => r.code === room.code);
+          return updated || room;
+        }));
+      }
+      if (message.removed) {
+        setWsRooms(prev => prev.filter(room => !message.removed.includes(room.code)));
+      }
+    });
+    
+    wsManager.on('room:created', (message) => {
+      toast({
+        title: "Room Created",
+        description: `Room ${message.room.code} created successfully!`,
+      });
+      // Navigate to room
+      handleJoinLobby(message.room.code, message.room.betCoins);
+    });
+    
+    wsManager.on('room:joined', (message) => {
+      toast({
+        title: "Joined Room",
+        description: `Successfully joined room ${message.code}`,
+      });
+    });
+    
+    wsManager.on('error', (message) => {
+      toast({
+        title: "Error",
+        description: message.message,
+        variant: "destructive",
+      });
+    });
+    
+    return () => {
+      if (wsManager.isConnected) {
+        wsManager.unsubscribeFromRoomList();
+      }
+    };
+  }, [user?.id, toast]);
+  
+  // Fetch ALL available lobbies (fallback for when WebSocket is not connected)
   const { data: allLobbiesData = [], isLoading: lobbiesLoading } = useQuery({
     queryKey: ['/api/game-rooms/all-lobbies'],
     queryFn: () => fetch('/api/game-rooms/all-lobbies').then(r => r.json()),
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: isWsConnected ? false : 5000, // Only poll if WebSocket is not connected
+    enabled: !isWsConnected, // Disable if WebSocket is connected
   });
+  
+  // Use WebSocket rooms if connected, otherwise use API data
+  const roomsData = isWsConnected ? wsRooms : allLobbiesData;
 
   // Filter lobbies based on selected stake filters
   const filteredLobbies = stakeFilters.length === 0 
-    ? allLobbiesData 
-    : allLobbiesData.filter((lobby: any) => stakeFilters.includes(lobby.betAmount));
+    ? roomsData 
+    : roomsData.filter((lobby: any) => stakeFilters.includes(lobby.betCoins || lobby.betAmount));
 
   // Sort lobbies by stake amount (cheapest first)
-  const sortedLobbies = [...filteredLobbies].sort((a: any, b: any) => a.betAmount - b.betAmount);
+  const sortedLobbies = [...filteredLobbies].sort((a: any, b: any) => {
+    const aBet = a.betCoins || a.betAmount || 0;
+    const bBet = b.betCoins || b.betAmount || 0;
+    return aBet - bBet;
+  });
 
   // Toggle stake filter
   const toggleStakeFilter = (stake: number) => {
@@ -120,7 +199,19 @@ export default function Multiplayer() {
       });
       return;
     }
-    handleCreateLobby(betAmount);
+    
+    // Use WebSocket to create room if connected
+    if (isWsConnected) {
+      wsManager.createRoom({
+        name: `${user?.firstName || 'Player'}'s Room`,
+        visibility: 'public',
+        maxPlayers: 4,
+        rounds: 9,
+        betCoins: betAmount
+      });
+    } else {
+      handleCreateLobby(betAmount);
+    }
     setShowCreateRoom(false);
   };
 
@@ -181,8 +272,13 @@ export default function Multiplayer() {
       });
       return;
     }
-    // Assume private rooms have a default bet amount, or fetch it
-    handleJoinLobby(privateRoomCode.toUpperCase(), 0);
+    
+    // Use WebSocket to join room if connected
+    if (isWsConnected) {
+      wsManager.joinRoom(privateRoomCode.toUpperCase());
+    } else {
+      handleJoinLobby(privateRoomCode.toUpperCase(), 0);
+    }
   };
 
   const handleAddFriend = () => {
@@ -416,7 +512,10 @@ export default function Multiplayer() {
                 <div className="grid gap-3">
                   {sortedLobbies.map((lobby: any) => {
                     const userCoins = user?.currency || 0;
-                    const canJoin = userCoins >= lobby.betAmount && lobby.playerCount < lobby.maxPlayers;
+                    const betAmount = lobby.betCoins || lobby.betAmount || 0;
+                    const playerCount = lobby.playerCount || lobby.currentPlayers || 0;
+                    const maxPlayers = lobby.maxPlayers || 4;
+                    const canJoin = userCoins >= betAmount && playerCount < maxPlayers;
                     
                     return (
                       <Card 
@@ -428,21 +527,29 @@ export default function Multiplayer() {
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="flex items-center gap-2">
-                                <h4 className="text-white font-semibold">{lobby.crownHolderName}'s Room</h4>
+                                <h4 className="text-white font-semibold">
+                                  {lobby.name || lobby.crownHolderName || lobby.hostName || 'Room'}
+                                  {(lobby.hostHasCrown || lobby.crownHolderName) && (
+                                    <i className="fas fa-crown text-yellow-400 ml-2 text-sm"></i>
+                                  )}
+                                </h4>
                                 <Badge className="bg-gray-700 text-gray-300">{lobby.code}</Badge>
+                                {lobby.isLocked && (
+                                  <i className="fas fa-lock text-gray-400 text-sm"></i>
+                                )}
                               </div>
                               <div className="flex items-center gap-4 mt-1 text-sm">
                                 <span className="text-gray-400">
                                   <i className="fas fa-users mr-1"></i>
-                                  {lobby.playerCount}/{lobby.maxPlayers} players
+                                  {playerCount}/{maxPlayers} players
                                 </span>
                                 <span className="text-gray-400">
                                   <i className="fas fa-coins mr-1"></i>
-                                  {lobby.betAmount === 0 ? 'FREE' : `${lobby.betAmount} coins`}
+                                  {betAmount === 0 ? 'FREE' : `${betAmount} coins`}
                                 </span>
                                 <span className="text-gray-400">
                                   <i className="fas fa-trophy mr-1"></i>
-                                  {lobby.rounds} rounds
+                                  {lobby.rounds || 9} rounds
                                 </span>
                               </div>
                             </div>
@@ -452,11 +559,19 @@ export default function Multiplayer() {
                                   ? "bg-blue-600 hover:bg-blue-700 text-white" 
                                   : "bg-gray-700 text-gray-400 cursor-not-allowed"
                               }`}
-                              onClick={() => canJoin && handleJoinLobby(lobby.code, lobby.betAmount)}
+                              onClick={() => {
+                                if (canJoin) {
+                                  if (isWsConnected) {
+                                    wsManager.joinRoom(lobby.code);
+                                  } else {
+                                    handleJoinLobby(lobby.code, betAmount);
+                                  }
+                                }
+                              }}
                               disabled={!canJoin}
                               data-testid={`join-lobby-${lobby.code}`}
                             >
-                              {lobby.playerCount >= lobby.maxPlayers ? "Full" : userCoins < lobby.betAmount ? "Insufficient" : "Join"}
+                              {playerCount >= maxPlayers ? "Full" : userCoins < betAmount ? "Insufficient" : "Join"}
                             </Button>
                           </div>
                         </CardContent>
