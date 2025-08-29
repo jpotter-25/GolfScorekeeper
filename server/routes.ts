@@ -1472,5 +1472,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }, 60000); // Check every minute
 
+  // Debug and verification routes (development only)
+  if (process.env.NODE_ENV !== 'production') {
+    const { DebugLogger } = await import('./lib/self-debug');
+    const { runVerificationSuite } = await import('./lib/verification-suite');
+    
+    // Get current triage bundles
+    app.get('/api/debug/triage-bundles', async (req, res) => {
+      try {
+        const bundles = DebugLogger.getTriageBundles();
+        res.json({
+          count: bundles.length,
+          bundles: bundles.slice(-10) // Last 10 bundles
+        });
+      } catch (error) {
+        res.status(500).json({ 
+          message: 'Failed to get triage bundles',
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+
+    // Run verification suite
+    app.post('/api/debug/verify', async (req, res) => {
+      try {
+        const report = await runVerificationSuite();
+        res.json(report);
+      } catch (error) {
+        res.status(500).json({ 
+          message: 'Verification suite failed',
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+
+    // Check system health
+    app.get('/api/debug/health', (req, res) => {
+      res.json({
+        status: 'healthy',
+        selfDebugMode: process.env.NODE_ENV !== 'production',
+        protocolVersion: '1.0.0',
+        timestamp: Date.now()
+      });
+    });
+  }
+
   return httpServer;
 }

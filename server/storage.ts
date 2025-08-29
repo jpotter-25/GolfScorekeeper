@@ -757,10 +757,13 @@ export class DatabaseStorage implements IStorage {
       .values({
         userId,
         gameRoomId: roomId,
+        joinOrder: participantCount[0].count + 1,
         playerIndex: participantCount[0].count,
         betPaid: betAmount,
         isReady: false,
-        isSpectator: false
+        isSpectator: false,
+        isHost: participantCount[0].count === 0,
+        connected: true
       })
       .returning();
 

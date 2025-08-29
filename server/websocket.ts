@@ -3,7 +3,16 @@ import { IncomingMessage } from 'http';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './db';
 import { gameRooms, gameParticipants, roomAuditLog } from '../shared/schema';
-import { eq, and, lt, gte } from 'drizzle-orm';
+import { eq, and, lt, gte, sql } from 'drizzle-orm';
+import { 
+  DebugLogger, 
+  InvariantChecker, 
+  AckTracker, 
+  createCorrelationContext,
+  detectAndClassifyIssue,
+  SELF_DEBUG_MODE 
+} from './lib/self-debug';
+import { AutoStartManager } from './lib/auto-start';
 
 interface WSClient {
   id: string;
@@ -33,6 +42,7 @@ class WebSocketManager {
   private clients: Map<string, WSClient> = new Map();
   private roomSubscribers: Set<string> = new Set();
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private idempotentRequests: Map<string, any> = new Map();
 
   initialize(server: any) {
     this.wss = new WebSocketServer({ server, path: '/ws-rooms' });
@@ -49,13 +59,16 @@ class WebSocketManager {
       };
       
       this.clients.set(clientId, client);
-      console.log(`WebSocket client connected: ${clientId}`);
+      
+      const context = createCorrelationContext();
+      DebugLogger.log(context, 'ws.client_connected', { clientId });
       
       // Send connection acknowledgment
       this.sendToClient(client, {
         type: 'connected',
         connectionId: clientId,
-        serverTs: Date.now()
+        serverTs: Date.now(),
+        protocolVersion: '1.0.0'
       });
       
       // Set up ping/pong for connection health
@@ -68,7 +81,13 @@ class WebSocketManager {
           const message = JSON.parse(data.toString());
           await this.handleMessage(client, message);
         } catch (error) {
-          console.error('Error handling WebSocket message:', error);
+          const context = createCorrelationContext();
+          const classification = detectAndClassifyIssue(error);
+          DebugLogger.log(context, 'ws.message_error', { 
+            error: error instanceof Error ? error.message : String(error), 
+            classification,
+            clientId: client.id 
+          });
           this.sendError(client, 'Invalid message format');
         }
       });
@@ -78,7 +97,11 @@ class WebSocketManager {
       });
       
       ws.on('error', (error) => {
-        console.error(`WebSocket error for client ${clientId}:`, error);
+        const context = createCorrelationContext();
+        DebugLogger.log(context, 'ws.connection_error', { 
+          clientId,
+          error: error instanceof Error ? error.message : String(error) 
+        });
       });
     });
     
@@ -153,18 +176,41 @@ class WebSocketManager {
   }
   
   private async handleRoomCreate(client: WSClient, payload: any) {
+    const context = createCorrelationContext(undefined, undefined, client.userId || undefined, payload.clientTs);
+    DebugLogger.log(context, 'room.create.start', { payload, clientId: client.id });
+    
     if (!client.userId) {
+      DebugLogger.log(context, 'room.create.auth_failed', { clientId: client.id });
       this.sendError(client, 'Not authenticated');
       return;
     }
     
-    const { name, visibility, password, maxPlayers, rounds, betCoins } = payload;
+    const { name, visibility, password, maxPlayers, rounds, betCoins, idempotencyKey } = payload;
     
-    // Generate unique room code
-    const code = this.generateRoomCode();
+    // Check for idempotency
+    if (idempotencyKey && this.idempotentRequests.has(idempotencyKey)) {
+      const existingResult = this.idempotentRequests.get(idempotencyKey);
+      DebugLogger.log(context, 'room.create.idempotent_duplicate', { idempotencyKey });
+      this.sendToClient(client, existingResult);
+      return;
+    }
+    
+    // Generate unique room code with retry logic
+    let code = this.generateRoomCode();
+    let retryCount = 0;
     
     try {
-      // Create room in database
+      // Ensure unique code
+      while (retryCount < 5) {
+        const existing = await db.select().from(gameRooms).where(eq(gameRooms.code, code)).limit(1);
+        if (existing.length === 0) break;
+        code = this.generateRoomCode();
+        retryCount++;
+      }
+      
+      DebugLogger.log(context, 'room.create.code_generated', { code, retryCount });
+      
+      // Start transaction for atomic room creation
       const [room] = await db.insert(gameRooms).values({
         code,
         name: name || `${client.userId}'s Room`,
@@ -188,27 +234,65 @@ class WebSocketManager {
         lastActivityAt: new Date()
       }).returning();
       
-      // Add creator as first participant
-      await db.insert(gameParticipants).values({
+      // Add creator as first participant  
+      const [participant] = await db.insert(gameParticipants).values({
         gameRoomId: room.id,
         userId: client.userId,
         joinOrder: 1,
         playerIndex: 0,
         isHost: true,
+        isReady: false,
         connected: true,
         connectionId: client.id,
         betPaid: betCoins || 0
+      }).returning();
+      
+      // Capture state snapshot
+      const participants = await db.select().from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
+      
+      const snapshot = DebugLogger.captureSnapshot(room, participants);
+      context.roomId = room.id;
+      context.roomCode = code;
+      
+      DebugLogger.log(context, 'room.create.committed', { 
+        roomId: room.id, 
+        code,
+        snapshot 
       });
       
       // Update client's room code
       client.roomCode = code;
       
-      // Send room created event
-      this.sendToClient(client, {
+      // Prepare response
+      const response = {
         type: 'room:created',
         room: await this.getRoomCard(room),
-        serverTs: Date.now()
-      });
+        serverTs: Date.now(),
+        eventId: uuidv4()
+      };
+      
+      // Store for idempotency
+      if (idempotencyKey) {
+        this.idempotentRequests.set(idempotencyKey, response);
+        setTimeout(() => this.idempotentRequests.delete(idempotencyKey), 60000);
+      }
+      
+      // Send room created event
+      this.sendToClient(client, response);
+      
+      // Track ACK
+      const ackStats = await AckTracker.waitForAcks(
+        response.eventId,
+        'room:created',
+        [client.id],
+        2000
+      );
+      
+      DebugLogger.log(context, 'room.create.ack_stats', ackStats);
       
       // Broadcast room update to list subscribers
       await this.broadcastRoomListUpdate('added', room);
@@ -217,13 +301,27 @@ class WebSocketManager {
       await this.logAuditEvent(room.id, client.userId, 'room_created', { code, name });
       
     } catch (error) {
-      console.error('Error creating room:', error);
+      const classification = detectAndClassifyIssue(error, { context });
+      DebugLogger.log(context, 'room.create.error', { 
+        error: error instanceof Error ? error.message : String(error),
+        classification 
+      });
+      DebugLogger.triggerTriage(
+        'Room creation failed',
+        classification,
+        context.roomId,
+        { error: error instanceof Error ? error.message : String(error) }
+      );
       this.sendError(client, 'Failed to create room');
     }
   }
   
   private async handleRoomJoin(client: WSClient, payload: { code: string; password?: string }) {
+    const context = createCorrelationContext(undefined, code, client.userId || undefined, payload.clientTs);
+    DebugLogger.log(context, 'room.join.start', { code, clientId: client.id });
+    
     if (!client.userId) {
+      DebugLogger.log(context, 'room.join.auth_failed', { clientId: client.id });
       this.sendError(client, 'Not authenticated');
       return;
     }
@@ -259,31 +357,47 @@ class WebSocketManager {
         }
       }
       
+      // Update context
+      context.roomId = room.id;
+      context.roomCode = code;
+      
       // Check if already in room
       const existing = await db.select().from(gameParticipants)
         .where(and(
           eq(gameParticipants.gameRoomId, room.id),
-          eq(gameParticipants.userId, client.userId)
+          eq(gameParticipants.userId, client.userId),
+          sql`${gameParticipants.leftAt} IS NULL`
         ));
       
       if (existing.length > 0) {
+        DebugLogger.log(context, 'room.join.already_in_room', { 
+          userId: client.userId,
+          roomId: room.id 
+        });
         this.sendError(client, 'Already in room');
         return;
       }
       
       // Add participant
       const joinOrder = room.playerCount + 1;
-      await db.insert(gameParticipants).values({
+      const [participant] = await db.insert(gameParticipants).values({
         gameRoomId: room.id,
         userId: client.userId,
         joinOrder,
         playerIndex: room.playerCount,
         isHost: false,
+        isReady: false,
         connected: true,
         connectionId: client.id,
         betPaid: room.betAmount,
         joinedAt: new Date(),
         lastSeenAt: new Date()
+      }).returning();
+      
+      DebugLogger.log(context, 'room.join.participant_added', { 
+        participantId: participant.id,
+        joinOrder,
+        playerIndex: room.playerCount
       });
       
       // Update room player count
@@ -301,16 +415,30 @@ class WebSocketManager {
       // Get updated room info
       const updatedRoom = { ...room, playerCount: room.playerCount + 1 };
       
-      // Send join confirmation
-      this.sendToClient(client, {
+      // Capture state snapshot after join
+      const participants = await db.select().from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
+      
+      const snapshot = DebugLogger.captureSnapshot(updatedRoom, participants);
+      DebugLogger.log(context, 'room.join.committed', { snapshot });
+      
+      // Check invariants
+      InvariantChecker.checkRoomInvariants(updatedRoom, participants);
+      
+      // Send join confirmation with event ID for ACK tracking
+      const response = {
         type: 'player:joined',
+        eventId: uuidv4(),
         code,
         player: {
           id: client.userId,
           joinOrder
         },
         serverTs: Date.now()
-      });
+      };
       
       // Broadcast to room members
       this.broadcastToRoom(code, {
@@ -455,8 +583,143 @@ class WebSocketManager {
   }
   
   private async handleReadySet(client: WSClient, payload: { code: string; ready: boolean }) {
-    // Implementation for ready state toggle
-    // TODO: Implement this method
+    const context = createCorrelationContext(undefined, payload.code, client.userId || undefined);
+    DebugLogger.log(context, 'room.ready.start', { 
+      code: payload.code, 
+      ready: payload.ready,
+      clientId: client.id 
+    });
+    
+    if (!client.userId) {
+      DebugLogger.log(context, 'room.ready.auth_failed', { clientId: client.id });
+      this.sendError(client, 'Not authenticated');
+      return;
+    }
+    
+    const { code, ready } = payload;
+    
+    try {
+      // Find room
+      const [room] = await db.select().from(gameRooms).where(eq(gameRooms.code, code));
+      
+      if (!room) {
+        DebugLogger.log(context, 'room.ready.room_not_found', { code });
+        this.sendError(client, 'Room not found');
+        return;
+      }
+      
+      context.roomId = room.id;
+      context.roomCode = code;
+      
+      // Find participant
+      const [participant] = await db.select().from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          eq(gameParticipants.userId, client.userId),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
+      
+      if (!participant) {
+        DebugLogger.log(context, 'room.ready.participant_not_found', { 
+          userId: client.userId,
+          roomId: room.id 
+        });
+        this.sendError(client, 'Not in room');
+        return;
+      }
+      
+      // Update ready state
+      await db.update(gameParticipants)
+        .set({ 
+          isReady: ready,
+          lastSeenAt: new Date()
+        })
+        .where(eq(gameParticipants.id, participant.id));
+      
+      DebugLogger.log(context, 'room.ready.state_updated', { 
+        participantId: participant.id,
+        ready 
+      });
+      
+      // Get all participants to check auto-start
+      const participants = await db.select().from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
+      
+      // Capture snapshot
+      const snapshot = DebugLogger.captureSnapshot(room, participants);
+      DebugLogger.log(context, 'room.ready.snapshot', { snapshot });
+      
+      // Broadcast ready state change
+      const eventId = uuidv4();
+      this.broadcastToRoom(code, {
+        type: 'player:ready',
+        eventId,
+        code,
+        playerId: client.userId,
+        ready,
+        serverTs: Date.now()
+      });
+      
+      // Check and trigger auto-start if conditions are met
+      const autoStartResult = await AutoStartManager.checkAndAutoStart(room.id);
+      
+      DebugLogger.log(context, 'room.ready.autostart_result', {
+        started: autoStartResult.started,
+        reason: autoStartResult.reason,
+        playerCount: participants.length,
+        allReady: participants.every(p => p.isReady)
+      });
+      
+      if (autoStartResult.started) {
+        // Auto-start was triggered, wait for it to complete
+        setTimeout(async () => {
+          // Get updated room state
+          const [updatedRoom] = await db.select().from(gameRooms).where(eq(gameRooms.id, room.id));
+          
+          if (updatedRoom && updatedRoom.state === 'active') {
+            // Broadcast game started event
+            const gameStartEventId = uuidv4();
+            const gameStartEvent = {
+              type: 'game:started',
+              eventId: gameStartEventId,
+              code,
+              gameState: updatedRoom.gameState,
+              serverTs: Date.now()
+            };
+            
+            this.broadcastToRoom(code, gameStartEvent);
+            
+            // Track ACKs for game:started
+            const clientIds = Array.from(this.clients.values())
+              .filter(c => c.roomCode === code)
+              .map(c => c.id);
+            
+            const ackStats = await AckTracker.waitForAcks(
+              gameStartEventId,
+              'game:started',
+              clientIds,
+              3000
+            );
+            
+            DebugLogger.log(context, 'room.ready.game_started_acks', ackStats);
+          }
+        }, 2500); // Wait slightly more than the 2s auto-start delay
+      }
+      
+      // Log audit event
+      await this.logAuditEvent(room.id, client.userId, 'ready_changed', { ready });
+      
+    } catch (error) {
+      const classification = detectAndClassifyIssue(error, { context });
+      DebugLogger.log(context, 'room.ready.error', { 
+        error: error instanceof Error ? error.message : String(error),
+        classification 
+      });
+      this.sendError(client, 'Failed to update ready state');
+    }
   }
   
   private async handleGameStart(client: WSClient, payload: { code: string }) {
