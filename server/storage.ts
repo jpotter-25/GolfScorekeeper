@@ -372,10 +372,6 @@ export class DatabaseStorage implements IStorage {
         hostId: roomData.hostId,
         betAmount: roomData.betAmount || 0,
         maxPlayers: roomData.maxPlayers || 4,
-        playerCount: 0,
-        visibility: 'public',
-        passwordHash: null,
-        state: 'waiting',
         players: [], // Empty array initially, players added when they join
         prizePool: 0, // Will be updated as players join
         status: 'waiting',
@@ -387,7 +383,7 @@ export class DatabaseStorage implements IStorage {
         isPrivate: roomData.isPrivate !== undefined ? roomData.isPrivate : true,
         settingsLocked: false,
         lastActivityAt: new Date(),
-        createdAt: new Date()
+        createdAt: new Date().toISOString()
       })
       .returning();
     return room;
