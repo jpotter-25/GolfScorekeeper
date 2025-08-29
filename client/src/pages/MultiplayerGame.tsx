@@ -13,14 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Crown, Wifi, WifiOff, Clock, ArrowLeft, Home, Copy } from 'lucide-react';
+import { Users, Crown, Wifi, WifiOff, Clock, ArrowLeft, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 
 export default function MultiplayerGame() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const { toast } = useToast();
   const [gameRoomId, setGameRoomId] = useState<string>('');
   const [showLobby, setShowLobby] = useState(true);
   const [gameSettings, setGameSettings] = useState<GameSettings>({
@@ -91,31 +89,6 @@ export default function MultiplayerGame() {
   const handleLeaveRoom = () => {
     leaveGameRoom();
     setLocation('/multiplayer');
-  };
-
-  const handleCopyRoomCode = async () => {
-    try {
-      await navigator.clipboard.writeText(gameRoomId);
-      toast({
-        title: "Copied!",
-        description: "Room code copied to clipboard",
-        duration: 2000,
-      });
-    } catch (error) {
-      // Fallback for browsers that don't support clipboard API
-      const textArea = document.createElement('textarea');
-      textArea.value = gameRoomId;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      toast({
-        title: "Copied!",
-        description: "Room code copied to clipboard",
-        duration: 2000,
-      });
-    }
   };
 
   const handleStartGame = () => {
@@ -193,24 +166,7 @@ export default function MultiplayerGame() {
               </div>
               Game Lobby
             </h1>
-            <div className="flex items-center justify-center gap-3">
-              <span className="text-game-cream opacity-90">Room Code:</span>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-game-gold text-2xl font-bold bg-slate-800/50 px-3 py-1 rounded-lg border border-game-gold/30" data-testid="text-room-code">
-                  {gameRoomId}
-                </span>
-                <Button
-                  onClick={handleCopyRoomCode}
-                  variant="outline"
-                  size="sm"
-                  className="bg-slate-800/80 hover:bg-slate-700/80 border-2 border-game-gold/30 text-game-gold hover:text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                  data-testid="button-copy-room-code"
-                >
-                  <Copy className="w-4 h-4 mr-1" />
-                  Copy
-                </Button>
-              </div>
-            </div>
+            <p className="text-game-cream opacity-90">Room Code: <span className="font-mono text-game-gold text-2xl font-bold bg-slate-800/50 px-3 py-1 rounded-lg border border-game-gold/30">{gameRoomId}</span></p>
             <div className="flex justify-center">{getConnectionStatusBadge()}</div>
           </div>
 

@@ -182,10 +182,7 @@ class WebSocketManager {
           rounds: rounds || 9,
           betCoins: betCoins || 0
         },
-        players: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastActivityAt: new Date()
+        players: []
       }).returning();
       
       // Add creator as first participant
@@ -281,9 +278,7 @@ class WebSocketManager {
         isHost: false,
         connected: true,
         connectionId: client.id,
-        betPaid: room.betAmount,
-        joinedAt: new Date(),
-        lastSeenAt: new Date()
+        betPaid: room.betAmount
       });
       
       // Update room player count

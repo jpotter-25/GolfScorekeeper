@@ -84,21 +84,83 @@ export default function Multiplayer() {
     retry: false,
   });
 
-  // Initialize WebSocket connection (temporarily disabled to fix room creation)
+  // Initialize WebSocket connection
   useEffect(() => {
-    // WebSocket disabled for now - using API-based room management
-    setIsWsConnected(false);
+    if (!user?.id || wsInitialized.current) return;
+    
+    wsInitialized.current = true;
+    
+    // Connect to WebSocket server
+    wsManager.connect(user.id).then(() => {
+      setIsWsConnected(true);
+      // Subscribe to room list updates
+      wsManager.subscribeToRoomList();
+    }).catch(error => {
+      console.error('WebSocket connection failed:', error);
+      setIsWsConnected(false);
+    });
+    
+    // Set up WebSocket event listeners
+    wsManager.on('room:list:snapshot', (message) => {
+      setWsRooms(message.rooms || []);
+    });
+    
+    wsManager.on('room:list:diff', (message) => {
+      if (message.added) {
+        setWsRooms(prev => [...prev, ...message.added]);
+      }
+      if (message.updated) {
+        setWsRooms(prev => prev.map(room => {
+          const updated = message.updated.find((r: RoomCard) => r.code === room.code);
+          return updated || room;
+        }));
+      }
+      if (message.removed) {
+        setWsRooms(prev => prev.filter(room => !message.removed.includes(room.code)));
+      }
+    });
+    
+    wsManager.on('room:created', (message) => {
+      toast({
+        title: "Room Created",
+        description: `Room ${message.room.code} created successfully!`,
+      });
+      // Navigate to room
+      handleJoinLobby(message.room.code, message.room.betCoins);
+    });
+    
+    wsManager.on('room:joined', (message) => {
+      toast({
+        title: "Joined Room",
+        description: `Successfully joined room ${message.code}`,
+      });
+    });
+    
+    wsManager.on('error', (message) => {
+      toast({
+        title: "Error",
+        description: message.message,
+        variant: "destructive",
+      });
+    });
+    
+    return () => {
+      if (wsManager.isConnected) {
+        wsManager.unsubscribeFromRoomList();
+      }
+    };
   }, [user?.id, toast]);
   
-  // Fetch ALL available lobbies
+  // Fetch ALL available lobbies (fallback for when WebSocket is not connected)
   const { data: allLobbiesData = [], isLoading: lobbiesLoading } = useQuery({
     queryKey: ['/api/game-rooms/all-lobbies'],
     queryFn: () => fetch('/api/game-rooms/all-lobbies').then(r => r.json()),
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: isWsConnected ? false : 5000, // Only poll if WebSocket is not connected
+    enabled: !isWsConnected, // Disable if WebSocket is connected
   });
   
-  // Use API data
-  const roomsData = allLobbiesData;
+  // Use WebSocket rooms if connected, otherwise use API data
+  const roomsData = isWsConnected ? wsRooms : allLobbiesData;
 
   // Filter lobbies based on selected stake filters
   const filteredLobbies = stakeFilters.length === 0 
@@ -138,8 +200,18 @@ export default function Multiplayer() {
       return;
     }
     
-    // Always use API for now
-    handleCreateLobby(betAmount);
+    // Use WebSocket to create room if connected
+    if (isWsConnected) {
+      wsManager.createRoom({
+        name: `${user?.firstName || 'Player'}'s Room`,
+        visibility: 'public',
+        maxPlayers: 4,
+        rounds: 9,
+        betCoins: betAmount
+      });
+    } else {
+      handleCreateLobby(betAmount);
+    }
     setShowCreateRoom(false);
   };
 
@@ -152,20 +224,13 @@ export default function Multiplayer() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createData)
     })
-    .then(r => {
-      if (!r.ok) {
-        throw new Error('Failed to create room');
-      }
-      return r.json();
-    })
+    .then(r => r.json())
     .then(data => {
       if (data.code) {
-        // Navigate to the game page with the room code
-        setLocation(`/game?room=${data.code}`);
+        window.location.href = `/multiplayer/lobby/${data.code}`;
       }
     })
     .catch(error => {
-      console.error('Error creating room:', error);
       toast({
         title: "Error", 
         description: "Failed to create lobby",
@@ -183,20 +248,13 @@ export default function Multiplayer() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(joinData)
     })
-    .then(r => {
-      if (!r.ok) {
-        throw new Error('Failed to join room');
-      }
-      return r.json();
-    })
+    .then(r => r.json())
     .then(data => {
-      if (data.success || data.code) {
-        // Navigate to the game page with the room code
-        setLocation(`/game?room=${lobbyCode}`);
+      if (data.code) {
+        window.location.href = `/multiplayer/lobby/${data.code}`;
       }
     })
     .catch(error => {
-      console.error('Error joining room:', error);
       toast({
         title: "Error",
         description: "Failed to join lobby",
@@ -215,8 +273,12 @@ export default function Multiplayer() {
       return;
     }
     
-    // Always use API for now
-    handleJoinLobby(privateRoomCode.toUpperCase(), 0);
+    // Use WebSocket to join room if connected
+    if (isWsConnected) {
+      wsManager.joinRoom(privateRoomCode.toUpperCase());
+    } else {
+      handleJoinLobby(privateRoomCode.toUpperCase(), 0);
+    }
   };
 
   const handleAddFriend = () => {

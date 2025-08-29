@@ -94,7 +94,6 @@ export interface IStorage {
   getBettingRoomsByAmount(betAmount: number): Promise<any[]>;
   getGameRoom(code: string): Promise<GameRoom | undefined>;
   getGameRooms(): Promise<GameRoom[]>;
-  getAllPublicRooms(): Promise<any[]>;
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
   joinGameRoom(roomId: string, userId: string, betAmount?: number): Promise<GameParticipant>;
   leaveGameRoom(userId: string, gameRoomId: string): Promise<void>;
@@ -359,9 +358,7 @@ export class DatabaseStorage implements IStorage {
         ...roomData,
         players: [], // Empty array initially, players added when they join
         isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastActivityAt: new Date()
+        createdAt: new Date().toISOString()
       })
       .returning();
     return room;
@@ -382,8 +379,7 @@ export class DatabaseStorage implements IStorage {
         isPrivate: true,
         settingsLocked: false,
         lastActivityAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: new Date().toISOString()
       })
       .returning();
     return room;
@@ -413,31 +409,6 @@ export class DatabaseStorage implements IStorage {
 
   async getGameRooms(): Promise<GameRoom[]> {
     const rooms = await db.select().from(gameRooms);
-    return rooms;
-  }
-  
-  async getAllPublicRooms(): Promise<any[]> {
-    const rooms = await db
-      .select({
-        id: gameRooms.id,
-        code: gameRooms.code,
-        name: gameRooms.name,
-        hostId: gameRooms.hostId,
-        crownHolderName: gameRooms.crownHolderId,
-        betAmount: gameRooms.betAmount,
-        maxPlayers: gameRooms.maxPlayers,
-        rounds: gameRooms.rounds,
-        status: gameRooms.status,
-        isPrivate: gameRooms.isPrivate,
-        playerCount: sql<number>`(
-          SELECT COUNT(*) 
-          FROM ${gameParticipants} 
-          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
-          AND ${gameParticipants.leftAt} IS NULL
-        )`
-      })
-      .from(gameRooms)
-      .where(eq(gameRooms.isPublished, true));
     return rooms;
   }
 
