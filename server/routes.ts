@@ -3,29 +3,10 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { MultiplayerWebSocketHandler } from "./websocket-handler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
-
-  const httpServer = createServer(app);
-  
-  // Initialize comprehensive multiplayer WebSocket handler
-  const multiplayerHandler = new MultiplayerWebSocketHandler(app, storage, httpServer);
-  
-  // Connect WebSocket handler to storage for real-time updates
-  (storage as any).setWebSocketHandler(multiplayerHandler);
-
-  // Set up automatic cleanup every 5 minutes
-  setInterval(async () => {
-    try {
-      await (storage as any).cleanupEmptyRooms();
-      await (storage as any).cleanupAbandonedSessions();
-    } catch (error) {
-      console.error('❌ Automatic cleanup failed:', error);
-    }
-  }, 5 * 60 * 1000); // 5 minutes
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -326,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/game-rooms/create-lobby', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { betAmount, maxPlayers = 4, rounds = 9, isPrivate = false } = req.body;
+      const { betAmount, maxPlayers = 4, rounds = 9, isPrivate = true } = req.body;
       
       // Check if user has enough coins for non-free games
       if (betAmount > 0) {
@@ -343,8 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hostId: userId,
         betAmount,
         maxPlayers,
-        settings: { rounds, mode: 'online' },
-        isPrivate
+        settings: { rounds, mode: 'online' }
       });
       
       // Creator automatically joins and gets crown
@@ -514,19 +494,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Now update the ready status via gameParticipants table  
       await storage.setPlayerReady(gameRoom.id, userId, isReady);
       console.log('Ready status updated:', { userId, isReady });
-
-      // Check if all players are ready
-      const participants = await storage.getGameRoomParticipants(gameRoom.id);
-      const allReady = participants.length >= 2 && participants.every(p => p.isReady);
-
-      // Broadcast ready status change to all players in the room via WebSocket
-      await multiplayerHandler.broadcastToRoom(gameRoom.id, {
-        type: 'player_ready_changed',
-        userId,
-        isReady,
-        allReady,
-        timestamp: Date.now()
-      });
 
       res.json({ success: true, isReady });
     } catch (error) {
@@ -768,15 +735,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  // The old WebSocket implementation has been replaced by MultiplayerWebSocketHandler
-  // which provides comprehensive multiplayer functionality including:
-  // - Authoritative server architecture
-  // - Real-time lobby updates
-  // - Host migration system
-  // - Connection resilience
-  // - AI takeover for disconnected players
+  const httpServer = createServer(app);
   
-  /* Old implementation commented out - keeping for reference
+  // WebSocket server setup for real-time multiplayer
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store active connections with user information
+  const activeConnections = new Map<string, {
+    ws: WebSocket;
+    userId: string;
+    gameRoomId?: string;
+    isSpectator?: boolean;
+  }>();
+  
+  // Store game rooms with active players
+  const activeGameRooms = new Map<string, {
+    participants: Set<string>;
+    spectators: Set<string>;
+    gameState?: any;
+  }>();
+
   wss.on('connection', (ws, req) => {
     console.log('WebSocket connection established');
     
@@ -1436,11 +1414,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ws.send(JSON.stringify({ type: 'error', message: 'Failed to start game' }));
     }
   }
-  */ // End of old WebSocket implementation
-  
-  // The idle detection is now handled in the MultiplayerWebSocketHandler
-  // keeping legacy idle detection temporarily for backward compatibility
-  /*
+
+  // Idle detection system for crown holders
   setInterval(async () => {
     try {
       // Get all active rooms with crown holders
@@ -1496,7 +1471,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Idle detection error:', error);
     }
   }, 60000); // Check every minute
-  */
-  
+
   return httpServer;
 }
