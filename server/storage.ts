@@ -368,15 +368,23 @@ export class DatabaseStorage implements IStorage {
     const [room] = await db
       .insert(gameRooms)
       .values({
-        ...roomData,
+        code: roomData.code,
+        hostId: roomData.hostId,
+        betAmount: roomData.betAmount || 0,
+        maxPlayers: roomData.maxPlayers || 4,
+        playerCount: 0,
+        visibility: 'public',
+        passwordHash: null,
+        state: 'waiting',
         players: [], // Empty array initially, players added when they join
         prizePool: 0, // Will be updated as players join
         status: 'waiting',
         isActive: true,
+        settings: roomData.settings || { rounds: 9, mode: 'online' },
         // Crown-based lobby management - creator gets crown
         crownHolderId: roomData.hostId,
         isPublished: false, // Start as unpublished (private)
-        isPrivate: true,
+        isPrivate: roomData.isPrivate !== undefined ? roomData.isPrivate : true,
         settingsLocked: false,
         lastActivityAt: new Date(),
         createdAt: new Date()
