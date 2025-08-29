@@ -49,7 +49,7 @@ class WebSocketManager {
     // Determine WebSocket URL based on environment
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    this.url = `${protocol}//${host}/ws-rooms`;
+    this.url = `${protocol}//${host}/ws`;
   }
 
   connect(userId: string): Promise<void> {
