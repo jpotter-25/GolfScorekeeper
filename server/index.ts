@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seedData";
-import { wsManager } from "./websocket";
+import { instrumentedWsManager } from "./websocket-instrumented";
 
 const app = express();
 app.use(express.json());
@@ -50,9 +50,9 @@ app.use((req, res, next) => {
   
   const server = await registerRoutes(app);
   
-  // Initialize WebSocket server
-  wsManager.initialize(server);
-  log("WebSocket server initialized");
+  // Initialize instrumented WebSocket server with Deep Debug Mode
+  instrumentedWsManager.initialize(server);
+  log("Instrumented WebSocket server initialized with Deep Debug Mode");
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -87,7 +87,7 @@ app.use((req, res, next) => {
   // Graceful shutdown
   process.on('SIGTERM', () => {
     log('SIGTERM received, shutting down gracefully...');
-    wsManager.shutdown();
+    instrumentedWsManager.shutdown();
     server.close(() => {
       log('Server closed');
       process.exit(0);

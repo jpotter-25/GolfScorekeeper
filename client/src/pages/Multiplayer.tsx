@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getCosmeticAsset } from "@/utils/cosmeticAssets";
 import { wsManager, type RoomCard } from "@/lib/websocket";
+import { DebugHUD } from "@/components/DebugHUD";
 import type { GameStats } from "@shared/schema";
 
 interface GameRoom {
@@ -321,6 +322,8 @@ export default function Multiplayer() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#2a3f5f' }}>
+      {/* Debug HUD for development */}
+      <DebugHUD />
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-4">

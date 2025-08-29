@@ -1,0 +1,173 @@
+Objective: Implement robust, no‑nonsense debugging & observability for the Online Multiplayer Rooms system (event‑driven cleanup version). This is a zero‑code directive: do exactly what’s written, in the locations specified, and prove it with artifacts. Do not change gameplay logic.
+
+1) Global Requirements
+
+Introduce a Deep Debug Mode switch (environment/config flag). When enabled:
+
+Emit verbose, structured logs for every room mutation and critical emit.
+
+Capture small state snapshots (redacted) on key transitions.
+
+Enable strict assertions for invariants; fail fast in dev.
+
+Attach these to every request/event: request ID, room operation ID, server timestamp, protocol version.
+
+Keep client and server protocol versions in sync; reject on mismatch with a clear upgrade message (no silent failures).
+
+2) Where to Insert Instrumentation (server)
+
+For each item, add: (a) entry log, (b) validation log with inputs, (c) transaction start/commit, (d) post‑commit recompute + emit, (e) final outcome log, (f) error log (with reason).
+
+Room creation handler (socket room:create and/or REST POST /rooms)
+
+Join handler (socket room:join/REST POST /rooms/{code}/join)
+
+Leave/disconnect handler (socket room:leave, socket connection close)
+
+Settings update handler (socket room:settings:update)
+
+Ready toggle handler (socket room:ready:set)
+
+Auto‑start path (triggered by last ready change while state=waiting)
+
+State transition path (waiting→active, active→finished, reset→waiting)
+
+Host migration path (on host leave/disconnect)
+
+Game initialization entrypoint (the first moment a game is created/seeded)
+
+Emit/broadcast layer (the utility that sends messages to clients)
+
+3) Transaction & Emission Discipline
+
+Wrap all mutating operations above in a transaction at a strict isolation level.
+
+Perform all broadcasts only after commit using a post‑commit hook.
+
+Immediately after each commit, recompute the listing/purge invariants from the spec:
+
+Delete room if playerCount==0.
+
+Public + waiting + not full ⇒ room must be listed; otherwise not listed.
+
+Log the fact that these invariants were evaluated and the decision taken (listed, delisted, deleted).
+
+4) Idempotency & Conflict Handling
+
+Require an idempotency key for create/join.
+
+If the same key repeats, return the original outcome, and log a duplicate event instead of failing the second attempt.
+
+Ensure room code uniqueness; if collision occurs, retry generation and log the retry count.
+
+5) Critical Event Acknowledgements
+
+For these emits, wait for client acknowledgements (ACKs) with a quorum and timeout, and record the ack rate:
+
+Room deleted
+
+Game started
+
+Host changed
+
+Room listing diff published If quorum is not met, log a warning with details (how many clients, how many ACKs, which clients didn’t ACK).
+
+6) Invariant Assertions (post‑mutation)
+
+After each mutation and before broadcasting, assert the following and log pass/fail:
+
+Player count never exceeds max.
+
+State is one of: waiting, active, finished.
+
+Listing decision matches the rules in the spec (list/delist/purge).
+
+If any assertion fails in dev, abort and surface a human‑readable error.
+
+7) State Snapshots (redacted)
+
+Capture a minimal snapshot at the following moments and attach it to the log (omit secrets/PII):
+
+After room creation commits
+
+After auto‑start decision commits
+
+At each state transition (waiting→active, active→finished, reset→waiting)
+
+After host migration decision Include: room ID, code, state, playerCount, maxPlayers, visibility, hostId, players (IDs, ready, connected, joinOrder), rounds, bet, server timestamp, protocol version, and (for game start) the RNG seed and current turn ID.
+
+8) Client‑Side Diagnostics (dev builds only)
+
+Render a small debug HUD in room/game screens showing: room state, playerCount/max, readyCount, hostId, protocolVersion, currentTurnId, msRemaining (derived from serverTs), and whether the client has ACKed the latest critical events.
+
+On reconnect, the client must immediately resubscribe and request a full state snapshot; log that the snapshot was requested and received.
+
+9) Targeted Fixes for Reported Issues (what to instrument)
+
+A) Room creation intermittently fails
+
+Log: validation inputs + decision; transaction start; commit success/failure; post‑commit read; listing decision; final broadcast.
+
+Record if the request reused an idempotency key; record generated room code and any retries due to collision.
+
+If a failure occurs, capture the snapshot of any partial room state that might exist and the exact failure reason.
+
+B) Everyone ready but game doesn’t start
+
+On every ready toggle while waiting, re‑evaluate allReady && playerCount ≥ 2 immediately and log the result.
+
+If false, log exactly which precondition is false (e.g., player not connected, stale ready flag, settings lock, concurrent state change) and do not emit.
+
+If true, log the state flip to active, the game initialization trigger, and the game started broadcast with ACK rate.
+
+C) Game loads but is non‑functional
+
+Require the client to acknowledge receipt of the authoritative initial game state before enabling any inputs; log the client’s acknowledgment.
+
+Log that the initial state includes RNG seed, current turn ID, and server timestamp used for timers.
+
+Log move rejections with a clear reason so we can correlate with UI behavior.
+
+10) Repro Scenarios (must be demonstrable)
+
+Create → list: show the full sequence of logs ending with a listing decision.
+
+Join until full → instant delist: show the delist decision in the same post‑commit phase.
+
+Leave from full → instant relist: show the relist decision on the same tick.
+
+All ready → auto‑start once: show readiness evaluation, state flip, game init, start broadcast, and ACK rate.
+
+Disconnect during active → AI takeover → rejoin within window: logs proving each step.
+
+Last player leaves → immediate delete: show delete decision and broadcast.
+
+11) Deliverables (evidence of completion)
+
+A short log bundle (copy/paste) for each repro scenario above, captured with Deep Debug Mode enabled.
+
+A one‑page runbook describing how to enable/disable Deep Debug Mode and where logs/snapshots appear in Replit.
+
+A mapping table listing each handler (see Section 2) and confirming that entry/tx/post‑commit/assert/snapshot/emit logs were added.
+
+12) Acceptance Criteria (no code changes to gameplay)
+
+Zero intermittent failures across 100 room creation attempts when Deep Debug Mode is on (no unknown errors).
+
+Auto‑start triggers reliably whenever all players are ready and ≥2 players are present (100 iterations, zero stalls).
+
+Game becomes interactive only after the initial state ACK, and move rejections (if any) include explicit reasons in the logs.
+
+No invariant assertion failures during a 30‑minute soak test with create/join/leave/ready churn.
+
+13) What Not To Do
+
+Do not alter gameplay logic, timing thresholds, or event names without explicit instruction.
+
+Do not emit before a transaction commits.
+
+Do not log secrets or any player PII.
+
+14) Final Instruction to Claude 4.1 / Replit
+
+“Integrate the debugging/observability described above exactly in the listed handlers and post‑commit points, without changing gameplay logic. After implementation, run the Repro Scenarios and return (1) the logs for each scenario, (2) the runbook, and (3) the mapping table proving coverage. Use the Deep Debug Mode switch to enable/disable all of this without removing it.”
