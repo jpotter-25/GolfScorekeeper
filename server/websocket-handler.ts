@@ -926,6 +926,21 @@ export class MultiplayerWebSocketHandler {
           participant.disconnectedAt = Date.now();
           participant.connectionId = undefined;
           
+          // CRITICAL FIX: Mark user as left in database immediately
+          await this.storage.leaveGameRoom(connection.gameRoomId, connection.userId);
+          
+          // Remove from in-memory room state
+          roomState.participants.delete(connection.userId);
+          
+          // If room is now empty, clean it up immediately
+          if (roomState.participants.size === 0) {
+            this.rooms.delete(connection.gameRoomId);
+            await this.storage.deleteGameRoom(connection.gameRoomId);
+          }
+          
+          // Broadcast updates
+          await this.broadcastLobbyUpdate();
+          
           // Update database
           await this.storage.updateParticipantConnection(
             connection.gameRoomId,
