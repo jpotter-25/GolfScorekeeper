@@ -94,6 +94,7 @@ export interface IStorage {
   getBettingRoomsByAmount(betAmount: number): Promise<any[]>;
   getGameRoom(code: string): Promise<GameRoom | undefined>;
   getGameRooms(): Promise<GameRoom[]>;
+  getAllPublicRooms(): Promise<any[]>;
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
   joinGameRoom(roomId: string, userId: string, betAmount?: number): Promise<GameParticipant>;
   leaveGameRoom(userId: string, gameRoomId: string): Promise<void>;
@@ -358,7 +359,9 @@ export class DatabaseStorage implements IStorage {
         ...roomData,
         players: [], // Empty array initially, players added when they join
         isActive: true,
-        createdAt: new Date()
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastActivityAt: new Date()
       })
       .returning();
     return room;
@@ -368,22 +371,19 @@ export class DatabaseStorage implements IStorage {
     const [room] = await db
       .insert(gameRooms)
       .values({
-        code: roomData.code,
-        hostId: roomData.hostId,
-        betAmount: roomData.betAmount || 0,
-        maxPlayers: roomData.maxPlayers || 4,
+        ...roomData,
         players: [], // Empty array initially, players added when they join
         prizePool: 0, // Will be updated as players join
         status: 'waiting',
         isActive: true,
-        settings: roomData.settings || { rounds: 9, mode: 'online' },
         // Crown-based lobby management - creator gets crown
         crownHolderId: roomData.hostId,
         isPublished: false, // Start as unpublished (private)
-        isPrivate: roomData.isPrivate !== undefined ? roomData.isPrivate : true,
+        isPrivate: true,
         settingsLocked: false,
         lastActivityAt: new Date(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date(),
+        updatedAt: new Date()
       })
       .returning();
     return room;
@@ -413,6 +413,31 @@ export class DatabaseStorage implements IStorage {
 
   async getGameRooms(): Promise<GameRoom[]> {
     const rooms = await db.select().from(gameRooms);
+    return rooms;
+  }
+  
+  async getAllPublicRooms(): Promise<any[]> {
+    const rooms = await db
+      .select({
+        id: gameRooms.id,
+        code: gameRooms.code,
+        name: gameRooms.name,
+        hostId: gameRooms.hostId,
+        crownHolderName: gameRooms.crownHolderId,
+        betAmount: gameRooms.betAmount,
+        maxPlayers: gameRooms.maxPlayers,
+        rounds: gameRooms.rounds,
+        status: gameRooms.status,
+        isPrivate: gameRooms.isPrivate,
+        playerCount: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${gameParticipants} 
+          WHERE ${gameParticipants.gameRoomId} = ${gameRooms.id}
+          AND ${gameParticipants.leftAt} IS NULL
+        )`
+      })
+      .from(gameRooms)
+      .where(eq(gameRooms.isPublished, true));
     return rooms;
   }
 

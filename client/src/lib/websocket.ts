@@ -1,6 +1,6 @@
 // WebSocket connection manager for multiplayer functionality
 export type WSMessageType = 
-  | 'connected' | 'authenticated' | 'error' | 'auth'
+  | 'connected' | 'authenticated' | 'error' | 'authenticate' | 'auth_error'
   | 'room:created' | 'room:joined' | 'room:left' | 'room:deleted'
   | 'room:create' | 'room:join' | 'room:leave'
   | 'room:list:snapshot' | 'room:list:diff' | 'room:list:subscribe' | 'room:list:unsubscribe'
@@ -49,7 +49,7 @@ class WebSocketManager {
     // Determine WebSocket URL based on environment
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    this.url = `${protocol}//${host}/ws-rooms`;
+    this.url = `${protocol}//${host}/ws`;
   }
 
   connect(userId: string): Promise<void> {
@@ -88,7 +88,7 @@ class WebSocketManager {
           this.startPingInterval();
           
           // Authenticate immediately
-          this.send({ type: 'auth', userId });
+          this.send({ type: 'authenticate', userId });
           
           // Process queued messages
           while (this.messageQueue.length > 0) {
