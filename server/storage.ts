@@ -358,7 +358,7 @@ export class DatabaseStorage implements IStorage {
         ...roomData,
         players: [], // Empty array initially, players added when they join
         isActive: true,
-        createdAt: new Date().toISOString()
+        createdAt: new Date()
       })
       .returning();
     return room;
@@ -379,7 +379,7 @@ export class DatabaseStorage implements IStorage {
         isPrivate: true,
         settingsLocked: false,
         lastActivityAt: new Date(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date()
       })
       .returning();
     return room;
