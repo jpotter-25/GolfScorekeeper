@@ -316,7 +316,8 @@ class WebSocketManager {
     }
   }
   
-  private async handleRoomJoin(client: WSClient, payload: { code: string; password?: string }) {
+  private async handleRoomJoin(client: WSClient, payload: any) {
+    const { code, password } = payload;
     const context = createCorrelationContext(undefined, code, client.userId || undefined, payload.clientTs);
     DebugLogger.log(context, 'room.join.start', { code, clientId: client.id });
     
@@ -325,8 +326,6 @@ class WebSocketManager {
       this.sendError(client, 'Not authenticated');
       return;
     }
-    
-    const { code, password } = payload;
     
     try {
       // Find room
@@ -578,8 +577,108 @@ class WebSocketManager {
   }
   
   private async handleRoomSettingsUpdate(client: WSClient, payload: any) {
-    // Implementation for settings update (host only)
-    // TODO: Implement this method
+    const context = createCorrelationContext(undefined, payload.code, client.userId || undefined);
+    DebugLogger.log(context, 'room.settings.update.start', { 
+      code: payload.code,
+      settings: payload.settings,
+      clientId: client.id 
+    });
+    
+    if (!client.userId) {
+      DebugLogger.log(context, 'room.settings.update.auth_failed', { clientId: client.id });
+      this.sendError(client, 'Not authenticated');
+      return;
+    }
+    
+    const { code, settings } = payload;
+    
+    try {
+      // Find room
+      const [room] = await db.select().from(gameRooms).where(eq(gameRooms.code, code));
+      
+      if (!room) {
+        DebugLogger.log(context, 'room.settings.update.room_not_found', { code });
+        this.sendError(client, 'Room not found');
+        return;
+      }
+      
+      // Check if user is the host/crown holder
+      if (room.crownHolderId !== client.userId) {
+        DebugLogger.log(context, 'room.settings.update.not_host', { 
+          userId: client.userId,
+          crownHolderId: room.crownHolderId 
+        });
+        this.sendError(client, 'Only the host can update settings');
+        return;
+      }
+      
+      // Check if game hasn't started
+      if (room.state !== 'waiting') {
+        DebugLogger.log(context, 'room.settings.update.game_started', { state: room.state });
+        this.sendError(client, 'Cannot update settings after game has started');
+        return;
+      }
+      
+      // Update room settings
+      const currentSettings: any = room.settings || {};
+      const updatedSettings = {
+        ...currentSettings,
+        maxPlayers: settings.maxPlayers || currentSettings.maxPlayers || 4,
+        rounds: settings.rounds || currentSettings.rounds || 9,
+        betCoins: settings.betCoins !== undefined ? settings.betCoins : currentSettings.betCoins || 0
+      };
+      
+      await db.update(gameRooms)
+        .set({ 
+          settings: updatedSettings,
+          maxPlayers: updatedSettings.maxPlayers,
+          rounds: updatedSettings.rounds,
+          betAmount: updatedSettings.betCoins,
+          updatedAt: new Date()
+        })
+        .where(eq(gameRooms.id, room.id));
+      
+      DebugLogger.log(context, 'room.settings.update.success', { 
+        roomId: room.id,
+        code,
+        settings: updatedSettings 
+      });
+      
+      // Get updated room data with participants
+      const [updatedRoom] = await db.select().from(gameRooms).where(eq(gameRooms.id, room.id));
+      const participants = await db.select().from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
+      
+      // Broadcast settings update to all room members
+      const eventId = uuidv4();
+      this.broadcastToRoom(code, {
+        type: 'room:settings:updated',
+        eventId,
+        code,
+        settings: updatedSettings,
+        room: {
+          ...updatedRoom,
+          participants
+        },
+        serverTs: Date.now()
+      });
+      
+      // Broadcast to room list subscribers if public
+      if (room.visibility === 'public' || room.isPublished) {
+        await this.broadcastRoomListUpdate('updated', updatedRoom);
+      }
+      
+    } catch (error) {
+      const classification = detectAndClassifyIssue(error, { context });
+      DebugLogger.log(context, 'room.settings.update.error', { 
+        error: error instanceof Error ? error.message : String(error),
+        classification 
+      });
+      this.sendError(client, 'Failed to update settings');
+    }
   }
   
   private async handleReadySet(client: WSClient, payload: { code: string; ready: boolean }) {
@@ -653,6 +752,14 @@ class WebSocketManager {
       DebugLogger.log(context, 'room.ready.snapshot', { snapshot });
       
       // Broadcast ready state change
+      // Get updated room data with participants
+      const [updatedRoom] = await db.select().from(gameRooms).where(eq(gameRooms.id, room.id));
+      const updatedParticipants = await db.select().from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
+      
       const eventId = uuidv4();
       this.broadcastToRoom(code, {
         type: 'player:ready',
@@ -660,6 +767,10 @@ class WebSocketManager {
         code,
         playerId: client.userId,
         ready,
+        room: {
+          ...updatedRoom,
+          participants: updatedParticipants
+        },
         serverTs: Date.now()
       });
       

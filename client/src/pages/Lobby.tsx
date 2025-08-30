@@ -159,16 +159,32 @@ export default function Lobby() {
         break;
       
       case 'player:ready':
-        // Refresh room data to get updated participant info
+        // Update room data with participant info
+        if (message.room) {
+          setRoomData(message.room);
+          // Also update the ready status for the current user
+          const currentParticipant = message.room.participants?.find((p: any) => p.userId === user?.id);
+          if (currentParticipant) {
+            setIsReady(currentParticipant.isReady);
+          }
+        }
+        // Refresh room data to ensure consistency
         queryClient.invalidateQueries({ queryKey: [`/api/game-rooms/${roomCode}`] });
         break;
       
       case 'room:settings:updated':
-        setLocalSettings({ 
-          rounds: message.settings?.rounds || localSettings.rounds, 
-          maxPlayers: message.settings?.maxPlayers || localSettings.maxPlayers 
-        });
-        if (message.room) setRoomData(message.room);
+        // Update local settings and room data
+        if (message.settings) {
+          setLocalSettings({ 
+            rounds: message.settings.rounds || localSettings.rounds, 
+            maxPlayers: message.settings.maxPlayers || localSettings.maxPlayers 
+          });
+        }
+        if (message.room) {
+          setRoomData(message.room);
+        }
+        // Refresh room data to ensure consistency
+        queryClient.invalidateQueries({ queryKey: [`/api/game-rooms/${roomCode}`] });
         break;
       
       case 'game:auto_start:countdown':
@@ -411,7 +427,7 @@ export default function Lobby() {
               {isHost && (
                 <Button
                   onClick={handleStartGame}
-                  disabled={participants.length < 2 || room.settingsLocked}
+                  disabled={participants.length !== localSettings.maxPlayers || !participants.every((p: any) => p.isReady) || room.settingsLocked}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700 disabled:text-gray-500"
                   data-testid="button-start-game"
                 >
