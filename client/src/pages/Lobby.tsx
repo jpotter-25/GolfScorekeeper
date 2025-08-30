@@ -67,10 +67,10 @@ export default function Lobby() {
   }, [setLocation]);
 
   // Fetch initial room data
-  const { data: initialRoom, isLoading } = useQuery<GameRoom>({
+  const { data: initialRoom, isLoading, refetch } = useQuery<GameRoom>({
     queryKey: [`/api/game-rooms/${roomCode}`],
     enabled: !!roomCode,
-    refetchInterval: false // We'll use WebSocket for updates
+    refetchInterval: 2000 // Poll every 2 seconds to keep data fresh
   });
 
   // Connect to WebSocket for real-time updates
@@ -159,8 +159,7 @@ export default function Lobby() {
         break;
       
       case 'player:ready':
-        if (message.room) setRoomData(message.room);
-        // Refresh room data
+        // Refresh room data to get updated participant info
         queryClient.invalidateQueries({ queryKey: [`/api/game-rooms/${roomCode}`] });
         break;
       
@@ -266,6 +265,17 @@ export default function Lobby() {
   const room = roomData || initialRoom;
   const isHost = room?.crownHolderId === user?.id;
   const participants = room?.participants || [];
+  // Find current user's participant data to check if they're ready
+  const currentUserParticipant = participants.find(p => p.userId === user?.id);
+  const userIsReady = currentUserParticipant?.isReady || false;
+  
+  // Update local ready state when participant data changes
+  useEffect(() => {
+    if (currentUserParticipant) {
+      setIsReady(currentUserParticipant.isReady);
+    }
+  }, [currentUserParticipant?.isReady]);
+  
   const readyCount = participants.filter(p => p.isReady).length;
   const allReady = participants.length >= 2 && readyCount === participants.length;
 
@@ -395,7 +405,7 @@ export default function Lobby() {
                 }
                 data-testid="button-ready"
               >
-                {isReady ? "Not Ready" : "Ready"}
+                {isReady ? "Unready" : "Ready"}
               </Button>
               
               {isHost && (
