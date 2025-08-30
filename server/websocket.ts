@@ -216,6 +216,7 @@ class WebSocketManager {
         name: name || `${client.userId}'s Room`,
         hostId: client.userId,
         visibility: visibility || 'public',
+        isPublished: true,  // Always publish to Active Lobbies
         passwordHash: password ? this.hashPassword(password) : null,
         maxPlayers: maxPlayers || 4,
         rounds: rounds || 9,
@@ -666,10 +667,8 @@ class WebSocketManager {
         serverTs: Date.now()
       });
       
-      // Broadcast to room list subscribers if public
-      if (room.visibility === 'public' || room.isPublished) {
-        await this.broadcastRoomListUpdate('updated', updatedRoom);
-      }
+      // Always broadcast to room list subscribers to update Active Lobbies
+      await this.broadcastRoomListUpdate('updated', updatedRoom);
       
     } catch (error) {
       const classification = detectAndClassifyIssue(error, { context });
@@ -882,11 +881,18 @@ class WebSocketManager {
   }
   
   private broadcastToRoom(roomCode: string, data: any, excludeClientId?: string) {
+    let broadcastCount = 0;
     this.clients.forEach(client => {
       if (client.roomCode === roomCode && client.id !== excludeClientId) {
         this.sendToClient(client, data);
+        broadcastCount++;
       }
     });
+    
+    // Debug log for broadcasts
+    if (data.type) {
+      console.log(`[WebSocket] Broadcast ${data.type} to ${broadcastCount} clients in room ${roomCode}`);
+    }
   }
   
   private async broadcastRoomListUpdate(action: 'added' | 'updated' | 'removed', room: any) {
@@ -915,6 +921,9 @@ class WebSocketManager {
       ))
       .limit(1);
     
+    // Use settings from room.settings if available, otherwise fall back to room fields
+    const settings = room.settings || {};
+    
     return {
       code: room.code,
       name: room.name || 'Unnamed Room',
@@ -923,9 +932,9 @@ class WebSocketManager {
       hostName: host[0]?.userId || 'Unknown',
       hostHasCrown: true,
       playerCount: room.playerCount || 0,
-      maxPlayers: room.maxPlayers || 4,
-      rounds: room.rounds || 9,
-      betCoins: room.betAmount || 0,
+      maxPlayers: settings.maxPlayers || room.maxPlayers || 4,
+      rounds: settings.rounds || room.rounds || 9,
+      betCoins: settings.betCoins || room.betAmount || 0,
       state: room.state || 'waiting'
     };
   }

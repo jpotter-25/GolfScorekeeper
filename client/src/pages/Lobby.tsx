@@ -159,12 +159,14 @@ export default function Lobby() {
         break;
       
       case 'player:ready':
+        console.log('[Lobby] Received player:ready message:', message);
         // Update room data with participant info
         if (message.room) {
           setRoomData(message.room);
           // Also update the ready status for the current user
           const currentParticipant = message.room.participants?.find((p: any) => p.userId === user?.id);
           if (currentParticipant) {
+            console.log('[Lobby] Updating ready status for current user:', currentParticipant.isReady);
             setIsReady(currentParticipant.isReady);
           }
         }
@@ -173,6 +175,7 @@ export default function Lobby() {
         break;
       
       case 'room:settings:updated':
+        console.log('[Lobby] Received settings update:', message);
         // Update local settings and room data
         if (message.settings) {
           setLocalSettings({ 
@@ -185,6 +188,8 @@ export default function Lobby() {
         }
         // Refresh room data to ensure consistency
         queryClient.invalidateQueries({ queryKey: [`/api/game-rooms/${roomCode}`] });
+        // Also refresh Active Lobbies list
+        queryClient.invalidateQueries({ queryKey: ['/api/game-rooms/all-lobbies'] });
         break;
       
       case 'game:auto_start:countdown':
@@ -230,13 +235,16 @@ export default function Lobby() {
     if (!wsRef.current || !user) return;
     
     const newReadyState = !isReady;
-    setIsReady(newReadyState);
     
+    // Send ready status to server
     wsRef.current.send(JSON.stringify({
       type: 'room:ready:set',
       code: roomCode,
       ready: newReadyState
     }));
+    
+    // Don't update local state immediately - wait for server response
+    // This ensures we're always in sync with the server
   };
 
   const handleUpdateSettings = (field: 'rounds' | 'maxPlayers', value: number) => {
@@ -254,7 +262,7 @@ export default function Lobby() {
     wsRef.current.send(JSON.stringify({
       type: 'room:settings:update',
       code: roomCode,
-      settings: field === 'rounds' ? { rounds: value } : { maxPlayers: value }
+      settings: newSettings  // Send all settings to ensure proper sync
     }));
   };
 
