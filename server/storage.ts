@@ -589,6 +589,7 @@ export class DatabaseStorage implements IStorage {
         settings: gameRooms.settings,
         status: gameRooms.status,
         isPrivate: gameRooms.isPrivate,
+        playerCount: gameRooms.playerCount,
         currentPlayers: sql<number>`(
           SELECT COUNT(*) 
           FROM ${gameParticipants} 
@@ -599,7 +600,9 @@ export class DatabaseStorage implements IStorage {
       .from(gameRooms)
       .where(and(
         eq(gameRooms.isPublished, true),
-        eq(gameRooms.status, 'waiting')
+        eq(gameRooms.status, 'waiting'),
+        // Must have at least 1 player
+        sql`${gameRooms.playerCount} > 0`
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
     
