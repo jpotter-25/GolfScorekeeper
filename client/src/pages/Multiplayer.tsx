@@ -448,10 +448,21 @@ export default function Multiplayer() {
                 </div>
               ) : (
                 <div className="grid gap-3">
-                  {sortedLobbies.map((lobby: any) => {
+                  {sortedLobbies.filter((lobby: any) => {
+                    // Pre-filter to remove any rooms with 0 players
+                    const playerCount = Math.max(lobby.playerCount || 0, lobby.currentPlayers || 0);
+                    return playerCount > 0;
+                  }).map((lobby: any) => {
                     const userCoins = user?.currency || 0;
                     const betAmount = lobby.betCoins || lobby.betAmount || 0;
-                    const playerCount = lobby.playerCount || lobby.currentPlayers || 0;
+                    // Always use the maximum of playerCount and currentPlayers
+                    const playerCount = Math.max(lobby.playerCount || 0, lobby.currentPlayers || 0);
+                    
+                    // NEVER show rooms with 0 players - skip them entirely
+                    if (playerCount === 0) {
+                      console.warn(`[CLIENT] Skipping room ${lobby.code} with 0 players`);
+                      return null;
+                    }
                     const maxPlayers = lobby.maxPlayers || 4;
                     const canJoin = userCoins >= betAmount && playerCount < maxPlayers;
                     

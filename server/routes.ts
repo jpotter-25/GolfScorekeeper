@@ -297,6 +297,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // First, aggressively clean up any empty rooms
       const allRooms = await storage.getGameRooms();
+      console.log(`[API] Found ${allRooms.length} total rooms in database`);
+      
       for (const room of allRooms) {
         if (room.status === 'waiting') {
           const participants = await storage.getGameParticipants(room.id);
@@ -309,14 +311,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Now get the list
       const allLobbies = await storage.getAllPublishedLobbies();
+      console.log(`[API] getAllPublishedLobbies returned ${allLobbies.length} rooms`);
+      
+      // Log what we're about to return
+      for (const lobby of allLobbies) {
+        console.log(`[API] Room ${lobby.code}: playerCount=${lobby.playerCount}, currentPlayers=${lobby.currentPlayers}`);
+      }
       
       // Final filter - absolutely no rooms with 0 players
       const cleanLobbies = allLobbies.filter(lobby => {
-        if (!lobby.playerCount || lobby.playerCount === 0) {
-          console.log(`[API FILTER] Removing room ${lobby.code} with ${lobby.playerCount} players from response`);
+        const playerCount = lobby.playerCount || 0;
+        const currentPlayers = lobby.currentPlayers || 0;
+        const actualCount = Math.max(playerCount, currentPlayers);
+        
+        if (actualCount === 0) {
+          console.log(`[API FILTER] Removing room ${lobby.code} with 0 players from response`);
           return false;
         }
+        
+        // Fix the playerCount to be the actual count
+        lobby.playerCount = actualCount;
         return true;
+      });
+      
+      console.log(`[API] Returning ${cleanLobbies.length} rooms to client`);
+      
+      // Prevent caching to ensure fresh data
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
       });
       
       res.json(cleanLobbies);

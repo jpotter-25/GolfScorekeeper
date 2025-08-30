@@ -647,10 +647,14 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
+        // Use the actual current player count, not the stale playerCount field
+        const actualPlayerCount = room.currentPlayers || room.playerCount || 0;
+        
         return {
           ...room,
           crownHolderName,
-          playerCount: room.currentPlayers,
+          playerCount: actualPlayerCount,
+          currentPlayers: actualPlayerCount,
           rounds: (room.settings as any)?.rounds || 9,
           maxPlayers: (room.settings as any)?.maxPlayers || room.maxPlayers || 4
         };
