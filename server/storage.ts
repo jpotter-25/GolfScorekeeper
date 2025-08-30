@@ -788,11 +788,14 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
 
-    // Update room's prize pool
+    // Update room's prize pool and player count
+    const newPlayerCount = participantCount[0].count + 1;
     await db
       .update(gameRooms)
       .set({
-        prizePool: sql`${gameRooms.prizePool} + ${betAmount}`
+        prizePool: sql`${gameRooms.prizePool} + ${betAmount}`,
+        playerCount: newPlayerCount,
+        updatedAt: new Date()
       })
       .where(eq(gameRooms.id, roomId));
 
@@ -827,6 +830,30 @@ export class DatabaseStorage implements IStorage {
         eq(gameParticipants.userId, userId),
         eq(gameParticipants.gameRoomId, gameRoomId)
       ));
+    
+    // Update room player count
+    const [actualCount] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(gameParticipants)
+      .where(and(
+        eq(gameParticipants.gameRoomId, gameRoomId),
+        sql`${gameParticipants.leftAt} IS NULL`
+      ));
+    
+    if (actualCount.count === 0) {
+      console.log(`[Storage] Room ${gameRoomId} is now empty, deleting from database`);
+      // Delete empty room
+      await db.delete(gameRooms).where(eq(gameRooms.id, gameRoomId));
+    } else {
+      // Update player count
+      await db
+        .update(gameRooms)
+        .set({ 
+          playerCount: actualCount.count,
+          updatedAt: new Date()
+        })
+        .where(eq(gameRooms.id, gameRoomId));
+    }
   }
 
   async setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void> {

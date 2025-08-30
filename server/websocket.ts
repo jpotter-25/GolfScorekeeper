@@ -430,10 +430,18 @@ class WebSocketManager {
         playerIndex: room.playerCount
       });
       
-      // Update room player count
+      // Update room player count with actual count
+      const [actualCount] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
+      
       await db.update(gameRooms)
         .set({ 
-          playerCount: room.playerCount + 1,
+          playerCount: actualCount.count,
           updatedAt: new Date(),
           lastActivityAt: new Date()
         })
