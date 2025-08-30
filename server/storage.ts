@@ -579,6 +579,8 @@ export class DatabaseStorage implements IStorage {
 
   // Get ALL published lobbies (for consolidated view)
   async getAllPublishedLobbies(): Promise<any[]> {
+    // Removed debug logging
+    
     const rooms = await db
       .select({
         id: gameRooms.id,
@@ -607,6 +609,8 @@ export class DatabaseStorage implements IStorage {
         sql`${gameRooms.playerCount} > 0`
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
+    
+    // Debug logging removed for clean production
     
     // IMMEDIATELY delete any rooms with 0 actual players
     for (const room of rooms) {
@@ -649,14 +653,14 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
-        // Use the actual current player count, not the stale playerCount field
-        const actualPlayerCount = room.currentPlayers || room.playerCount || 0;
+        // Use the database playerCount field as it's more reliable than the Drizzle subquery
+        const actualPlayerCount = room.playerCount || 0; // Database field is correct
         
         return {
           ...room,
           crownHolderName,
           playerCount: actualPlayerCount,
-          currentPlayers: actualPlayerCount,
+          currentPlayers: actualPlayerCount, // Set both to the same reliable value
           rounds: (room.settings as any)?.rounds || 9,
           maxPlayers: (room.settings as any)?.maxPlayers || room.maxPlayers || 4
         };
@@ -675,13 +679,20 @@ export class DatabaseStorage implements IStorage {
   }): Promise<any> {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     
+    // Merge maxPlayers into settings to ensure it's preserved
+    const enhancedSettings = {
+      ...options.settings,
+      maxPlayers: options.maxPlayers,
+      rounds: options.rounds
+    };
+    
     // Create the game room with crown holder
     const gameRoom = await this.createBettingRoom({
       code,
       hostId: userId,
       betAmount: options.betAmount,
-      maxPlayers: options.maxPlayers,
-      settings: options.settings,
+      maxPlayers: options.maxPlayers, // Store in DB field
+      settings: enhancedSettings, // Also store in settings for consistency
       crownHolderId: userId, // Creator gets the crown
       isPrivate: options.isPrivate,
       isPublished: false, // Not published initially
