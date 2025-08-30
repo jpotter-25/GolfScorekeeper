@@ -382,6 +382,8 @@ export class DatabaseStorage implements IStorage {
         isPublished: true, // Make room visible immediately
         isPrivate: false, // Public by default so others can join
         settingsLocked: false,
+        // CRITICAL: Start with 1 player since creator auto-joins immediately after
+        playerCount: 1,
         lastActivityAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date()
