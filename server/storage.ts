@@ -96,6 +96,7 @@ export interface IStorage {
   getGameRooms(): Promise<GameRoom[]>;
   getAllPublicRooms(): Promise<any[]>;
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
+  deleteGameRoom(roomId: string): Promise<void>;
   joinGameRoom(roomId: string, userId: string, betAmount?: number): Promise<GameParticipant>;
   leaveGameRoom(userId: string, gameRoomId: string): Promise<void>;
   setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<void>;
@@ -459,6 +460,13 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return room;
   }
+  
+  async deleteGameRoom(roomId: string): Promise<void> {
+    // Delete participants first
+    await db.delete(gameParticipants).where(eq(gameParticipants.gameRoomId, roomId));
+    // Delete the room
+    await db.delete(gameRooms).where(eq(gameRooms.id, roomId));
+  }
 
   async updateGameRoomById(roomId: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined> {
     const [room] = await db
@@ -595,14 +603,22 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
     
+    // IMMEDIATELY delete any rooms with 0 actual players
+    for (const room of rooms) {
+      const playerCount = room.currentPlayers || 0;
+      if (playerCount === 0) {
+        console.log(`[CLEANUP] Deleting empty room ${room.code} with 0 players`);
+        await db.delete(gameRooms).where(eq(gameRooms.id, room.id));
+      }
+    }
+    
     // Filter out empty rooms and full rooms
     const filteredRooms = rooms.filter(room => {
       const playerCount = room.currentPlayers || 0;
       const maxPlayers = (room.settings as any)?.maxPlayers || room.maxPlayers || 4;
       
-      // Exclude empty rooms (0 players)
+      // Exclude empty rooms (0 players) - should already be deleted but double check
       if (playerCount === 0) {
-        console.log(`[Storage] Filtering out empty room ${room.code} from Active Lobbies`);
         return false;
       }
       

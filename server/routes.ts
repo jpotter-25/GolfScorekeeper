@@ -295,8 +295,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get ALL available lobbies (for new consolidated view)
   app.get('/api/game-rooms/all-lobbies', isAuthenticated, async (req: any, res) => {
     try {
+      // First, aggressively clean up any empty rooms
+      const allRooms = await storage.getGameRooms();
+      for (const room of allRooms) {
+        if (room.status === 'waiting') {
+          const participants = await storage.getGameParticipants(room.id);
+          if (participants.length === 0) {
+            console.log(`[API CLEANUP] Deleting empty room ${room.code} before returning lobbies`);
+            await storage.deleteGameRoom(room.id);
+          }
+        }
+      }
+      
+      // Now get the list
       const allLobbies = await storage.getAllPublishedLobbies();
-      res.json(allLobbies);
+      
+      // Final filter - absolutely no rooms with 0 players
+      const cleanLobbies = allLobbies.filter(lobby => {
+        if (!lobby.playerCount || lobby.playerCount === 0) {
+          console.log(`[API FILTER] Removing room ${lobby.code} with ${lobby.playerCount} players from response`);
+          return false;
+        }
+        return true;
+      });
+      
+      res.json(cleanLobbies);
     } catch (error) {
       console.error("Error fetching all lobbies:", error);
       res.status(500).json({ message: "Failed to fetch lobbies" });
