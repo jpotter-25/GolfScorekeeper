@@ -7,9 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Crown, Users, Settings, Copy, Check, Timer, User } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
-import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Home } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface RoomParticipant {
@@ -44,6 +43,8 @@ export default function Lobby() {
   const [roomCode, setRoomCode] = useState<string>('');
   const [isCopied, setIsCopied] = useState(false);
   const [localSettings, setLocalSettings] = useState({ rounds: 9, maxPlayers: 4 });
+  const [selectedRounds, setSelectedRounds] = useState(9);
+  const [selectedPlayers, setSelectedPlayers] = useState(4);
   const [isReady, setIsReady] = useState(false);
   const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -226,6 +227,12 @@ export default function Lobby() {
   const handleUpdateSettings = (field: 'rounds' | 'maxPlayers', value: number) => {
     if (!wsRef.current || !user || !isHost) return;
     
+    if (field === 'rounds') {
+      setSelectedRounds(value);
+    } else {
+      setSelectedPlayers(value);
+    }
+    
     const newSettings = { ...localSettings, [field]: value };
     setLocalSettings(newSettings);
     
@@ -268,6 +275,8 @@ export default function Lobby() {
         rounds: room.settings.rounds,
         maxPlayers: room.maxPlayers
       });
+      setSelectedRounds(room.settings.rounds);
+      setSelectedPlayers(room.maxPlayers);
     }
   }, [room]);
 
@@ -280,98 +289,110 @@ export default function Lobby() {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-6xl">
-      <div className="mb-6">
-        <Button 
-          variant="ghost" 
-          onClick={handleLeaveRoom}
-          data-testid="button-leave-lobby"
-        >
-          ← Leave Lobby
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Room Info Card */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl">Game Lobby</CardTitle>
-              <Badge variant={room.betAmount === 0 ? "secondary" : "default"}>
+    <div className="min-h-screen" style={{ backgroundColor: '#2a3f5f' }}>
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={handleLeaveRoom}
+            className="text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors px-3 py-2"
+            data-testid="button-leave-lobby"
+          >
+            <Home className="w-5 h-5 mr-2" />
+            <span>Leave Lobby</span>
+          </Button>
+          
+          <div>
+            <h1 className="text-xl font-semibold text-white">Game Lobby</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="font-mono text-lg text-yellow-400">{roomCode}</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleCopyCode}
+                className="text-gray-400 hover:text-white p-1"
+                data-testid="button-copy-code"
+              >
+                {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
+              <Badge className="bg-blue-600/20 text-blue-400 border-blue-600/30">
                 {room.betAmount === 0 ? 'Free Play' : `${room.betAmount} Coins`}
               </Badge>
             </div>
-            <CardDescription>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="font-mono text-lg">{roomCode}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCopyCode}
-                  data-testid="button-copy-code"
+          </div>
+        </div>
+        
+        {autoStartCountdown !== null && (
+          <Badge className="bg-green-600/20 text-green-400 border-green-600/30 animate-pulse">
+            <Timer className="h-4 w-4 mr-1" />
+            Starting in {autoStartCountdown}s
+          </Badge>
+        )}
+      </header>
+
+      <div className="px-6 pb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Players Section */}
+          <div className="lg:col-span-2 bg-gray-800/50 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Players ({participants.length}/{room.maxPlayers})
+              </h2>
+            </div>
+            
+            <div className="space-y-3">
+              {participants.map((participant) => (
+                <div
+                  key={participant.userId}
+                  className="flex items-center justify-between p-4 bg-gray-900/50 rounded-lg border border-gray-700/50"
+                  data-testid={`player-${participant.userId}`}
                 >
-                  {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Players List */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Players ({participants.length}/{room.maxPlayers})
-                </h3>
-                {autoStartCountdown !== null && (
-                  <Badge variant="default" className="animate-pulse">
-                    <Timer className="h-4 w-4 mr-1" />
-                    Starting in {autoStartCountdown}s
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <span className="font-medium text-white">{participant.username}</span>
+                    {participant.userId === room.crownHolderId && (
+                      <Crown className="h-5 w-5 text-yellow-400" />
+                    )}
+                  </div>
+                  <Badge 
+                    className={participant.isReady 
+                      ? "bg-green-600/20 text-green-400 border-green-600/30" 
+                      : "bg-gray-700/50 text-gray-400 border-gray-600"
+                    }
+                  >
+                    {participant.isReady ? "Ready" : "Not Ready"}
                   </Badge>
-                )}
-              </div>
+                </div>
+              ))}
               
-              <div className="space-y-2">
-                {participants.map((participant) => (
-                  <div
-                    key={participant.userId}
-                    className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg"
-                    data-testid={`player-${participant.userId}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <User className="h-5 w-5" />
-                      <span className="font-medium">{participant.username}</span>
-                      {participant.userId === room.crownHolderId && (
-                        <Crown className="h-5 w-5 text-yellow-500" />
-                      )}
+              {/* Empty slots */}
+              {Array.from({ length: room.maxPlayers - participants.length }).map((_, i) => (
+                <div
+                  key={`empty-${i}`}
+                  className="flex items-center justify-between p-4 border-2 border-dashed border-gray-700/50 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 border-2 border-dashed border-gray-600 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-gray-600" />
                     </div>
-                    <Badge variant={participant.isReady ? "default" : "outline"}>
-                      {participant.isReady ? "Ready" : "Not Ready"}
-                    </Badge>
+                    <span className="text-gray-500">Waiting for player...</span>
                   </div>
-                ))}
-                
-                {/* Empty slots */}
-                {Array.from({ length: room.maxPlayers - participants.length }).map((_, i) => (
-                  <div
-                    key={`empty-${i}`}
-                    className="flex items-center justify-between p-3 border-2 border-dashed rounded-lg opacity-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <User className="h-5 w-5" />
-                      <span className="text-muted-foreground">Waiting for player...</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
 
             {/* Action Buttons */}
             <div className="mt-6 flex gap-3">
               <Button
-                variant={isReady ? "secondary" : "default"}
                 onClick={handleReady}
-                className="flex-1"
+                className={isReady 
+                  ? "flex-1 bg-gray-700 hover:bg-gray-600 text-white" 
+                  : "flex-1 bg-green-600 hover:bg-green-700 text-white"
+                }
                 data-testid="button-ready"
               >
                 {isReady ? "Not Ready" : "Ready"}
@@ -381,80 +402,127 @@ export default function Lobby() {
                 <Button
                   onClick={handleStartGame}
                   disabled={participants.length < 2 || room.settingsLocked}
-                  className="flex-1"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700 disabled:text-gray-500"
                   data-testid="button-start-game"
                 >
                   Start Game
                 </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Settings Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          {/* Settings Section */}
+          <div className="bg-gray-800/50 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
               <Settings className="h-5 w-5" />
               Game Settings
-            </CardTitle>
-            <CardDescription>
+            </h2>
+            <p className="text-sm text-gray-400 mb-6">
               {isHost ? "Configure your game" : "Set by host"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="rounds">
-                Rounds: {localSettings.rounds}
-              </Label>
-              <Slider
-                id="rounds"
-                min={5}
-                max={9}
-                step={4}
-                value={[localSettings.rounds]}
-                onValueChange={([value]) => handleUpdateSettings('rounds', value)}
-                disabled={!isHost || room.settingsLocked}
-                className="w-full"
-                data-testid="slider-rounds"
-              />
-            </div>
+            </p>
 
-            <div className="space-y-2">
-              <Label htmlFor="maxPlayers">
-                Max Players: {localSettings.maxPlayers}
-              </Label>
-              <Slider
-                id="maxPlayers"
-                min={2}
-                max={4}
-                step={1}
-                value={[localSettings.maxPlayers]}
-                onValueChange={([value]) => handleUpdateSettings('maxPlayers', value)}
-                disabled={!isHost || room.settingsLocked || participants.length > 1}
-                className="w-full"
-                data-testid="slider-max-players"
-              />
-            </div>
-
-            <div className="pt-4 border-t">
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>• {localSettings.rounds} rounds to play</p>
-                <p>• {localSettings.maxPlayers} players maximum</p>
-                <p>• {room.betAmount === 0 ? 'Free play' : `${room.betAmount} coins stake`}</p>
-                <p>• Prize pool: {room.betAmount * participants.length} coins</p>
+            <div className="space-y-6">
+              {/* Rounds Selection */}
+              <div>
+                <Label className="text-white mb-3 block">Rounds</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={() => handleUpdateSettings('rounds', 5)}
+                    disabled={!isHost || room.settingsLocked}
+                    className={selectedRounds === 5 
+                      ? "bg-blue-600 text-white hover:bg-blue-700" 
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }
+                    data-testid="button-rounds-5"
+                  >
+                    5 Rounds
+                  </Button>
+                  <Button
+                    onClick={() => handleUpdateSettings('rounds', 9)}
+                    disabled={!isHost || room.settingsLocked}
+                    className={selectedRounds === 9 
+                      ? "bg-blue-600 text-white hover:bg-blue-700" 
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }
+                    data-testid="button-rounds-9"
+                  >
+                    9 Rounds
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            {allReady && (
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-                  All players ready! Game will start soon...
-                </p>
+              {/* Players Selection */}
+              <div>
+                <Label className="text-white mb-3 block">Max Players</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    onClick={() => handleUpdateSettings('maxPlayers', 2)}
+                    disabled={!isHost || room.settingsLocked || participants.length > 2}
+                    className={selectedPlayers === 2 
+                      ? "bg-blue-600 text-white hover:bg-blue-700" 
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600"
+                    }
+                    data-testid="button-players-2"
+                  >
+                    2
+                  </Button>
+                  <Button
+                    onClick={() => handleUpdateSettings('maxPlayers', 3)}
+                    disabled={!isHost || room.settingsLocked || participants.length > 3}
+                    className={selectedPlayers === 3 
+                      ? "bg-blue-600 text-white hover:bg-blue-700" 
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600"
+                    }
+                    data-testid="button-players-3"
+                  >
+                    3
+                  </Button>
+                  <Button
+                    onClick={() => handleUpdateSettings('maxPlayers', 4)}
+                    disabled={!isHost || room.settingsLocked || participants.length > 4}
+                    className={selectedPlayers === 4 
+                      ? "bg-blue-600 text-white hover:bg-blue-700" 
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600"
+                    }
+                    data-testid="button-players-4"
+                  >
+                    4
+                  </Button>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              {/* Game Info */}
+              <div className="pt-4 border-t border-gray-700">
+                <div className="text-sm text-gray-400 space-y-2">
+                  <p className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                    {selectedRounds} rounds to play
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                    {selectedPlayers} players maximum
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                    {room.betAmount === 0 ? 'Free play' : `${room.betAmount} coins stake`}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                    Prize pool: {room.betAmount * participants.length} coins
+                  </p>
+                </div>
+              </div>
+
+              {allReady && (
+                <div className="p-3 bg-green-600/10 border border-green-600/20 rounded-lg">
+                  <p className="text-sm text-green-400 font-medium">
+                    All players ready! Game will start soon...
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
