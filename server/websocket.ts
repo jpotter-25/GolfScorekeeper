@@ -122,6 +122,36 @@ class WebSocketManager {
         }
       });
     }, 30000); // 30 second heartbeat
+    
+    // Periodic cleanup for empty rooms
+    setInterval(async () => {
+      try {
+        // Find and delete empty rooms
+        const emptyRooms = await db
+          .select({ 
+            id: gameRooms.id, 
+            code: gameRooms.code,
+            playerCount: gameRooms.playerCount 
+          })
+          .from(gameRooms)
+          .leftJoin(gameParticipants, and(
+            eq(gameParticipants.gameRoomId, gameRooms.id),
+            sql`${gameParticipants.leftAt} IS NULL`
+          ))
+          .where(and(
+            eq(gameRooms.status, 'waiting'),
+            sql`${gameParticipants.id} IS NULL`
+          ))
+          .groupBy(gameRooms.id, gameRooms.code, gameRooms.playerCount);
+        
+        for (const room of emptyRooms) {
+          console.log(`[WebSocket] Cleanup: Removing empty room ${room.code}`);
+          await db.delete(gameRooms).where(eq(gameRooms.id, room.id));
+        }
+      } catch (error) {
+        console.error('[WebSocket] Cleanup error:', error);
+      }
+    }, 60000); // Run cleanup every minute
   }
   
   private async handleMessage(client: WSClient, message: any) {
@@ -500,10 +530,21 @@ class WebSocketManager {
         })
         .where(eq(gameParticipants.id, participant.id));
       
-      // Update room player count
-      const newPlayerCount = room.playerCount - 1;
+      // Get actual connected participant count
+      const remainingParticipants = await db.select().from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
       
-      if (newPlayerCount === 0) {
+      const actualPlayerCount = remainingParticipants.length;
+      
+      if (actualPlayerCount === 0) {
+        console.log(`[WebSocket] Room ${code} is now empty, deleting room from database`);
+        
+        // Delete all participants first
+        await db.delete(gameParticipants).where(eq(gameParticipants.gameRoomId, room.id));
+        
         // Delete empty room
         await db.delete(gameRooms).where(eq(gameRooms.id, room.id));
         
@@ -514,12 +555,13 @@ class WebSocketManager {
           serverTs: Date.now()
         });
         
+        // Remove from Active Lobbies
         await this.broadcastRoomListUpdate('removed', room);
       } else {
-        // Update room
+        // Update room with actual player count
         await db.update(gameRooms)
           .set({ 
-            playerCount: newPlayerCount,
+            playerCount: actualPlayerCount,
             updatedAt: new Date(),
             lastActivityAt: new Date()
           })
@@ -538,12 +580,15 @@ class WebSocketManager {
           serverTs: Date.now()
         }, client.id);
         
-        // Update room list if room was full
-        if (room.playerCount >= room.maxPlayers! && newPlayerCount < room.maxPlayers!) {
-          const updatedRoom = { ...room, playerCount: newPlayerCount };
+        // Update room list based on new player count
+        const maxPlayers = (room.settings as any)?.maxPlayers || room.maxPlayers || 4;
+        if (room.playerCount >= maxPlayers && actualPlayerCount < maxPlayers) {
+          // Room was full, now has space - add it back to Active Lobbies
+          const updatedRoom = { ...room, playerCount: actualPlayerCount };
+          console.log(`[WebSocket] Room ${code} now has space (${actualPlayerCount}/${maxPlayers}), adding to Active Lobbies`);
           await this.broadcastRoomListUpdate('added', updatedRoom);
         } else {
-          const updatedRoom = { ...room, playerCount: newPlayerCount };
+          const updatedRoom = { ...room, playerCount: actualPlayerCount };
           await this.broadcastRoomListUpdate('updated', updatedRoom);
         }
       }

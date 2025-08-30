@@ -595,9 +595,29 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
     
+    // Filter out empty rooms and full rooms
+    const filteredRooms = rooms.filter(room => {
+      const playerCount = room.currentPlayers || 0;
+      const maxPlayers = (room.settings as any)?.maxPlayers || room.maxPlayers || 4;
+      
+      // Exclude empty rooms (0 players)
+      if (playerCount === 0) {
+        console.log(`[Storage] Filtering out empty room ${room.code} from Active Lobbies`);
+        return false;
+      }
+      
+      // Exclude full rooms (playerCount >= maxPlayers)
+      if (playerCount >= maxPlayers) {
+        console.log(`[Storage] Filtering out full room ${room.code} (${playerCount}/${maxPlayers}) from Active Lobbies`);
+        return false;
+      }
+      
+      return true;
+    });
+    
     // Add crown holder names
     const roomsWithNames = await Promise.all(
-      rooms.map(async (room) => {
+      filteredRooms.map(async (room) => {
         let crownHolderName = 'Unknown';
         if (room.crownHolderId) {
           const crownHolder = await this.getUser(room.crownHolderId);
@@ -612,7 +632,8 @@ export class DatabaseStorage implements IStorage {
           ...room,
           crownHolderName,
           playerCount: room.currentPlayers,
-          rounds: (room.settings as any)?.rounds || 9
+          rounds: (room.settings as any)?.rounds || 9,
+          maxPlayers: (room.settings as any)?.maxPlayers || room.maxPlayers || 4
         };
       })
     );
