@@ -825,6 +825,8 @@ export class DatabaseStorage implements IStorage {
         userId: gameParticipants.userId,
         userName: users.email,
         isReady: gameParticipants.isReady,
+        isHost: gameParticipants.isHost,
+        joinOrder: gameParticipants.joinOrder,
         joinedAt: gameParticipants.joinedAt
       })
       .from(gameParticipants)
@@ -832,12 +834,15 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(gameParticipants.gameRoomId, roomId),
         sql`${gameParticipants.leftAt} IS NULL`
-      ));
+      ))
+      .orderBy(gameParticipants.joinOrder);
     
     return participants.map(p => ({
       userId: p.userId,
-      userName: p.userName?.split('@')[0] || 'Player',
+      username: p.userName?.split('@')[0] || 'Player',
       isReady: p.isReady || false,
+      isHost: p.isHost || false,
+      joinOrder: p.joinOrder || 0,
       joinedAt: p.joinedAt
     }));
   }

@@ -160,8 +160,8 @@ export default function Multiplayer() {
     })
     .then(data => {
       if (data.code) {
-        // Navigate to the game page with the room code
-        setLocation(`/game?room=${data.code}`);
+        // Navigate to the lobby page with the room code
+        setLocation(`/lobby?room=${data.code}`);
       }
     })
     .catch(error => {
@@ -191,8 +191,8 @@ export default function Multiplayer() {
     })
     .then(data => {
       if (data.success || data.code) {
-        // Navigate to the game page with the room code
-        setLocation(`/game?room=${lobbyCode}`);
+        // Navigate to the lobby page with the room code
+        setLocation(`/lobby?room=${lobbyCode}`);
       }
     })
     .catch(error => {

@@ -459,7 +459,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         ...gameRoom,
-        players: participants
+        participants,
+        currentPlayers: participants.length
       });
     } catch (error) {
       console.error("Error fetching game room:", error);
