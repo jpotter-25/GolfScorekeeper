@@ -76,7 +76,9 @@ export default function Lobby() {
   useEffect(() => {
     if (!roomCode || !user) return;
 
-    const ws = new WebSocket(`ws://${window.location.host}/ws-rooms`);
+    // Use wss:// for HTTPS, ws:// for HTTP
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws-rooms`);
     wsRef.current = ws;
 
     ws.onopen = () => {
