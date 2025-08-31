@@ -101,6 +101,13 @@ export default function Lobby() {
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
+        
+        // Handle ping/pong for heartbeat
+        if (message.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong' }));
+          return;
+        }
+        
         handleWebSocketMessage(message);
       } catch (error) {
         console.error('WebSocket message parse error:', error);
@@ -136,6 +143,36 @@ export default function Lobby() {
       case 'room:joined':
         // Successfully joined room
         if (message.room) setRoomData(message.room);
+        break;
+        
+      case 'reconnected':
+        // Successfully reconnected to room
+        console.log('[Lobby] Reconnected to room');
+        toast({
+          title: "Reconnected",
+          description: "Successfully reconnected to the room",
+        });
+        break;
+        
+      case 'player:reconnected':
+        // Another player reconnected
+        if (message.userId !== user?.id) {
+          toast({
+            title: "Player Reconnected",
+            description: "A player reconnected to the room",
+          });
+        }
+        break;
+        
+      case 'player:disconnected':
+        // Another player disconnected temporarily
+        if (message.userId !== user?.id) {
+          toast({
+            title: "Player Disconnected",
+            description: "A player lost connection (may reconnect)",
+            variant: "default",
+          });
+        }
         break;
         
       case 'room:update':
@@ -178,9 +215,10 @@ export default function Lobby() {
         console.log('[Lobby] Received settings update:', message);
         // Update local settings and room data
         if (message.settings) {
+          // Use server settings directly, don't fall back to local
           setLocalSettings({ 
-            rounds: message.settings.rounds || localSettings.rounds, 
-            maxPlayers: message.settings.maxPlayers || localSettings.maxPlayers 
+            rounds: message.settings.rounds, 
+            maxPlayers: message.settings.maxPlayers 
           });
         }
         if (message.room) {

@@ -113,12 +113,14 @@ class WebSocketManager {
         const client = Array.from(this.clients.values()).find(c => c.ws === ws);
         if (client) {
           if (!client.isAlive) {
+            console.log(`[WebSocket] Client ${client.id} failed to respond to ping, disconnecting`);
             client.ws.terminate();
             this.handleDisconnect(client);
             return;
           }
           client.isAlive = false;
-          ws.ping();
+          // Send ping as JSON message since browser WebSocket doesn't support ping frames
+          this.sendToClient(client, { type: 'ping' });
         }
       });
     }, 30000); // 30 second heartbeat
@@ -190,6 +192,10 @@ class WebSocketManager {
         break;
       case 'session:ping':
         this.handlePing(client, payload);
+        break;
+      case 'pong':
+        // Client responded to ping, mark as alive
+        client.isAlive = true;
         break;
       default:
         this.sendError(client, `Unknown message type: ${type}`);
@@ -373,8 +379,18 @@ class WebSocketManager {
         return;
       }
       
-      // Check if room is full
-      if (room.playerCount >= room.maxPlayers!) {
+      // Get actual current player count first
+      const [currentCount] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(gameParticipants)
+        .where(and(
+          eq(gameParticipants.gameRoomId, room.id),
+          sql`${gameParticipants.leftAt} IS NULL`
+        ));
+      
+      // Check if room is actually full (use real count, not stale playerCount)
+      if (currentCount.count >= room.maxPlayers!) {
+        console.log(`[WebSocket] Room ${code} is full: ${currentCount.count}/${room.maxPlayers}`);
         this.sendError(client, 'Room is full');
         return;
       }
@@ -391,7 +407,7 @@ class WebSocketManager {
       context.roomId = room.id;
       context.roomCode = code;
       
-      // Check if already in room
+      // Check if already in room or reconnecting
       const existing = await db.select().from(gameParticipants)
         .where(and(
           eq(gameParticipants.gameRoomId, room.id),
@@ -400,21 +416,48 @@ class WebSocketManager {
         ));
       
       if (existing.length > 0) {
-        DebugLogger.log(context, 'room.join.already_in_room', { 
+        // Reconnection - update connection status
+        const participant = existing[0];
+        await db.update(gameParticipants)
+          .set({ 
+            connected: true,
+            connectionId: client.id,
+            lastSeenAt: new Date()
+          })
+          .where(eq(gameParticipants.id, participant.id));
+        
+        DebugLogger.log(context, 'room.join.reconnected', { 
           userId: client.userId,
           roomId: room.id 
         });
-        this.sendError(client, 'Already in room');
-        return;
+        
+        // Update client's room code
+        client.roomCode = code;
+        
+        // Send reconnection confirmation
+        this.sendToClient(client, {
+          type: 'reconnected',
+          code,
+          serverTs: Date.now()
+        });
+        
+        // Notify others of reconnection
+        this.broadcastToRoom(code, {
+          type: 'player:reconnected',
+          userId: client.userId,
+          serverTs: Date.now()
+        }, client.id);
+        
+        return; // Don't add as new participant
       }
       
-      // Add participant
-      const joinOrder = room.playerCount + 1;
+      // Add participant - use actual count for join order
+      const joinOrder = currentCount.count + 1;
       const [participant] = await db.insert(gameParticipants).values({
         gameRoomId: room.id,
         userId: client.userId,
         joinOrder,
-        playerIndex: room.playerCount,
+        playerIndex: currentCount.count,
         isHost: false,
         isReady: false,
         connected: true,
@@ -427,7 +470,7 @@ class WebSocketManager {
       DebugLogger.log(context, 'room.join.participant_added', { 
         participantId: participant.id,
         joinOrder,
-        playerIndex: room.playerCount
+        playerIndex: currentCount.count
       });
       
       // Update room player count with actual count
@@ -450,8 +493,8 @@ class WebSocketManager {
       // Update client's room code
       client.roomCode = code;
       
-      // Get updated room info
-      const updatedRoom = { ...room, playerCount: room.playerCount + 1 };
+      // Get updated room info - use the actual count we just calculated
+      const updatedRoom = { ...room, playerCount: actualCount.count };
       
       // Capture state snapshot after join
       const participants = await db.select().from(gameParticipants)
@@ -673,13 +716,14 @@ class WebSocketManager {
         return;
       }
       
-      // Update room settings
+      // Update room settings - preserve all existing settings
       const currentSettings: any = room.settings || {};
       const updatedSettings = {
         ...currentSettings,
-        maxPlayers: settings.maxPlayers || currentSettings.maxPlayers || 4,
-        rounds: settings.rounds || currentSettings.rounds || 9,
-        betCoins: settings.betCoins !== undefined ? settings.betCoins : currentSettings.betCoins || 0
+        // Only update fields that were explicitly provided
+        ...(settings.maxPlayers !== undefined && { maxPlayers: settings.maxPlayers }),
+        ...(settings.rounds !== undefined && { rounds: settings.rounds }),
+        ...(settings.betCoins !== undefined && { betCoins: settings.betCoins })
       };
       
       await db.update(gameRooms)
@@ -906,9 +950,33 @@ class WebSocketManager {
   private async handleDisconnect(client: WSClient) {
     console.log(`WebSocket client disconnected: ${client.id}`);
     
-    // Handle room leave if in a room
+    // Don't immediately mark as left - allow time for reconnection
     if (client.roomCode && client.userId) {
-      await this.handleRoomLeave(client, { code: client.roomCode });
+      // Mark as disconnected but don't remove from room yet
+      try {
+        const [room] = await db.select().from(gameRooms).where(eq(gameRooms.code, client.roomCode));
+        if (room) {
+          // Just mark as disconnected, don't set leftAt
+          await db.update(gameParticipants)
+            .set({ 
+              connected: false,
+              lastSeenAt: new Date()
+            })
+            .where(and(
+              eq(gameParticipants.gameRoomId, room.id),
+              eq(gameParticipants.userId, client.userId)
+            ));
+          
+          // Notify room of disconnect
+          this.broadcastToRoom(client.roomCode, {
+            type: 'player:disconnected',
+            userId: client.userId,
+            serverTs: Date.now()
+          }, client.id);
+        }
+      } catch (error) {
+        console.error('Error handling disconnect:', error);
+      }
     }
     
     // Remove from subscribers
