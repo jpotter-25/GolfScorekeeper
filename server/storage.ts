@@ -606,7 +606,9 @@ export class DatabaseStorage implements IStorage {
         eq(gameRooms.isPublished, true),
         eq(gameRooms.status, 'waiting'),
         // Must have at least 1 player
-        sql`${gameRooms.playerCount} > 0`
+        sql`${gameRooms.playerCount} > 0`,
+        // Don't show full rooms - check against settings.maxPlayers or maxPlayers column
+        sql`${gameRooms.playerCount} < COALESCE((${gameRooms.settings}->>'maxPlayers')::int, ${gameRooms.maxPlayers})`
       ))
       .orderBy(gameRooms.betAmount); // Sort by stake amount
     
@@ -794,6 +796,19 @@ export class DatabaseStorage implements IStorage {
       ));
     
     if (existing.length > 0) {
+      // Check if they left and are rejoining
+      if (existing[0].leftAt) {
+        // Update to mark them as rejoined
+        await db.update(gameParticipants)
+          .set({
+            leftAt: null,
+            connected: true,
+            joinedAt: new Date()
+          })
+          .where(eq(gameParticipants.id, existing[0].id));
+        return existing[0];
+      }
+      // Already in room and active
       return existing[0];
     }
 

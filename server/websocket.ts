@@ -726,12 +726,13 @@ class WebSocketManager {
         ...(settings.betCoins !== undefined && { betCoins: settings.betCoins })
       };
       
+      // IMPORTANT: Update both the settings JSON and the individual columns
       await db.update(gameRooms)
         .set({ 
           settings: updatedSettings,
-          maxPlayers: updatedSettings.maxPlayers,
-          rounds: updatedSettings.rounds,
-          betAmount: updatedSettings.betCoins,
+          maxPlayers: updatedSettings.maxPlayers || currentSettings.maxPlayers || 4,
+          rounds: updatedSettings.rounds || currentSettings.rounds || 9,
+          betAmount: updatedSettings.betCoins || currentSettings.betCoins || 0,
           updatedAt: new Date()
         })
         .where(eq(gameRooms.id, room.id));
@@ -1042,7 +1043,7 @@ class WebSocketManager {
       ))
       .limit(1);
     
-    // Use settings from room.settings if available, otherwise fall back to room fields
+    // ALWAYS use room.settings as the source of truth for settings
     const settings = room.settings || {};
     
     return {

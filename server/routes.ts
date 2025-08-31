@@ -395,17 +395,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lobby not found" });
       }
       
+      // Check if room is full BEFORE trying to join
+      const currentParticipants = await storage.getGameParticipants(room.id);
+      const maxPlayers = (room.settings as any)?.maxPlayers || room.maxPlayers || 4;
+      
+      if (currentParticipants.length >= maxPlayers) {
+        return res.status(400).json({ message: "Room is full" });
+      }
+      
       // Check if room is published and has space
       if (!room.isPublished && room.isPrivate) {
         return res.status(403).json({ message: "This lobby is private" });
       }
       
-      // Join the room
-      await storage.joinGameRoom(room.id, userId, betAmount);
-      res.json({ code: room.code, room });
-    } catch (error) {
+      // Join the room - this will return existing participant if already joined
+      const participant = await storage.joinGameRoom(room.id, userId, betAmount);
+      
+      // Get updated room data
+      const updatedRoom = await storage.getGameRoom(roomCode);
+      res.json({ code: room.code, room: updatedRoom, participant });
+    } catch (error: any) {
       console.error("Error joining lobby:", error);
-      res.status(500).json({ message: "Failed to join lobby" });
+      // Provide more specific error messages
+      if (error.message?.includes('already')) {
+        // User is already in room - not an error, return success
+        const room = await storage.getGameRoom(req.body.roomCode);
+        if (room) {
+          res.json({ code: room.code, room });
+        } else {
+          res.status(404).json({ message: "Room not found" });
+        }
+      } else {
+        res.status(500).json({ message: error.message || "Failed to join lobby" });
+      }
     }
   });
 
