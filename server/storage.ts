@@ -69,24 +69,6 @@ export interface IStorage {
   deleteGameRoom(code: string): Promise<void>;
   getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]>;
   getAllActiveRooms(): Promise<GameRoom[]>;
-  joinGameRoom(code: string, userId: string, userEmail?: string): Promise<{
-    success: boolean;
-    room?: GameRoom | null;
-    message?: string;
-    isAlreadyInRoom?: boolean;
-  }>;
-  leaveGameRoom(code: string, userId: string): Promise<{
-    success: boolean;
-    roomDeleted?: boolean;
-    newHost?: string;
-    room?: GameRoom | null;
-    message?: string;
-  }>;
-  startGame(code: string, userId: string): Promise<{
-    success: boolean;
-    room?: GameRoom | null;
-    message?: string;
-  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -360,8 +342,8 @@ export class DatabaseStorage implements IStorage {
         UPDATE game_rooms 
         SET 
           players = ${JSON.stringify(updates.players)}::jsonb,
-          host_id = ${updates.hostId || sql`host_id`},
-          version = COALESCE(version, 1) + 1
+          player_count = ${players.length},
+          host_id = ${updates.hostId || sql`host_id`}
         WHERE code = ${code}
         RETURNING *
       `);
@@ -376,273 +358,12 @@ export class DatabaseStorage implements IStorage {
     return room;
   }
 
-  async joinGameRoom(code: string, userId: string, userEmail: string): Promise<{ 
-    success: boolean; 
-    room: GameRoom | null; 
-    message?: string;
-    isAlreadyInRoom?: boolean;
-  }> {
-    // Atomic join operation using a transaction
-    return await db.transaction(async (tx) => {
-      // Get latest room state with row-level lock to prevent concurrent modifications
-      const result = await tx.execute(sql`
-        SELECT * FROM game_rooms 
-        WHERE code = ${code} AND is_active = true
-        FOR UPDATE
-      `);
-      
-      const room = result.rows[0] as GameRoom | undefined;
-      
-      if (!room) {
-        return { 
-          success: false, 
-          room: null, 
-          message: "Room not found or inactive" 
-        };
-      }
-      
-      const players = room.players as any[];
-      const maxPlayers = room.maxPlayers || 4;
-      
-      // Check if player is already in the room (idempotent)
-      const existingPlayer = players.find(p => p.id === userId);
-      if (existingPlayer) {
-        return { 
-          success: true, 
-          room: room,
-          isAlreadyInRoom: true 
-        };
-      }
-      
-      // Check if room is full
-      if (players.length >= maxPlayers) {
-        return { 
-          success: false, 
-          room: room, 
-          message: "Room is full" 
-        };
-      }
-      
-      // Check if room has already started
-      if (room.status !== 'room') {
-        return { 
-          success: false, 
-          room: room, 
-          message: "Game has already started" 
-        };
-      }
-      
-      // Add player to room atomically
-      const newPlayers = [...players, { 
-        id: userId, 
-        name: userEmail || 'Player',
-        ready: false 
-      }];
-      
-      const updateResult = await tx.execute(sql`
-        UPDATE game_rooms 
-        SET 
-          players = ${JSON.stringify(newPlayers)}::jsonb,
-          version = COALESCE(version, 1) + 1
-        WHERE code = ${code}
-        RETURNING *
-      `);
-      
-      const updatedRoom = updateResult.rows[0] as GameRoom;
-      
-      return { 
-        success: true, 
-        room: updatedRoom 
-      };
-    });
-  }
-
-  async leaveGameRoom(code: string, userId: string): Promise<{
-    success: boolean;
-    roomDeleted?: boolean;
-    newHost?: string;
-    room?: GameRoom | null;
-    message?: string;
-  }> {
-    // Atomic leave operation using a transaction
-    return await db.transaction(async (tx) => {
-      // Get latest room state with row-level lock
-      const result = await tx.execute(sql`
-        SELECT * FROM game_rooms 
-        WHERE code = ${code} AND is_active = true
-        FOR UPDATE
-      `);
-      
-      const room = result.rows[0] as GameRoom | undefined;
-      
-      if (!room) {
-        return { 
-          success: false, 
-          message: "Room not found or inactive" 
-        };
-      }
-      
-      const players = room.players as any[];
-      
-      // Check if player is in the room
-      const playerIndex = players.findIndex(p => p.id === userId);
-      if (playerIndex === -1) {
-        return { 
-          success: false, 
-          message: "Player not in room" 
-        };
-      }
-      
-      // Remove player from room
-      const updatedPlayers = players.filter(p => p.id !== userId);
-      
-      // If room is now empty, delete it
-      if (updatedPlayers.length === 0) {
-        await tx.execute(sql`
-          DELETE FROM game_rooms 
-          WHERE code = ${code}
-        `);
-        
-        return { 
-          success: true, 
-          roomDeleted: true,
-          room: null
-        };
-      }
-      
-      // Handle host transfer if needed
-      let newHostId = room.hostId;
-      if (room.hostId === userId && updatedPlayers.length > 0) {
-        // Transfer host to the first remaining player (earliest joiner)
-        newHostId = updatedPlayers[0].id;
-      }
-      
-      // Update room with new players list and potentially new host
-      const updateResult = await tx.execute(sql`
-        UPDATE game_rooms 
-        SET 
-          players = ${JSON.stringify(updatedPlayers)}::jsonb,
-          host_id = ${newHostId},
-          version = COALESCE(version, 1) + 1
-        WHERE code = ${code}
-        RETURNING *
-      `);
-      
-      const updatedRoom = updateResult.rows[0] as GameRoom;
-      
-      return { 
-        success: true, 
-        room: updatedRoom,
-        newHost: newHostId !== room.hostId ? newHostId : undefined
-      };
-    });
-  }
-
   async deleteGameRoom(code: string): Promise<void> {
     // Delete with CASCADE to handle foreign key constraints
     await db.execute(sql`
       DELETE FROM game_rooms 
       WHERE code = ${code}
     `);
-  }
-
-  async startGame(code: string, userId: string): Promise<{
-    success: boolean;
-    room?: GameRoom | null;
-    message?: string;
-  }> {
-    // Atomic start game operation using a transaction
-    return await db.transaction(async (tx) => {
-      // Get latest room state with row-level lock
-      const result = await tx.execute(sql`
-        SELECT * FROM game_rooms 
-        WHERE code = ${code} AND is_active = true
-        FOR UPDATE
-      `);
-      
-      const room = result.rows[0] as GameRoom | undefined;
-      
-      if (!room) {
-        return { 
-          success: false, 
-          message: "Room not found or inactive" 
-        };
-      }
-      
-      // Check if user is host
-      if (room.hostId !== userId) {
-        return { 
-          success: false, 
-          room: room,
-          message: "Only the host can start the game" 
-        };
-      }
-      
-      // Check if room is in correct state
-      if (room.status !== 'room') {
-        return { 
-          success: false, 
-          room: room,
-          message: "Game has already started" 
-        };
-      }
-      
-      const players = room.players as any[];
-      
-      // Check minimum players (need at least 2)
-      if (players.length < 2) {
-        return { 
-          success: false, 
-          room: room,
-          message: "Need at least 2 players to start" 
-        };
-      }
-      
-      // Initialize game state with turn order and round counter
-      const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
-      const gameState = {
-        currentRound: 1,
-        totalRounds: room.settings?.rounds || 9,
-        currentTurn: 0, // Index of current player in turnOrder
-        turnOrder: shuffledPlayers.map(p => p.id),
-        scores: shuffledPlayers.reduce((acc, p) => {
-          acc[p.id] = 0;
-          return acc;
-        }, {} as Record<string, number>),
-        gameStartedAt: new Date().toISOString(),
-        lastActivity: new Date().toISOString()
-      };
-      
-      // Transition: room → starting
-      await tx.execute(sql`
-        UPDATE game_rooms 
-        SET 
-          status = 'starting',
-          game_state = ${JSON.stringify(gameState)}::jsonb,
-          version = COALESCE(version, 1) + 1
-        WHERE code = ${code}
-      `);
-      
-      // Brief pause for starting state
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Transition: starting → inGame  
-      const finalResult = await tx.execute(sql`
-        UPDATE game_rooms 
-        SET 
-          status = 'inGame',
-          version = COALESCE(version, 1) + 2
-        WHERE code = ${code}
-        RETURNING *
-      `);
-      
-      const updatedRoom = finalResult.rows[0] as GameRoom;
-      
-      return { 
-        success: true, 
-        room: updatedRoom
-      };
-    });
   }
 
   async getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]> {
@@ -652,16 +373,17 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(gameRooms.isActive, true),
-          eq(gameRooms.stakeBracket, stakeBracket)
+          eq(gameRooms.stakeBracket, stakeBracket),
+          gt(gameRooms.playerCount, 0), // Filter out phantom rooms with 0 players
+          lt(gameRooms.playerCount, gameRooms.maxPlayers) // Filter out full rooms
         )
       );
     
-    // Filter out phantom rooms (0 players) and full rooms
+    // Additional filtering to ensure data integrity
     const validRooms = rooms.filter(room => {
       const players = room.players as any[];
-      const maxPlayers = room.maxPlayers || 4;
-      // Check that room actually has players and isn't full
-      return players && players.length > 0 && players.length < maxPlayers;
+      // Double-check that room actually has players and isn't full
+      return players && players.length > 0 && players.length < room.maxPlayers;
     });
     
     return validRooms;

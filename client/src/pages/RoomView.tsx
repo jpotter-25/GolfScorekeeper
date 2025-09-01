@@ -1,27 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { 
   Users, 
   Trophy, 
@@ -29,12 +12,9 @@ import {
   Copy, 
   CheckCircle2,
   ArrowLeft,
-  Loader2,
-  Settings
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface RoomData {
   id: string;
@@ -67,15 +47,8 @@ export default function RoomView() {
   const { code } = useParams<{ code: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { user } = useAuth();
   const [codeCopied, setCodeCopied] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [showEditSettings, setShowEditSettings] = useState(false);
-  const [editForm, setEditForm] = useState({
-    rounds: 9,
-    maxPlayers: 4,
-    stakeBracket: "free"
-  });
 
   // Fetch room details
   const { data: room, isLoading, error } = useQuery<RoomData>({
@@ -83,116 +56,6 @@ export default function RoomView() {
     refetchInterval: 2000, // Poll for updates
     enabled: !!code
   });
-
-  // Update settings mutation - must be before any conditional returns
-  const updateSettingsMutation = useMutation({
-    mutationFn: async (settings: typeof editForm) => {
-      const res = await apiRequest("PATCH", `/api/rooms/${code}/settings`, settings);
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      if (data.success) {
-        toast({
-          title: "Settings Updated",
-          description: "Room settings have been updated successfully"
-        });
-        setShowEditSettings(false);
-        // Invalidate and refetch room data
-        queryClient.invalidateQueries({ queryKey: [`/api/rooms/${code}`] });
-      } else {
-        toast({
-          title: "Update Failed",
-          description: data.message || "Failed to update room settings",
-          variant: "destructive"
-        });
-      }
-    },
-    onError: (error) => {
-      console.error("Failed to update settings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update room settings",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Start game mutation
-  const startGameMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/rooms/${code}/start`);
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.message || "Failed to start game");
-      }
-      return data;
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: "Game Started!",
-        description: "The game has begun. Good luck!",
-        duration: 3000
-      });
-      // The room data will be updated through WebSocket
-      // Room will transition from 'room' → 'starting' → 'inGame'
-    },
-    onError: (error) => {
-      console.error("Failed to start game:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start game",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Leave room mutation
-  const leaveRoomMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/rooms/${code}/leave`);
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.message || "Failed to leave room");
-      }
-      return data;
-    },
-    onSuccess: (data: any) => {
-      if (data.roomDeleted) {
-        toast({
-          title: "Room closed",
-          description: "The room was deleted as you were the last player",
-          duration: 2000
-        });
-      } else {
-        toast({
-          title: "Left room",
-          description: data.newHost ? "Host transferred to another player" : "You have left the room",
-          duration: 2000
-        });
-      }
-      // Navigate back to multiplayer lobby
-      navigate("/online-multiplayer");
-    },
-    onError: (error) => {
-      console.error("Failed to leave room:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to leave room",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Initialize edit form when room data changes - must be before any conditional returns
-  useEffect(() => {
-    if (room) {
-      setEditForm({
-        rounds: room.settings.rounds || 9,
-        maxPlayers: room.maxPlayers || 4,
-        stakeBracket: room.stakeBracket || "free"
-      });
-    }
-  }, [room]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -243,11 +106,16 @@ export default function RoomView() {
   };
 
   const handleStartGame = () => {
-    startGameMutation.mutate();
+    // TODO: Implement game start logic
+    toast({
+      title: "Starting game...",
+      description: "Preparing the game room",
+    });
   };
 
   const handleLeaveRoom = () => {
-    leaveRoomMutation.mutate();
+    // TODO: Implement leave room logic
+    navigate("/online-multiplayer");
   };
 
   if (isLoading) {
@@ -283,8 +151,7 @@ export default function RoomView() {
   }
 
   const stake = STAKE_LABELS[room.stakeBracket] || STAKE_LABELS.free;
-  const isHost = user?.id === room.hostId;
-  const canEditSettings = isHost && room.status === "room";
+  const isHost = true; // TODO: Check if current user is host
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 p-4">
@@ -296,12 +163,6 @@ export default function RoomView() {
               <div>
                 <CardTitle className="text-3xl text-white mb-2">
                   Room {room.code}
-                  {room.status === "starting" && (
-                    <span className="text-yellow-400 text-xl ml-3">Starting...</span>
-                  )}
-                  {room.status === "inGame" && (
-                    <span className="text-green-400 text-xl ml-3">In Game</span>
-                  )}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge className={`${stake.color} text-white`}>
@@ -323,10 +184,9 @@ export default function RoomView() {
                 onClick={handleLeaveRoom}
                 variant="outline"
                 className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                disabled={leaveRoomMutation.isPending}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                {leaveRoomMutation.isPending ? "Leaving..." : "Leave Room"}
+                Leave Room
               </Button>
             </div>
           </CardHeader>
@@ -337,20 +197,7 @@ export default function RoomView() {
           {/* Game Settings */}
           <Card className="bg-black/40 backdrop-blur border-white/20">
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-white">Game Settings</CardTitle>
-                {canEditSettings && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                    onClick={() => setShowEditSettings(true)}
-                  >
-                    <Settings className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                )}
-              </div>
+              <CardTitle className="text-white">Game Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-white">
@@ -482,112 +329,15 @@ export default function RoomView() {
                 <Button
                   onClick={handleStartGame}
                   className="bg-green-600 hover:bg-green-700 text-white px-8"
-                  disabled={room.playerCount < 2 || startGameMutation.isPending}
+                  disabled={room.playerCount < 2}
                 >
-                  {startGameMutation.isPending ? "Starting..." : 
-                   room.playerCount < 2 ? "Waiting for players..." : "Start Game"}
+                  {room.playerCount < 2 ? "Waiting for players..." : "Start Game"}
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
       </div>
-
-      {/* Edit Settings Dialog */}
-      <Dialog open={showEditSettings} onOpenChange={setShowEditSettings}>
-        <DialogContent className="bg-black/95 border-white/20 text-white">
-          <DialogHeader>
-            <DialogTitle>Edit Room Settings</DialogTitle>
-            <DialogDescription className="text-white/70">
-              Update the room settings. Changes will apply immediately.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="rounds" className="text-right text-white">
-                Rounds
-              </Label>
-              <Select
-                value={editForm.rounds.toString()}
-                onValueChange={(value) => setEditForm({ ...editForm, rounds: parseInt(value) })}
-              >
-                <SelectTrigger className="col-span-3 bg-white/10 border-white/20 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5 Rounds</SelectItem>
-                  <SelectItem value="9">9 Rounds</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="maxPlayers" className="text-right text-white">
-                Max Players
-              </Label>
-              <Select
-                value={editForm.maxPlayers.toString()}
-                onValueChange={(value) => setEditForm({ ...editForm, maxPlayers: parseInt(value) })}
-                disabled={room.playerCount > 2}
-              >
-                <SelectTrigger className="col-span-3 bg-white/10 border-white/20 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2" disabled={room.playerCount > 2}>2 Players</SelectItem>
-                  <SelectItem value="3" disabled={room.playerCount > 3}>3 Players</SelectItem>
-                  <SelectItem value="4">4 Players</SelectItem>
-                </SelectContent>
-              </Select>
-              {editForm.maxPlayers < room.playerCount && (
-                <p className="col-span-4 text-sm text-red-400">
-                  Cannot set max players below current player count ({room.playerCount})
-                </p>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="stakeBracket" className="text-right text-white">
-                Stake Level
-              </Label>
-              <Select
-                value={editForm.stakeBracket}
-                onValueChange={(value) => setEditForm({ ...editForm, stakeBracket: value })}
-              >
-                <SelectTrigger className="col-span-3 bg-white/10 border-white/20 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="free">Free Play</SelectItem>
-                  <SelectItem value="low">Low Stakes (10 coins)</SelectItem>
-                  <SelectItem value="medium">Medium Stakes (50 coins)</SelectItem>
-                  <SelectItem value="high">High Stakes (100 coins)</SelectItem>
-                  <SelectItem value="premium">Premium Stakes (500 coins)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowEditSettings(false)}
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-              disabled={updateSettingsMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => updateSettingsMutation.mutate(editForm)}
-              className="bg-green-600 hover:bg-green-700 text-white"
-              disabled={updateSettingsMutation.isPending || editForm.maxPlayers < room.playerCount}
-            >
-              {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

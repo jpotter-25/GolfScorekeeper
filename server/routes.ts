@@ -343,226 +343,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Join room endpoint - Atomic and idempotent
+  // Join room endpoint
   app.post('/api/rooms/:code/join', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const userEmail = req.user.claims.email;
       const { code } = req.params;
       
-      // Use atomic join method
-      const result = await storage.joinGameRoom(code, userId, userEmail);
-      
-      if (!result.success) {
-        // Return error with latest room snapshot
-        return res.status(400).json({ 
-          success: false,
-          message: result.message || "Cannot join room",
-          room: result.room // Include latest room state
-        });
-      }
-      
-      // If player was already in room (idempotent), still return success
-      if (result.isAlreadyInRoom) {
-        console.log(`Player ${userId} already in room ${code} - returning success`);
-        return res.json({ 
-          success: true,
-          room: result.room,
-          message: "Already in room"
-        });
-      }
-      
-      // Broadcast room update to all subscribers and Active Rooms
-      const broadcastFn = (global as any).broadcastRoomUpdate;
-      if (broadcastFn && result.room) {
-        await broadcastFn('updated', result.room);
-      }
-      
-      console.log(`Player ${userEmail} joined room ${code}`);
-      
-      res.json({ 
-        success: true,
-        room: result.room,
-        message: "Successfully joined room"
-      });
-    } catch (error) {
-      console.error("Error joining room:", error);
-      res.status(500).json({ 
-        success: false,
-        message: "Failed to join room",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  // Update room settings endpoint
-  app.patch('/api/rooms/:code/settings', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { code } = req.params;
-      const { rounds, maxPlayers, stakeBracket } = req.body;
-      
-      // Get room to verify permissions
       const room = await storage.getGameRoom(code);
       if (!room) {
-        return res.status(404).json({ success: false, message: "Room not found" });
-      }
-      
-      // Check if user is host
-      if (room.hostId !== userId) {
-        return res.status(403).json({ success: false, message: "Only the host can edit settings" });
-      }
-      
-      // Check if room is in pre-game state
-      if (room.status !== 'room') {
-        return res.status(400).json({ success: false, message: "Cannot edit settings after game has started" });
+        return res.status(404).json({ message: "Room not found" });
       }
       
       const players = room.players as any[];
+      const maxPlayers = room.maxPlayers || 4;
       
-      // Validate max players
-      if (maxPlayers < players.length) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `Cannot set max players below current player count (${players.length})` 
-        });
+      // Check if room is full
+      if (players.length >= maxPlayers) {
+        return res.status(400).json({ message: "Room is full" });
       }
       
-      // Update room settings
+      // Check if player already in room
+      if (players.some(p => p.id === userId)) {
+        return res.status(400).json({ message: "Already in room" });
+      }
+      
+      // Add player to room
+      players.push({ id: userId, name: req.user.claims.email || 'Player' });
+      
       const updatedRoom = await storage.updateGameRoom(code, {
-        maxPlayers,
-        stakeBracket,
-        settings: {
-          ...room.settings,
-          rounds: rounds || room.settings.rounds
-        },
-        version: room.version + 1 // Increment version for client-side caching
+        players
       });
       
-      if (!updatedRoom) {
-        return res.status(500).json({ success: false, message: "Failed to update room" });
-      }
-      
-      // Log the update
-      console.log(`Room ${code} settings updated by host`);
-      
-      // Broadcast room update to all subscribers
+      // Broadcast room update
       const broadcastFn = (global as any).broadcastRoomUpdate;
-      if (broadcastFn) {
-        await broadcastFn('updated', updatedRoom);
+      if (broadcastFn && updatedRoom) {
+        broadcastFn('updated', updatedRoom);
       }
       
-      res.json({
-        success: true,
-        room: updatedRoom,
-        message: "Room settings updated successfully"
-      });
+      res.json(updatedRoom);
     } catch (error) {
-      console.error("Error updating room settings:", error);
-      res.status(500).json({ 
-        success: false,
-        message: "Failed to update room settings",
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      console.error("Error joining room:", error);
+      res.status(500).json({ message: "Failed to join room" });
     }
   });
 
-  // Leave room endpoint - Atomic with host transfer
+  // Leave room endpoint
   app.post('/api/rooms/:code/leave', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const userEmail = req.user.claims.email;
       const { code } = req.params;
       
-      // Use atomic leave method
-      const result = await storage.leaveGameRoom(code, userId);
-      
-      if (!result.success) {
-        return res.status(400).json({ 
-          success: false,
-          message: result.message || "Cannot leave room"
-        });
+      const room = await storage.getGameRoom(code);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
       }
       
-      // Broadcast appropriate update based on what happened
-      const broadcastFn = (global as any).broadcastRoomUpdate;
-      if (broadcastFn) {
-        if (result.roomDeleted) {
-          // Room was deleted - broadcast removal to Active Rooms
-          console.log(`Room ${code} deleted (no players remaining)`);
-          await broadcastFn('removed', { code }); // Just need the code for removal
-        } else if (result.room) {
-          // Room still exists - broadcast update
-          if (result.newHost) {
-            console.log(`Host transferred in room ${code} to player ${result.newHost}`);
-          }
-          await broadcastFn('updated', result.room);
+      let players = room.players as any[];
+      players = players.filter(p => p.id !== userId);
+      
+      // If room is now empty, delete it
+      if (players.length === 0) {
+        await storage.deleteGameRoom(code);
+        console.log(`Room ${code} deleted (no players remaining)`);
+        
+        // Broadcast room removal
+        const broadcastFn = (global as any).broadcastRoomUpdate;
+        if (broadcastFn) {
+          broadcastFn('removed', room);
         }
+        
+        return res.json({ message: "Left room and room deleted" });
       }
       
-      console.log(`Player ${userEmail} left room ${code}`);
-      
-      res.json({ 
-        success: true,
-        message: result.roomDeleted ? "Left room and room deleted" : "Left room successfully",
-        room: result.room,
-        roomDeleted: result.roomDeleted,
-        newHost: result.newHost
+      // Update room with remaining players
+      const updatedRoom = await storage.updateGameRoom(code, {
+        players,
+        hostId: players[0].id // Transfer host to first remaining player
       });
+      
+      // Broadcast room update
+      const broadcastFn = (global as any).broadcastRoomUpdate;
+      if (broadcastFn && updatedRoom) {
+        broadcastFn('updated', updatedRoom);
+      }
+      
+      res.json({ message: "Left room successfully", room: updatedRoom });
     } catch (error) {
       console.error("Error leaving room:", error);
-      res.status(500).json({ 
-        success: false,
-        message: "Failed to leave room",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  // Start game endpoint - Host only action
-  app.post('/api/rooms/:code/start', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const userEmail = req.user.claims.email;
-      const { code } = req.params;
-      
-      // Use atomic start game method
-      const result = await storage.startGame(code, userId);
-      
-      if (!result.success) {
-        return res.status(400).json({ 
-          success: false,
-          message: result.message || "Cannot start game",
-          room: result.room // Include latest room state
-        });
-      }
-      
-      // Broadcast room update to all subscribers
-      // Since status changed from 'room' to 'inGame', it will be removed from Active Rooms
-      const broadcastFn = (global as any).broadcastRoomUpdate;
-      if (broadcastFn && result.room) {
-        // Broadcast the update - room will disappear from lobby as status is not 'room'
-        await broadcastFn('updated', result.room);
-        
-        // Also broadcast removal to ensure it's removed from Active Rooms
-        await broadcastFn('removed', result.room);
-      }
-      
-      console.log(`Game started in room ${code} by host ${userEmail}`);
-      console.log(`Room ${code} status: room → starting → inGame`);
-      
-      res.json({ 
-        success: true,
-        room: result.room,
-        message: "Game started successfully"
-      });
-    } catch (error) {
-      console.error("Error starting game:", error);
-      res.status(500).json({ 
-        success: false,
-        message: "Failed to start game",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      res.status(500).json({ message: "Failed to leave room" });
     }
   });
 
