@@ -50,6 +50,12 @@ app.use((req, res, next) => {
   
   const server = await registerRoutes(app);
   
+  // Register test instrumentation routes (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    const { registerTestRoutes } = await import('./routes/test-instrumentation');
+    registerTestRoutes(app);
+  }
+  
   // Initialize WebSocket server
   wsManager.initialize(server);
   log("WebSocket server initialized");

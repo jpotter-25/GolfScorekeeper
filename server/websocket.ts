@@ -13,6 +13,7 @@ import {
   SELF_DEBUG_MODE 
 } from './lib/self-debug';
 import { AutoStartManager } from './lib/auto-start';
+import { logRoomEvent, getNextVersion, guardSettingsMutation, trackSettingsWrite, verifyBroadcast, generateTestReport } from './lib/room-instrumentation';
 
 interface WSClient {
   id: string;
@@ -125,35 +126,26 @@ class WebSocketManager {
       });
     }, 30000); // 30 second heartbeat
     
-    // Periodic cleanup for empty rooms
+    // DISABLED: Periodic cleanup - this was causing issues!
+    // Background jobs should NEVER modify room settings
+    // Only delete truly abandoned rooms with NO participants
+    /*
     setInterval(async () => {
-      try {
-        // Find and delete empty rooms
-        const emptyRooms = await db
-          .select({ 
-            id: gameRooms.id, 
-            code: gameRooms.code,
-            playerCount: gameRooms.playerCount 
-          })
-          .from(gameRooms)
-          .leftJoin(gameParticipants, and(
-            eq(gameParticipants.gameRoomId, gameRooms.id),
-            sql`${gameParticipants.leftAt} IS NULL`
-          ))
-          .where(and(
-            eq(gameRooms.status, 'waiting'),
-            sql`${gameParticipants.id} IS NULL`
-          ))
-          .groupBy(gameRooms.id, gameRooms.code, gameRooms.playerCount);
-        
-        for (const room of emptyRooms) {
-          console.log(`[WebSocket] Cleanup: Removing empty room ${room.code}`);
-          await db.delete(gameRooms).where(eq(gameRooms.id, room.id));
-        }
-      } catch (error) {
-        console.error('[WebSocket] Cleanup error:', error);
-      }
-    }, 60000); // Run cleanup every minute
+      logRoomEvent({
+        event: 'cleanup',
+        roomId: 'system',
+        version: 0,
+        playersCount: 0,
+        maxPlayers: 0,
+        rounds: 0,
+        status: 'waiting',
+        source: 'websocket',
+        result: 'error',
+        errorCode: 'DISABLED_CLEANUP',
+        details: { reason: 'Background cleanup disabled to prevent settings modifications' }
+      });
+    }, 60000);
+    */
   }
   
   private async handleMessage(client: WSClient, message: any) {

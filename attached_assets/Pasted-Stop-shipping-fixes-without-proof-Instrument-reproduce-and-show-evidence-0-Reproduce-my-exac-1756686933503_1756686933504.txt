@@ -1,0 +1,96 @@
+Stop shipping “fixes” without proof. Instrument, reproduce, and show evidence.
+
+0) Reproduce my exact bug
+
+New room → change rounds & max players (e.g., 9→5, 4→2).
+
+Open a second client on the lobby list.
+
+Attempt to join from the list.
+
+Observe: list still shows old settings, join fails on one side but appears joined on the other, and settings later revert.
+
+1) Add mandatory instrumentation (no renames—use your existing code)
+
+Emit a single, ordered log line per event with fields (names are conceptual, not prescriptive):
+
+event (create / update_settings / join / leave / list_projection / broadcast / client_render / heartbeat / cleanup)
+
+roomId
+
+version (monotonic integer that increments on every state change)
+
+playersCount and maxPlayers
+
+rounds
+
+status (lobby / inGame / ended)
+
+source (server / lobby-view-client / list-view-client)
+
+result (ok / error + errorCode)
+
+Also print:
+
+DB read/write summaries for any room state persistence.
+
+All broadcasts: “broadcast→room” and “broadcast→list”.
+
+Client receives: whenever a client applies a snapshot, log client_render with the full counters and the version it applied.
+
+Discarded snapshots: log when a snapshot is ignored due to stale version.
+
+2) Add hard guards (consistency invariants)
+
+Implement runtime checks that throw/log errors if violated:
+
+After any settings change, immediately emit/broadcast a full snapshot; missing broadcast = error.
+
+Any client that renders a lobby must be rendering the latest version seen for that room. Rendering older versions = error.
+
+Lobby list item must match the authoritative lobby state for: player count, max players, rounds, and joinable/full. Mismatch = error.
+
+No background job/timer/heartbeat/cleanup is allowed to mutate settings. If any non-host path writes defaults to settings, throw and log the stack.
+
+3) Kill the reversion at the root
+
+Search codebase for every write path that touches lobby settings. Post the list. Acceptable writers:
+
+Room creation (initial defaults once)
+
+Host settings update (while in lobby)
+Delete/disable any other writer (cron, reconnect, room “normalizer,” list “projector” writing back, etc.).
+
+4) Fix join split-brain
+
+On join attempt, read latest room state and decide joinability based on that single source, then emit one authoritative snapshot.
+
+If two attempts race, one success, one clear “full” error—and both clients receive the same final snapshot.
+
+5) Replace deltas with full snapshots (temporarily)
+
+Until this is stable, always send/handle full snapshots for any mutation. Deltas can re-introduce drift if one packet is dropped.
+
+6) Deliver proof (must include these artifacts in your reply)
+
+Single test run log (copy/paste) covering: create → settings change → second client list view → join → leave → idle 5 minutes.
+
+Include the ordered event lines from server and both clients with the fields above.
+
+DB state timeline (before/after each mutation): show stored rounds, max players, and player IDs.
+
+Why it was broken: a brief root-cause summary (e.g., “list projector cached stale state and wrote defaults back via X”, or “heartbeat handler reset settings”).
+
+Why it’s fixed: point to the exact guardrails (instrumentation + invariant checks) that would catch this if it ever regresses.
+
+7) Acceptance checks (pass/fail)
+
+Changing settings updates host lobby, other clients in lobby, and lobby list within one update tick.
+
+Joining updates counts everywhere or fails everywhere—no split-brain.
+
+Full lobbies delist (or become unjoinable); re-list instantly when a slot opens.
+
+No automatic reversion after 5+ minutes idle.
+
+All rendered views show the same (latest) version values.
