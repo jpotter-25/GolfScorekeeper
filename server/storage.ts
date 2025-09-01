@@ -28,7 +28,7 @@ import {
   type StakeBracket,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, gt, lt } from "drizzle-orm";
+import { eq, desc, sql, and, gt, lt, ne } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -294,7 +294,7 @@ export class DatabaseStorage implements IStorage {
     const defaultSettings = {
       rounds: 9,
       playerCount: 4,
-      ...roomData.settings
+      ...(roomData.settings || {})
     };
     
     // Extract maxPlayers from settings or use default
@@ -379,29 +379,40 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(gameRooms.isActive, true),
           eq(gameRooms.stakeBracket, stakeBracket),
-          gt(gameRooms.playerCount, 0), // Active room: players ≥ 1 (at least one seated)
-          lt(gameRooms.playerCount, gameRooms.maxPlayers) // Active room: seatsOpen > 0 (not full)
+          gt(gameRooms.playerCount, 0), // Must have at least one player
+          lt(gameRooms.playerCount, gameRooms.maxPlayers), // Must have open seats (not full)
+          ne(gameRooms.status, 'finished') // Not finished games
         )
       );
     
     // Additional filtering per Active Room definition
+    // Active Rooms = Tables with Open Seats
     const validRooms = rooms.filter(room => {
       const players = room.players as any[];
       
+      // Delete empty rooms immediately
+      if (!players || players.length === 0) {
+        // Schedule deletion but don't await to avoid blocking
+        this.deleteGameRoom(room.code).catch(err => 
+          console.error(`Failed to delete empty room ${room.code}:`, err)
+        );
+        return false;
+      }
+      
       // Active Room criteria:
       // 1. players ≥ 1 (at least one seated)
-      const hasPlayers = players && players.length >= 1;
+      const hasPlayers = players.length >= 1;
       
-      // 2. seatsOpen > 0 (not full)
-      const seatsOpen = room.maxPlayers - players.length;
+      // 2. seatsOpen > 0 (MUST have open seats - not full)
+      const maxPlayers = room.maxPlayers || 4;
+      const seatsOpen = maxPlayers - players.length;
       const hasOpenSeats = seatsOpen > 0;
       
       // 3. visibility allows listing (default to public if not set)
       const visibility = room.visibility || 'public';
       const isListable = visibility === 'public';
       
-      // 4. stake bracket already matched in query
-      
+      // Only show tables with open seats
       return hasPlayers && hasOpenSeats && isListable;
     });
     

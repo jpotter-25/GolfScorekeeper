@@ -569,42 +569,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Helper function to serialize room data (converts BigInt to string)
+  function serializeRoom(room: GameRoom): any {
+    return {
+      ...room,
+      version: room.version ? room.version.toString() : '1'
+    };
+  }
+  
   // Helper function to get active rooms per Active Room definition
   async function getActiveRooms(stakeBracket?: StakeBracket): Promise<GameRoom[]> {
     // Use improved storage method that already filters per Active Room definition
     if (stakeBracket) {
-      return await storage.getActiveRoomsByStake(stakeBracket);
+      const rooms = await storage.getActiveRoomsByStake(stakeBracket);
+      return rooms.map(serializeRoom);
     }
     
     // Get all active rooms if no stake specified
     const allRooms = await storage.getAllActiveRooms();
     
     // Apply Active Room definition:
+    // Active Rooms = Tables with Open Seats
     // 1. players ≥ 1 (at least one seated)
     // 2. seatsOpen > 0 (not full) 
     // 3. visibility allows listing
+    // 4. Not in finished state
     const activeRooms: GameRoom[] = [];
     
     for (const room of allRooms) {
       const players = room.players as any[];
       
-      // Clean up phantom rooms (zero players)
+      // Delete zero-player rooms immediately
       if (!players || players.length === 0) {
         await storage.deleteGameRoom(room.code);
-        console.log(`Deleted phantom room ${room.code} (zero players)`);
+        console.log(`Deleted empty room ${room.code} (zero players)`);
         continue;
       }
       
       // Active Room criteria check
       const hasPlayers = players.length >= 1;
-      const seatsOpen = room.maxPlayers - players.length;
-      const hasOpenSeats = seatsOpen > 0;
+      const maxPlayers = room.maxPlayers || 4;
+      const seatsOpen = maxPlayers - players.length;
+      const hasOpenSeats = seatsOpen > 0; // MUST have open seats to be listed
       const visibility = room.visibility || 'public';
       const isListable = visibility === 'public';
-      const isPreGame = room.status === 'room' || !room.status;
+      const notFinished = room.status !== 'finished';
       
-      if (hasPlayers && hasOpenSeats && isListable && isPreGame) {
-        activeRooms.push(room);
+      // Only list tables with open seats (not full)
+      if (hasPlayers && hasOpenSeats && isListable && notFinished) {
+        activeRooms.push(serializeRoom(room));
       }
     }
     
@@ -628,8 +641,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subscription.ws.send(JSON.stringify({
           type: 'rooms_update',
           changeType,
-          room,
-          rooms: filteredRooms,
+          room: serializeRoom(room),
+          rooms: filteredRooms, // Already serialized from getActiveRooms
           timestamp: new Date().toISOString()
         }));
       }
