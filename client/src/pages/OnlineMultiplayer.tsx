@@ -187,10 +187,29 @@ export default function OnlineMultiplayer() {
         <Card className="bg-black/20 backdrop-blur border-white/10">
           <CardContent className="p-4 sm:p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-white">Active Rooms</h2>
-              <Badge variant="outline" className="text-white border-white/20">
-                {selectedStake === "free" ? "Free Play" : `${STAKE_OPTIONS.find(s => s.value === selectedStake)?.coins} Coins Entry`}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold text-white">Active Rooms</h2>
+                <Badge variant="outline" className="text-white border-white/20">
+                  {selectedStake === "free" ? "Free Play" : `${STAKE_OPTIONS.find(s => s.value === selectedStake)?.coins} Coins Entry`}
+                </Badge>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => createRoomMutation.mutate()}
+                  disabled={createRoomMutation.isPending}
+                >
+                  {createRoomMutation.isPending ? "Creating..." : "Create Room"}
+                </Button>
+                <Button 
+                  size="sm"
+                  variant="outline" 
+                  className="bg-white/10 backdrop-blur border-white/20 text-white hover:bg-white/20"
+                >
+                  Quick Match
+                </Button>
+              </div>
             </div>
 
             {roomsLoading ? (
