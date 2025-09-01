@@ -69,6 +69,24 @@ export interface IStorage {
   deleteGameRoom(code: string): Promise<void>;
   getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]>;
   getAllActiveRooms(): Promise<GameRoom[]>;
+  joinGameRoom(code: string, userId: string, userEmail?: string): Promise<{
+    success: boolean;
+    room?: GameRoom | null;
+    message?: string;
+    isAlreadyInRoom?: boolean;
+  }>;
+  leaveGameRoom(code: string, userId: string): Promise<{
+    success: boolean;
+    roomDeleted?: boolean;
+    newHost?: string;
+    room?: GameRoom | null;
+    message?: string;
+  }>;
+  startGame(code: string, userId: string): Promise<{
+    success: boolean;
+    room?: GameRoom | null;
+    message?: string;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -526,6 +544,105 @@ export class DatabaseStorage implements IStorage {
       DELETE FROM game_rooms 
       WHERE code = ${code}
     `);
+  }
+
+  async startGame(code: string, userId: string): Promise<{
+    success: boolean;
+    room?: GameRoom | null;
+    message?: string;
+  }> {
+    // Atomic start game operation using a transaction
+    return await db.transaction(async (tx) => {
+      // Get latest room state with row-level lock
+      const result = await tx.execute(sql`
+        SELECT * FROM game_rooms 
+        WHERE code = ${code} AND is_active = true
+        FOR UPDATE
+      `);
+      
+      const room = result.rows[0] as GameRoom | undefined;
+      
+      if (!room) {
+        return { 
+          success: false, 
+          message: "Room not found or inactive" 
+        };
+      }
+      
+      // Check if user is host
+      if (room.hostId !== userId) {
+        return { 
+          success: false, 
+          room: room,
+          message: "Only the host can start the game" 
+        };
+      }
+      
+      // Check if room is in correct state
+      if (room.status !== 'room') {
+        return { 
+          success: false, 
+          room: room,
+          message: "Game has already started" 
+        };
+      }
+      
+      const players = room.players as any[];
+      
+      // Check minimum players (need at least 2)
+      if (players.length < 2) {
+        return { 
+          success: false, 
+          room: room,
+          message: "Need at least 2 players to start" 
+        };
+      }
+      
+      // Initialize game state with turn order and round counter
+      const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+      const gameState = {
+        currentRound: 1,
+        totalRounds: room.settings?.rounds || 9,
+        currentTurn: 0, // Index of current player in turnOrder
+        turnOrder: shuffledPlayers.map(p => p.id),
+        scores: shuffledPlayers.reduce((acc, p) => {
+          acc[p.id] = 0;
+          return acc;
+        }, {} as Record<string, number>),
+        gameStartedAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString()
+      };
+      
+      // Transition: room → starting
+      await tx.execute(sql`
+        UPDATE game_rooms 
+        SET 
+          status = 'starting',
+          game_state = ${JSON.stringify(gameState)}::jsonb,
+          version = COALESCE(version, 1) + 1
+        WHERE code = ${code}
+      `);
+      
+      // Brief pause for starting state
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Transition: starting → inGame  
+      const finalResult = await tx.execute(sql`
+        UPDATE game_rooms 
+        SET 
+          status = 'inGame',
+          version = COALESCE(version, 1) + 2
+        WHERE code = ${code}
+        RETURNING *
+      `);
+      
+      const updatedRoom = finalResult.rows[0] as GameRoom;
+      
+      return { 
+        success: true, 
+        room: updatedRoom
+      };
+    });
   }
 
   async getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]> {

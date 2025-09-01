@@ -519,6 +519,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Start game endpoint - Host only action
+  app.post('/api/rooms/:code/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userEmail = req.user.claims.email;
+      const { code } = req.params;
+      
+      // Use atomic start game method
+      const result = await storage.startGame(code, userId);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          success: false,
+          message: result.message || "Cannot start game",
+          room: result.room // Include latest room state
+        });
+      }
+      
+      // Broadcast room update to all subscribers
+      // Since status changed from 'room' to 'inGame', it will be removed from Active Rooms
+      const broadcastFn = (global as any).broadcastRoomUpdate;
+      if (broadcastFn && result.room) {
+        // Broadcast the update - room will disappear from lobby as status is not 'room'
+        await broadcastFn('updated', result.room);
+        
+        // Also broadcast removal to ensure it's removed from Active Rooms
+        await broadcastFn('removed', result.room);
+      }
+      
+      console.log(`Game started in room ${code} by host ${userEmail}`);
+      console.log(`Room ${code} status: room → starting → inGame`);
+      
+      res.json({ 
+        success: true,
+        room: result.room,
+        message: "Game started successfully"
+      });
+    } catch (error) {
+      console.error("Error starting game:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to start game",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Settings routes
   app.get('/api/user/settings', isAuthenticated, async (req: any, res) => {
     try {

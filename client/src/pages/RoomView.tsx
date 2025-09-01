@@ -117,6 +117,35 @@ export default function RoomView() {
     }
   });
 
+  // Start game mutation
+  const startGameMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/rooms/${code}/start`);
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to start game");
+      }
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Game Started!",
+        description: "The game has begun. Good luck!",
+        duration: 3000
+      });
+      // The room data will be updated through WebSocket
+      // Room will transition from 'room' → 'starting' → 'inGame'
+    },
+    onError: (error) => {
+      console.error("Failed to start game:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start game",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Leave room mutation
   const leaveRoomMutation = useMutation({
     mutationFn: async () => {
@@ -214,11 +243,7 @@ export default function RoomView() {
   };
 
   const handleStartGame = () => {
-    // TODO: Implement game start logic
-    toast({
-      title: "Starting game...",
-      description: "Preparing the game room",
-    });
+    startGameMutation.mutate();
   };
 
   const handleLeaveRoom = () => {
@@ -271,6 +296,12 @@ export default function RoomView() {
               <div>
                 <CardTitle className="text-3xl text-white mb-2">
                   Room {room.code}
+                  {room.status === "starting" && (
+                    <span className="text-yellow-400 text-xl ml-3">Starting...</span>
+                  )}
+                  {room.status === "inGame" && (
+                    <span className="text-green-400 text-xl ml-3">In Game</span>
+                  )}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge className={`${stake.color} text-white`}>
@@ -451,9 +482,10 @@ export default function RoomView() {
                 <Button
                   onClick={handleStartGame}
                   className="bg-green-600 hover:bg-green-700 text-white px-8"
-                  disabled={room.playerCount < 2}
+                  disabled={room.playerCount < 2 || startGameMutation.isPending}
                 >
-                  {room.playerCount < 2 ? "Waiting for players..." : "Start Game"}
+                  {startGameMutation.isPending ? "Starting..." : 
+                   room.playerCount < 2 ? "Waiting for players..." : "Start Game"}
                 </Button>
               </div>
             </CardContent>
