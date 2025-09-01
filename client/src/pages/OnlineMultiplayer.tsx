@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ const STAKE_OPTIONS: StakeOption[] = [
 ];
 
 export default function OnlineMultiplayer() {
+  const [, navigate] = useLocation();
   const [selectedStake, setSelectedStake] = useState<StakeBracket>(() => {
     // Load persisted stake from localStorage
     const saved = localStorage.getItem("selectedStake");
@@ -106,7 +108,8 @@ export default function OnlineMultiplayer() {
     onSuccess: (response) => {
       if (response.success && response.room) {
         console.log("Room created:", response.room.code);
-        // Room will appear via WebSocket subscription
+        // Navigate to the Room View with the room code
+        navigate(`/room/${response.room.code}`);
       }
     },
     onError: (error) => {
@@ -294,8 +297,8 @@ export default function OnlineMultiplayer() {
                           size="sm" 
                           className="bg-green-600 hover:bg-green-700 text-white ml-4"
                           onClick={() => {
-                            console.log(`Joining room ${room.code}`);
-                            // TODO: Implement join room functionality
+                            // Navigate to Room View - joining will happen there
+                            navigate(`/room/${room.code}`);
                           }}
                           data-testid={`button-join-${room.code}`}
                         >

@@ -326,6 +326,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get room details by code
+  app.get('/api/rooms/:code', async (req, res) => {
+    try {
+      const { code } = req.params;
+      
+      const room = await storage.getGameRoom(code);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      res.json(room);
+    } catch (error) {
+      console.error("Error fetching room details:", error);
+      res.status(500).json({ message: "Failed to fetch room details" });
+    }
+  });
+
   // Join room endpoint
   app.post('/api/rooms/:code/join', isAuthenticated, async (req: any, res) => {
     try {
