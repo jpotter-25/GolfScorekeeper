@@ -376,51 +376,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Room not found" });
       }
       
-      res.json(room);
+      // Serialize BigInt values to strings
+      res.json(serializeRoom(room));
     } catch (error) {
       console.error("Error fetching room details:", error);
       res.status(500).json({ message: "Failed to fetch room details" });
     }
   });
 
-  // Join room endpoint
+  // Join room endpoint - Seat Claim
   app.post('/api/rooms/:code/join', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const userName = req.user.claims.email || req.user.claims.name || 'Player';
       const { code } = req.params;
       
+      // Re-read latest table state
       const room = await storage.getGameRoom(code);
       if (!room) {
         return res.status(404).json({ message: "Room not found" });
       }
       
       const players = room.players as any[];
+      const gameState = room.gameState as any;
       const maxPlayers = room.maxPlayers || 4;
+      
+      // Check if player already seated (idempotent)
+      const existingPlayer = players.find(p => p.id === userId);
+      if (existingPlayer) {
+        // Already seated - return current state
+        const gameSnapshot = {
+          code: room.code,
+          hostId: room.hostId,
+          status: room.status,
+          players: room.players,
+          gameState: room.gameState,
+          settings: room.settings,
+          stakeBracket: room.stakeBracket
+        };
+        return res.json({
+          success: true,
+          alreadySeated: true,
+          gameSnapshot,
+          message: "Already seated at this table"
+        });
+      }
       
       // Check if room is full
       if (players.length >= maxPlayers) {
-        return res.status(400).json({ message: "Room is full" });
+        // Room is full - return error with latest snapshot
+        const gameSnapshot = {
+          code: room.code,
+          hostId: room.hostId,
+          status: room.status,
+          players: room.players,
+          gameState: room.gameState,
+          settings: room.settings,
+          stakeBracket: room.stakeBracket
+        };
+        return res.status(400).json({ 
+          success: false,
+          message: "Table is full",
+          gameSnapshot
+        });
       }
       
-      // Check if player already in room
-      if (players.some(p => p.id === userId)) {
-        return res.status(400).json({ message: "Already in room" });
+      // Find next available seat and claim it
+      let seatNumber = -1;
+      if (gameState && gameState.tableSlots) {
+        for (let i = 0; i < gameState.tableSlots.length; i++) {
+          if (gameState.tableSlots[i].isEmpty) {
+            seatNumber = i;
+            // Claim the seat
+            gameState.tableSlots[i] = {
+              seatNumber: i,
+              isEmpty: false,
+              playerId: userId,
+              playerName: userName,
+              cards: [],
+              score: 0,
+              roundScores: [],
+              isReady: false,
+              isActive: true
+            };
+            break;
+          }
+        }
       }
       
-      // Add player to room
-      players.push({ id: userId, name: req.user.claims.email || 'Player' });
-      
-      const updatedRoom = await storage.updateGameRoom(code, {
-        players
+      // Add player to players array
+      players.push({ 
+        id: userId, 
+        name: userName,
+        seatNumber,
+        joinedAt: new Date().toISOString()
       });
       
-      // Broadcast room update
-      const broadcastFn = (global as any).broadcastRoomUpdate;
-      if (broadcastFn && updatedRoom) {
-        broadcastFn('updated', updatedRoom);
+      // Increment version for optimistic concurrency
+      const newVersion = (room.version ? BigInt(room.version) : BigInt(1)) + BigInt(1);
+      
+      // Update room with new player and incremented version
+      const updatedRoom = await storage.updateGameRoom(code, {
+        players,
+        gameState,
+        version: newVersion
+      });
+      
+      if (!updatedRoom) {
+        return res.status(500).json({ message: "Failed to update room" });
       }
       
-      res.json(updatedRoom);
+      // Create full game snapshot
+      const gameSnapshot = {
+        code: updatedRoom.code,
+        hostId: updatedRoom.hostId,
+        status: updatedRoom.status,
+        players: updatedRoom.players,
+        gameState: updatedRoom.gameState,
+        settings: updatedRoom.settings,
+        stakeBracket: updatedRoom.stakeBracket
+      };
+      
+      // Broadcast to Active Rooms subscribers
+      const broadcastFn = (global as any).broadcastRoomUpdate;
+      if (broadcastFn) {
+        await broadcastFn('updated', updatedRoom);
+      }
+      
+      // TODO: Broadcast to table participants via WebSocket
+      // This will be implemented when we have table-specific WebSocket channels
+      
+      res.json({
+        success: true,
+        gameSnapshot,
+        seatNumber,
+        message: `Joined table at seat ${seatNumber}`
+      });
+      
     } catch (error) {
       console.error("Error joining room:", error);
       res.status(500).json({ message: "Failed to join room" });

@@ -340,27 +340,64 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined> {
-    // If updating players, also update player_count
-    if (updates.players) {
+    // Build dynamic update query
+    const setClause: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+    
+    if (updates.players !== undefined) {
+      setClause.push(`players = $${paramIndex}::jsonb`);
+      values.push(JSON.stringify(updates.players));
+      paramIndex++;
+      
+      // Also update player_count
       const players = updates.players as any[];
-      const result = await db.execute(sql`
-        UPDATE game_rooms 
-        SET 
-          players = ${JSON.stringify(updates.players)}::jsonb,
-          player_count = ${players.length},
-          host_id = ${updates.hostId || sql`host_id`}
-        WHERE code = ${code}
-        RETURNING *
-      `);
-      return result.rows[0] as GameRoom;
+      setClause.push(`player_count = $${paramIndex}`);
+      values.push(players.length);
+      paramIndex++;
     }
     
-    const [room] = await db
-      .update(gameRooms)
-      .set(updates)
-      .where(eq(gameRooms.code, code))
-      .returning();
-    return room;
+    if (updates.gameState !== undefined) {
+      setClause.push(`game_state = $${paramIndex}::jsonb`);
+      values.push(JSON.stringify(updates.gameState));
+      paramIndex++;
+    }
+    
+    if (updates.version !== undefined) {
+      setClause.push(`version = $${paramIndex}`);
+      values.push(updates.version.toString());
+      paramIndex++;
+    }
+    
+    if (updates.status !== undefined) {
+      setClause.push(`status = $${paramIndex}`);
+      values.push(updates.status);
+      paramIndex++;
+    }
+    
+    if (updates.hostId !== undefined) {
+      setClause.push(`host_id = $${paramIndex}`);
+      values.push(updates.hostId);
+      paramIndex++;
+    }
+    
+    if (setClause.length === 0) {
+      // Nothing to update
+      return await this.getGameRoom(code);
+    }
+    
+    // Add the room code as the last parameter
+    values.push(code);
+    
+    const query = `
+      UPDATE game_rooms 
+      SET ${setClause.join(', ')}
+      WHERE code = $${paramIndex}
+      RETURNING *
+    `;
+    
+    const result = await db.execute(sql.raw(query, values));
+    return result.rows[0] as GameRoom;
   }
 
   async deleteGameRoom(code: string): Promise<void> {
