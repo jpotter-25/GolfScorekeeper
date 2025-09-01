@@ -286,11 +286,27 @@ export class DatabaseStorage implements IStorage {
 
   // Game room operations
   async createGameRoom(roomData: InsertGameRoom): Promise<GameRoom> {
-    const [room] = await db
-      .insert(gameRooms)
-      .values(roomData)
-      .returning();
-    return room;
+    // Calculate player count from players array
+    const playerCount = Array.isArray(roomData.players) ? roomData.players.length : 1;
+    
+    // Use raw SQL to ensure player_count is set
+    const result = await db.execute(sql`
+      INSERT INTO game_rooms (code, host_id, players, settings, stake_bracket, player_count, status, visibility, max_players)
+      VALUES (
+        ${roomData.code},
+        ${roomData.hostId},
+        ${JSON.stringify(roomData.players)}::jsonb,
+        ${JSON.stringify(roomData.settings)}::jsonb,
+        ${roomData.stakeBracket || 'free'},
+        ${playerCount},
+        'room',
+        'public',
+        4
+      )
+      RETURNING *
+    `);
+    
+    return result.rows[0] as GameRoom;
   }
 
   async getGameRoom(code: string): Promise<GameRoom | undefined> {

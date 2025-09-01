@@ -188,6 +188,7 @@ export const insertGameRoomSchema = createInsertSchema(gameRooms).pick({
   hostId: true,
   players: true,
   settings: true,
+  stakeBracket: true,
 });
 
 export const insertAchievementSchema = createInsertSchema(achievements);
