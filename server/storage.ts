@@ -343,41 +343,11 @@ export class DatabaseStorage implements IStorage {
         SET 
           players = ${JSON.stringify(updates.players)}::jsonb,
           player_count = ${players.length},
-          host_id = ${updates.hostId || sql`host_id`},
-          version = ${updates.version || sql`version + 1`}
+          host_id = ${updates.hostId || sql`host_id`}
         WHERE code = ${code}
         RETURNING *
       `);
       return result.rows[0] as GameRoom;
-    }
-    
-    // For other updates, use raw SQL to handle version and other fields
-    if (updates.version || updates.settings || updates.maxPlayers || updates.stakeBracket) {
-      let setClause = [];
-      let values: any = {};
-      
-      if (updates.settings) {
-        setClause.push(`settings = ${JSON.stringify(updates.settings)}::jsonb`);
-      }
-      if (updates.maxPlayers !== undefined) {
-        setClause.push(`max_players = ${updates.maxPlayers}`);
-      }
-      if (updates.stakeBracket !== undefined) {
-        setClause.push(`stake_bracket = '${updates.stakeBracket}'`);
-      }
-      if (updates.version !== undefined) {
-        setClause.push(`version = ${updates.version}`);
-      }
-      
-      if (setClause.length > 0) {
-        const result = await db.execute(sql`
-          UPDATE game_rooms 
-          SET ${sql.raw(setClause.join(', '))}
-          WHERE code = ${code}
-          RETURNING *
-        `);
-        return result.rows[0] as GameRoom;
-      }
     }
     
     const [room] = await db
@@ -403,16 +373,17 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(gameRooms.isActive, true),
-          eq(gameRooms.stakeBracket, stakeBracket)
+          eq(gameRooms.stakeBracket, stakeBracket),
+          gt(gameRooms.playerCount, 0), // Filter out phantom rooms with 0 players
+          lt(gameRooms.playerCount, gameRooms.maxPlayers) // Filter out full rooms
         )
       );
     
-    // Filter for valid rooms (has players, not full)
+    // Additional filtering to ensure data integrity
     const validRooms = rooms.filter(room => {
       const players = room.players as any[];
-      const maxPlayers = room.maxPlayers || 4;
-      // Only show rooms that have players and aren't full
-      return players && players.length > 0 && players.length < maxPlayers;
+      // Double-check that room actually has players and isn't full
+      return players && players.length > 0 && players.length < room.maxPlayers;
     });
     
     return validRooms;
