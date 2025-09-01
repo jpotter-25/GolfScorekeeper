@@ -342,7 +342,6 @@ export class DatabaseStorage implements IStorage {
         UPDATE game_rooms 
         SET 
           players = ${JSON.stringify(updates.players)}::jsonb,
-          player_count = ${players.length},
           host_id = ${updates.hostId || sql`host_id`}
         WHERE code = ${code}
         RETURNING *
@@ -373,17 +372,16 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(gameRooms.isActive, true),
-          eq(gameRooms.stakeBracket, stakeBracket),
-          gt(gameRooms.playerCount, 0), // Filter out phantom rooms with 0 players
-          lt(gameRooms.playerCount, gameRooms.maxPlayers) // Filter out full rooms
+          eq(gameRooms.stakeBracket, stakeBracket)
         )
       );
     
-    // Additional filtering to ensure data integrity
+    // Filter out phantom rooms (0 players) and full rooms
     const validRooms = rooms.filter(room => {
       const players = room.players as any[];
-      // Double-check that room actually has players and isn't full
-      return players && players.length > 0 && players.length < room.maxPlayers;
+      const maxPlayers = room.maxPlayers || 4;
+      // Check that room actually has players and isn't full
+      return players && players.length > 0 && players.length < maxPlayers;
     });
     
     return validRooms;

@@ -84,6 +84,50 @@ export default function RoomView() {
     enabled: !!code
   });
 
+  // Update settings mutation - must be before any conditional returns
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (settings: typeof editForm) => {
+      const res = await apiRequest("PATCH", `/api/rooms/${code}/settings`, settings);
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.success) {
+        toast({
+          title: "Settings Updated",
+          description: "Room settings have been updated successfully"
+        });
+        setShowEditSettings(false);
+        // Invalidate and refetch room data
+        queryClient.invalidateQueries({ queryKey: [`/api/rooms/${code}`] });
+      } else {
+        toast({
+          title: "Update Failed",
+          description: data.message || "Failed to update room settings",
+          variant: "destructive"
+        });
+      }
+    },
+    onError: (error) => {
+      console.error("Failed to update settings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update room settings",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Initialize edit form when room data changes - must be before any conditional returns
+  useEffect(() => {
+    if (room) {
+      setEditForm({
+        rounds: room.settings.rounds || 9,
+        maxPlayers: room.maxPlayers || 4,
+        stakeBracket: room.stakeBracket || "free"
+      });
+    }
+  }, [room]);
+
   // WebSocket connection for real-time updates
   useEffect(() => {
     if (!code) return;
@@ -180,50 +224,6 @@ export default function RoomView() {
   const stake = STAKE_LABELS[room.stakeBracket] || STAKE_LABELS.free;
   const isHost = user?.id === room.hostId;
   const canEditSettings = isHost && room.status === "room";
-
-  // Initialize edit form when room data changes
-  useEffect(() => {
-    if (room) {
-      setEditForm({
-        rounds: room.settings.rounds || 9,
-        maxPlayers: room.maxPlayers || 4,
-        stakeBracket: room.stakeBracket || "free"
-      });
-    }
-  }, [room]);
-
-  // Update settings mutation
-  const updateSettingsMutation = useMutation({
-    mutationFn: async (settings: typeof editForm) => {
-      const res = await apiRequest("PATCH", `/api/rooms/${code}/settings`, settings);
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      if (data.success) {
-        toast({
-          title: "Settings Updated",
-          description: "Room settings have been updated successfully"
-        });
-        setShowEditSettings(false);
-        // Invalidate and refetch room data
-        queryClient.invalidateQueries({ queryKey: [`/api/rooms/${code}`] });
-      } else {
-        toast({
-          title: "Update Failed",
-          description: data.message || "Failed to update room settings",
-          variant: "destructive"
-        });
-      }
-    },
-    onError: (error) => {
-      console.error("Failed to update settings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update room settings",
-        variant: "destructive"
-      });
-    }
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 p-4">
