@@ -439,30 +439,38 @@ export default function RoomView() {
               <Label htmlFor="rounds" className="text-right text-white">
                 Rounds
               </Label>
-              <Input
-                id="rounds"
-                type="number"
-                min="1"
-                max="18"
-                value={editForm.rounds}
-                onChange={(e) => setEditForm({ ...editForm, rounds: parseInt(e.target.value) || 9 })}
-                className="col-span-3 bg-white/10 border-white/20 text-white"
-              />
+              <Select
+                value={editForm.rounds.toString()}
+                onValueChange={(value) => setEditForm({ ...editForm, rounds: parseInt(value) })}
+              >
+                <SelectTrigger className="col-span-3 bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 Rounds</SelectItem>
+                  <SelectItem value="9">9 Rounds</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="maxPlayers" className="text-right text-white">
                 Max Players
               </Label>
-              <Input
-                id="maxPlayers"
-                type="number"
-                min={room.playerCount || 1}
-                max="8"
-                value={editForm.maxPlayers}
-                onChange={(e) => setEditForm({ ...editForm, maxPlayers: parseInt(e.target.value) || 4 })}
-                className="col-span-3 bg-white/10 border-white/20 text-white"
-              />
+              <Select
+                value={editForm.maxPlayers.toString()}
+                onValueChange={(value) => setEditForm({ ...editForm, maxPlayers: parseInt(value) })}
+                disabled={room.playerCount > 2}
+              >
+                <SelectTrigger className="col-span-3 bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2" disabled={room.playerCount > 2}>2 Players</SelectItem>
+                  <SelectItem value="3" disabled={room.playerCount > 3}>3 Players</SelectItem>
+                  <SelectItem value="4">4 Players</SelectItem>
+                </SelectContent>
+              </Select>
               {editForm.maxPlayers < room.playerCount && (
                 <p className="col-span-4 text-sm text-red-400">
                   Cannot set max players below current player count ({room.playerCount})
