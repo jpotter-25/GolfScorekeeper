@@ -66,6 +66,7 @@ export interface IStorage {
   createGameRoom(room: InsertGameRoom): Promise<GameRoom>;
   getGameRoom(code: string): Promise<GameRoom | undefined>;
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
+  deleteGameRoom(code: string): Promise<void>;
   getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]>;
   getAllActiveRooms(): Promise<GameRoom[]>;
 }
@@ -315,12 +316,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined> {
+    // If updating players, also update player_count
+    if (updates.players) {
+      const players = updates.players as any[];
+      const result = await db.execute(sql`
+        UPDATE game_rooms 
+        SET 
+          players = ${JSON.stringify(updates.players)}::jsonb,
+          player_count = ${players.length},
+          host_id = ${updates.hostId || sql`host_id`}
+        WHERE code = ${code}
+        RETURNING *
+      `);
+      return result.rows[0] as GameRoom;
+    }
+    
     const [room] = await db
       .update(gameRooms)
       .set(updates)
       .where(eq(gameRooms.code, code))
       .returning();
     return room;
+  }
+
+  async deleteGameRoom(code: string): Promise<void> {
+    await db.delete(gameRooms).where(eq(gameRooms.code, code));
   }
 
   async getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]> {

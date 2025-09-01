@@ -268,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Create room endpoint (for testing)
+  // Create room endpoint
   app.post('/api/rooms/create', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -295,6 +295,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating room:", error);
       res.status(500).json({ message: "Failed to create room" });
+    }
+  });
+
+  // Join room endpoint
+  app.post('/api/rooms/:code/join', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { code } = req.params;
+      
+      const room = await storage.getGameRoom(code);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      const players = room.players as any[];
+      const maxPlayers = room.maxPlayers || 4;
+      
+      // Check if room is full
+      if (players.length >= maxPlayers) {
+        return res.status(400).json({ message: "Room is full" });
+      }
+      
+      // Check if player already in room
+      if (players.some(p => p.id === userId)) {
+        return res.status(400).json({ message: "Already in room" });
+      }
+      
+      // Add player to room
+      players.push({ id: userId, name: req.user.claims.email || 'Player' });
+      
+      const updatedRoom = await storage.updateGameRoom(code, {
+        players
+      });
+      
+      // Broadcast room update
+      const broadcastFn = (global as any).broadcastRoomUpdate;
+      if (broadcastFn && updatedRoom) {
+        broadcastFn('updated', updatedRoom);
+      }
+      
+      res.json(updatedRoom);
+    } catch (error) {
+      console.error("Error joining room:", error);
+      res.status(500).json({ message: "Failed to join room" });
+    }
+  });
+
+  // Leave room endpoint
+  app.post('/api/rooms/:code/leave', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { code } = req.params;
+      
+      const room = await storage.getGameRoom(code);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      let players = room.players as any[];
+      players = players.filter(p => p.id !== userId);
+      
+      // If room is now empty, delete it
+      if (players.length === 0) {
+        await storage.deleteGameRoom(code);
+        console.log(`Room ${code} deleted (no players remaining)`);
+        
+        // Broadcast room removal
+        const broadcastFn = (global as any).broadcastRoomUpdate;
+        if (broadcastFn) {
+          broadcastFn('removed', room);
+        }
+        
+        return res.json({ message: "Left room and room deleted" });
+      }
+      
+      // Update room with remaining players
+      const updatedRoom = await storage.updateGameRoom(code, {
+        players,
+        hostId: players[0].id // Transfer host to first remaining player
+      });
+      
+      // Broadcast room update
+      const broadcastFn = (global as any).broadcastRoomUpdate;
+      if (broadcastFn && updatedRoom) {
+        broadcastFn('updated', updatedRoom);
+      }
+      
+      res.json({ message: "Left room successfully", room: updatedRoom });
+    } catch (error) {
+      console.error("Error leaving room:", error);
+      res.status(500).json({ message: "Failed to leave room" });
     }
   });
 
@@ -397,14 +488,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   async function getActiveRooms(stakeBracket?: StakeBracket): Promise<GameRoom[]> {
     const allRooms = await storage.getAllActiveRooms();
     
-    return allRooms.filter(room => {
+    // Clean up phantom rooms (zero players)
+    for (const room of allRooms) {
+      const players = room.players as any[];
+      if (!players || players.length === 0) {
+        // Delete phantom room
+        await storage.deleteGameRoom(room.code);
+        console.log(`Deleted phantom room ${room.code} (zero players)`);
+      }
+    }
+    
+    // Get fresh list after cleanup
+    const activeRooms = await storage.getAllActiveRooms();
+    
+    return activeRooms.filter(room => {
       const players = room.players as any[];
       const maxPlayers = room.maxPlayers || 4;
       
       // Active room criteria
       const isPreGame = room.status === 'room' || !room.status;
-      const hasPlayers = players.length >= 1;
-      const notFull = players.length < maxPlayers;
+      const hasPlayers = players && players.length >= 1; // Exclude zero-player rooms
+      const notFull = players.length < maxPlayers; // Exclude full rooms
       const isPublic = room.visibility === 'public' || !room.visibility;
       const matchesStake = !stakeBracket || room.stakeBracket === stakeBracket;
       
@@ -439,6 +543,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Export broadcast function for use in other parts of the application
   (global as any).broadcastRoomUpdate = broadcastRoomUpdate;
+  
+  // Periodic cleanup of phantom rooms (every 30 seconds)
+  setInterval(async () => {
+    try {
+      const allRooms = await storage.getAllActiveRooms();
+      let cleanedCount = 0;
+      
+      for (const room of allRooms) {
+        const players = room.players as any[];
+        
+        // Delete rooms with zero players
+        if (!players || players.length === 0) {
+          await storage.deleteGameRoom(room.code);
+          cleanedCount++;
+          console.log(`[Cleanup] Deleted phantom room ${room.code} (zero players)`);
+          
+          // Broadcast removal
+          broadcastRoomUpdate('removed', room);
+        }
+      }
+      
+      if (cleanedCount > 0) {
+        console.log(`[Cleanup] Removed ${cleanedCount} phantom rooms`);
+      }
+    } catch (error) {
+      console.error('[Cleanup] Error during phantom room cleanup:', error);
+    }
+  }, 30000); // Run every 30 seconds
   
   return httpServer;
 }
