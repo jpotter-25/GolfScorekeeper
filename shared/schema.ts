@@ -22,9 +22,6 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   
-  // Friend system - unique 6-character friend code
-  friendCode: varchar("friend_code", { length: 6 }).unique(),
-  
   // Game progression fields
   level: integer("level").default(1),
   experience: integer("experience").default(0),
@@ -152,197 +149,15 @@ export const userSettings = pgTable("user_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Multiplayer game rooms (updated for spec compliance)
 export const gameRooms = pgTable("game_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(), // 6-character room code
-  name: varchar("name").notNull().default('Room'), // Room name
-  hostId: varchar("host_id").notNull().references(() => users.id),
-  
-  // Room visibility and access
-  visibility: varchar("visibility").notNull().default('public'), // 'public' | 'private'
-  passwordHash: varchar("password_hash"), // For private rooms
-  
-  // Room configuration
-  maxPlayers: integer("max_players").notNull().default(4), // 2-4 players
-  rounds: integer("rounds").notNull().default(9), // 5 or 9 rounds
-  betAmount: integer("bet_amount").notNull().default(0), // 0-100 coins per spec
-  
-  // Room state management
-  state: varchar("state").notNull().default('waiting'), // 'waiting' | 'active' | 'finished'
-  playerCount: integer("player_count").notNull().default(0), // Current number of players
-  
-  // Crown system (kept for compatibility)
-  crownHolderId: varchar("crown_holder_id").references(() => users.id),
-  
-  // Game state
+  code: text("code").notNull().unique(),
+  hostId: varchar("host_id").notNull(),
+  players: jsonb("players").notNull(),
   gameState: jsonb("game_state"),
-  settings: jsonb("settings").notNull().default('{}'),
-  players: jsonb("players").notNull().default('[]'), // array of player objects
-  
-  // Activity tracking
-  lastActivityAt: timestamp("last_activity_at").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-  startedAt: timestamp("started_at"),
-  finishedAt: timestamp("finished_at"),
-  
-  // Prize pool and payouts
-  prizePool: integer("prize_pool").notNull().default(0),
-  payouts: jsonb("payouts"), // stores final payouts for each player
-  
-  // Legacy fields (kept for compatibility)
-  isPublished: boolean("is_published").default(false),
-  isPrivate: boolean("is_private").default(false),
-  settingsLocked: boolean("settings_locked").default(false),
-  idleWarningAt: timestamp("idle_warning_at"),
-  isActive: boolean("is_active"),
-  status: varchar("status"),
-});
-
-// Game participants - tracks who's in each game (enhanced for spec)
-export const gameParticipants = pgTable("game_participants", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  gameRoomId: varchar("game_room_id").notNull().references(() => gameRooms.id, { onDelete: 'cascade' }),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  
-  // Player order and status
-  joinOrder: integer("join_order").notNull(), // 1, 2, 3, 4 (determines host succession)
-  playerIndex: integer("player_index").notNull(), // 0, 1, 2, 3 (seat position)
-  isHost: boolean("is_host").notNull().default(false),
-  isReady: boolean("is_ready").default(false),
-  isSpectator: boolean("is_spectator").default(false),
-  
-  // Connection status
-  connected: boolean("connected").notNull().default(true),
-  connectionId: varchar("connection_id"), // WebSocket connection ID
-  lastSeenAt: timestamp("last_seen_at").defaultNow(),
-  
-  // Game data
-  betPaid: integer("bet_paid").notNull().default(0),
-  scoreByRound: jsonb("score_by_round").default('[]'), // Array of scores per round
-  totalScore: integer("total_score").default(0),
-  finalPlacement: integer("final_placement"), // 1st, 2nd, 3rd, 4th
-  payout: integer("payout").default(0),
-  
-  // AI takeover system (5-minute rejoin window)
-  isAiReplacement: boolean("is_ai_replacement").default(false),
-  leftDuringGame: boolean("left_during_game").default(false),
-  disconnectedAt: timestamp("disconnected_at"),
-  canRejoinUntil: timestamp("can_rejoin_until"), // 5 minutes after disconnect
-  penaltyApplied: integer("penalty_applied").default(0),
-  
-  // Timestamps
-  joinedAt: timestamp("joined_at").defaultNow(),
-  leftAt: timestamp("left_at"),
-}, (table) => [
-  index("idx_room_user").on(table.gameRoomId, table.userId),
-]);
-
-// Friend relationships
-export const friendships = pgTable("friendships", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  requesterId: varchar("requester_id").notNull().references(() => users.id),
-  addresseeId: varchar("addressee_id").notNull().references(() => users.id),
-  status: varchar("status").notNull().default("pending"), // pending, accepted, declined, blocked
-  createdAt: timestamp("created_at").defaultNow(),
-  respondedAt: timestamp("responded_at"),
-});
-
-// Chat messages
-export const chatMessages = pgTable("chat_messages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  senderId: varchar("sender_id").notNull().references(() => users.id),
-  gameRoomId: varchar("game_room_id").references(() => gameRooms.id), // null for global chat
-  content: text("content").notNull(),
-  type: varchar("type").notNull().default("message"), // message, system, emote
-  isDeleted: boolean("is_deleted").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Tournaments
-export const tournaments = pgTable("tournaments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
-  description: text("description"),
-  organizerId: varchar("organizer_id").notNull().references(() => users.id),
-  maxParticipants: integer("max_participants").notNull(),
-  entryFee: integer("entry_fee").default(0), // in coins
-  prizePool: integer("prize_pool").default(0),
-  status: varchar("status").notNull().default("registration"), // registration, active, finished, cancelled
-  registrationStart: timestamp("registration_start").defaultNow(),
-  registrationEnd: timestamp("registration_end").notNull(),
-  tournamentStart: timestamp("tournament_start").notNull(),
-  tournamentEnd: timestamp("tournament_end"),
-  rules: jsonb("rules").notNull(),
-  brackets: jsonb("brackets"), // Tournament bracket structure
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Tournament participants
-export const tournamentParticipants = pgTable("tournament_participants", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  seed: integer("seed"), // Tournament seeding
-  currentRound: integer("current_round").default(1),
-  isEliminated: boolean("is_eliminated").default(false),
-  finalPlacement: integer("final_placement"),
-  registeredAt: timestamp("registered_at").defaultNow(),
-});
-
-// Tournament matches
-export const tournamentMatches = pgTable("tournament_matches", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
-  gameRoomId: varchar("game_room_id").references(() => gameRooms.id),
-  round: integer("round").notNull(),
-  matchNumber: integer("match_number").notNull(),
-  participant1Id: varchar("participant1_id").references(() => tournamentParticipants.id),
-  participant2Id: varchar("participant2_id").references(() => tournamentParticipants.id),
-  winnerId: varchar("winner_id").references(() => tournamentParticipants.id),
-  status: varchar("status").notNull().default("pending"), // pending, playing, finished
-  scheduledAt: timestamp("scheduled_at"),
-  playedAt: timestamp("played_at"),
-});
-
-// Spectators for games
-export const gameSpectators = pgTable("game_spectators", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  gameRoomId: varchar("game_room_id").notNull().references(() => gameRooms.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  joinedAt: timestamp("joined_at").defaultNow(),
-  leftAt: timestamp("left_at"),
-});
-
-// Room audit log for tracking events
-export const roomAuditLog = pgTable("room_audit_log", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  roomId: varchar("room_id").notNull(),
-  actorId: varchar("actor_id"), // User who triggered the event
-  type: varchar("type").notNull(), // 'payout', 'bet_change', 'host_transfer', 'settings_change', etc.
-  payload: jsonb("payload"), // Event-specific data
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Social sharing posts
-export const socialPosts = pgTable("social_posts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  type: varchar("type").notNull(), // achievement, game_result, milestone
-  content: text("content").notNull(),
-  metadata: jsonb("metadata"), // Extra data for the post
-  likes: integer("likes").default(0),
-  isPublic: boolean("is_public").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Likes on social posts
-export const socialPostLikes = pgTable("social_post_likes", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  postId: varchar("post_id").notNull().references(() => socialPosts.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
+  settings: jsonb("settings").notNull(),
+  createdAt: text("created_at").default(sql`NOW()`),
+  isActive: boolean("is_active").default(true),
 });
 
 // Schema definitions for inserts
@@ -352,7 +167,6 @@ export const upsertUserSchema = createInsertSchema(users).pick({
   firstName: true,
   lastName: true,
   profileImageUrl: true,
-  friendCode: true,
 });
 
 export const insertGameStatsSchema = createInsertSchema(gameStats).omit({
@@ -365,65 +179,11 @@ export const insertGameHistorySchema = createInsertSchema(gameHistory).omit({
   createdAt: true,
 });
 
-export const insertGameRoomSchema = createInsertSchema(gameRooms).omit({
-  id: true,
-  createdAt: true,
-  startedAt: true,
-  finishedAt: true,
-});
-
-export const insertGameParticipantSchema = createInsertSchema(gameParticipants).omit({
-  id: true,
-  joinedAt: true,
-  leftAt: true,
-});
-
-export const insertFriendshipSchema = createInsertSchema(friendships).omit({
-  id: true,
-  createdAt: true,
-  respondedAt: true,
-});
-
-export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertTournamentSchema = createInsertSchema(tournaments).omit({
-  id: true,
-  createdAt: true,
-  tournamentEnd: true,
-});
-
-export const insertTournamentParticipantSchema = createInsertSchema(tournamentParticipants).omit({
-  id: true,
-  registeredAt: true,
-});
-
-export const insertTournamentMatchSchema = createInsertSchema(tournamentMatches).omit({
-  id: true,
-  playedAt: true,
-});
-
-export const insertGameSpectatorSchema = createInsertSchema(gameSpectators).omit({
-  id: true,
-  joinedAt: true,
-  leftAt: true,
-});
-
-export const insertRoomAuditLogSchema = createInsertSchema(roomAuditLog).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertSocialPostSchema = createInsertSchema(socialPosts).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertSocialPostLikeSchema = createInsertSchema(socialPostLikes).omit({
-  id: true,
-  createdAt: true,
+export const insertGameRoomSchema = createInsertSchema(gameRooms).pick({
+  code: true,
+  hostId: true,
+  players: true,
+  settings: true,
 });
 
 export const insertAchievementSchema = createInsertSchema(achievements);
@@ -457,16 +217,6 @@ export type User = typeof users.$inferSelect;
 export type GameStats = typeof gameStats.$inferSelect;
 export type GameHistory = typeof gameHistory.$inferSelect;
 export type GameRoom = typeof gameRooms.$inferSelect;
-export type GameParticipant = typeof gameParticipants.$inferSelect;
-export type Friendship = typeof friendships.$inferSelect;
-export type ChatMessage = typeof chatMessages.$inferSelect;
-export type Tournament = typeof tournaments.$inferSelect;
-export type TournamentParticipant = typeof tournamentParticipants.$inferSelect;
-export type TournamentMatch = typeof tournamentMatches.$inferSelect;
-export type GameSpectator = typeof gameSpectators.$inferSelect;
-export type RoomAuditLog = typeof roomAuditLog.$inferSelect;
-export type SocialPost = typeof socialPosts.$inferSelect;
-export type SocialPostLike = typeof socialPostLikes.$inferSelect;
 export type Achievement = typeof achievements.$inferSelect;
 export type UserAchievement = typeof userAchievements.$inferSelect;
 export type Cosmetic = typeof cosmetics.$inferSelect;
@@ -476,16 +226,6 @@ export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertGameStats = z.infer<typeof insertGameStatsSchema>;
 export type InsertGameHistory = z.infer<typeof insertGameHistorySchema>;
 export type InsertGameRoom = z.infer<typeof insertGameRoomSchema>;
-export type InsertGameParticipant = z.infer<typeof insertGameParticipantSchema>;
-export type InsertFriendship = z.infer<typeof insertFriendshipSchema>;
-export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
-export type InsertTournament = z.infer<typeof insertTournamentSchema>;
-export type InsertTournamentParticipant = z.infer<typeof insertTournamentParticipantSchema>;
-export type InsertTournamentMatch = z.infer<typeof insertTournamentMatchSchema>;
-export type InsertGameSpectator = z.infer<typeof insertGameSpectatorSchema>;
-export type InsertRoomAuditLog = z.infer<typeof insertRoomAuditLogSchema>;
-export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
-export type InsertSocialPostLike = z.infer<typeof insertSocialPostLikeSchema>;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 export type InsertUserAchievement = z.infer<typeof insertUserAchievementSchema>;
 export type InsertCosmetic = z.infer<typeof insertCosmeticSchema>;

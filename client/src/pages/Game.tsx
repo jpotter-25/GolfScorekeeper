@@ -35,10 +35,9 @@ export default function Game() {
   // Initialize game from URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const roomCode = params.get('room');
-    const mode = roomCode ? 'online' : (params.get('mode') as 'solo' | 'pass-play' | 'online' || 'solo');
+    const mode = params.get('mode') as 'solo' | 'pass-play' | 'online' || 'solo';
     const players = parseInt(params.get('players') || '2') as 2 | 3 | 4;
-    const rounds = parseInt(params.get('rounds') || '9') as 5 | 9;
+    const rounds = parseInt(params.get('rounds') || '5') as 5 | 9;
 
     const settings: GameSettings = { mode, playerCount: players, rounds };
     startGame(settings);

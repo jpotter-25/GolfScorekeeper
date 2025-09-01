@@ -9,9 +9,6 @@ import GameSetup from "@/pages/GameSetup";
 import Game from "@/pages/Game";
 import Settings from "@/pages/Settings";
 import Cosmetics from "@/pages/Cosmetics";
-import Multiplayer from "@/pages/Multiplayer";
-import MultiplayerGame from "@/pages/MultiplayerGame";
-import Lobby from "@/pages/Lobby";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/not-found";
 
@@ -27,9 +24,6 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/setup" component={GameSetup} />
           <Route path="/game" component={Game} />
-          <Route path="/multiplayer" component={Multiplayer} />
-          <Route path="/multiplayer/game" component={MultiplayerGame} />
-          <Route path="/lobby" component={Lobby} />
           <Route path="/settings" component={Settings} />
           <Route path="/cosmetics" component={Cosmetics} />
         </>
