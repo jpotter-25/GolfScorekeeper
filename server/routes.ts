@@ -268,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Create room endpoint
+  // Create room endpoint - initializes game table immediately
   app.post('/api/rooms/create', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -282,7 +282,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate a unique room code
       const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       
-      // Create room with host as first player
+      // Initialize empty game table state with host in seat 0
+      const initialGameState = {
+        state: 'waiting', // Waiting for players to fill seats
+        currentRound: 0,
+        currentTurn: 0,
+        currentPlayerIndex: 0,
+        deck: [],
+        discardPile: [],
+        tableSlots: Array(maxPlayers).fill(null).map((_, index) => ({
+          seatNumber: index,
+          isEmpty: index > 0, // Host takes seat 0, others empty
+          playerId: index === 0 ? userId : null,
+          playerName: index === 0 ? userName : null,
+          cards: [],
+          score: 0,
+          roundScores: [],
+          isReady: false,
+          isActive: index === 0
+        })),
+        settings: {
+          rounds,
+          playerCount: maxPlayers,
+          stakeBracket
+        }
+      };
+      
+      // Create room with host as first player and game state initialized
       const room = await storage.createGameRoom({
         code: roomCode,
         hostId: userId,
@@ -298,11 +324,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stakeBracket,
           createdAt: new Date().toISOString()
         },
-        stakeBracket
+        stakeBracket,
+        status: 'inGame_waiting', // Room is immediately at the table waiting for players
+        gameState: initialGameState
       });
       
       // Log room creation
-      console.log(`Room ${roomCode} created by ${userName} with stake ${stakeBracket}`);
+      console.log(`Room ${roomCode} created by ${userName} with stake ${stakeBracket} - game table initialized`);
       
       // Broadcast updated Active Rooms list to all subscribers matching the stake bracket
       const broadcastFn = (global as any).broadcastRoomUpdate;
@@ -311,10 +339,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await broadcastFn('created', room);
       }
       
+      // Return a game snapshot for immediate navigation to game view
+      const gameSnapshot = {
+        code: roomCode,
+        hostId: userId,
+        status: 'inGame_waiting',
+        players: room.players,
+        gameState: initialGameState,
+        settings: room.settings,
+        stakeBracket
+      };
+      
       res.json({
         success: true,
         room,
-        message: `Room ${roomCode} created successfully`
+        gameSnapshot,
+        message: `Game table created - Room ${roomCode}`
       });
     } catch (error) {
       console.error("Error creating room:", error);

@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Users, Settings, Trophy, Coins, DollarSign, Star, Crown } from "lucide-react";
 import { STAKE_BRACKETS, type StakeBracket, type GameRoom } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -39,6 +42,11 @@ export default function OnlineMultiplayer() {
   const [activeRooms, setActiveRooms] = useState<GameRoom[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
+  
+  // Create Room Dialog state
+  const [createRoomOpen, setCreateRoomOpen] = useState(false);
+  const [playerCount, setPlayerCount] = useState("4");
+  const [roundCount, setRoundCount] = useState("9");
 
   // Persist stake selection to localStorage
   useEffect(() => {
@@ -106,26 +114,27 @@ export default function OnlineMultiplayer() {
   
   // Create room mutation
   const createRoomMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (params: { maxPlayers: number; rounds: number }) => {
       const res = await apiRequest("POST", "/api/rooms/create", { 
         stakeBracket: selectedStake,
-        rounds: 9,
-        maxPlayers: 4
+        rounds: params.rounds,
+        maxPlayers: params.maxPlayers
       });
       return await res.json();
     },
     onSuccess: (response: any) => {
-      if (response.success && response.room) {
-        console.log("Room created:", response.room.code);
+      if (response.success && response.gameSnapshot) {
+        console.log("Room created, navigating to game:", response.gameSnapshot.code);
         toast({
-          title: "Room Created!",
-          description: `Room code: ${response.room.code}`,
+          title: "Game Starting!",
+          description: `Joining table...`,
           duration: 2000
         });
-        // Navigate to the Room View with the room code
+        setCreateRoomOpen(false);
+        // Navigate directly to Game View with the game snapshot
         setTimeout(() => {
-          navigate(`/room/${response.room.code}`);
-        }, 100); // Small delay to ensure room is in database
+          navigate(`/game?room=${response.gameSnapshot.code}`);
+        }, 100);
       } else {
         toast({
           title: "Failed to create room",
@@ -143,6 +152,13 @@ export default function OnlineMultiplayer() {
       });
     }
   });
+  
+  const handleCreateRoom = () => {
+    createRoomMutation.mutate({
+      maxPlayers: parseInt(playerCount),
+      rounds: parseInt(roundCount)
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-900 p-4">
@@ -227,10 +243,9 @@ export default function OnlineMultiplayer() {
                 <Button 
                   size="sm"
                   className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => createRoomMutation.mutate()}
-                  disabled={createRoomMutation.isPending}
+                  onClick={() => setCreateRoomOpen(true)}
                 >
-                  {createRoomMutation.isPending ? "Creating..." : "Create Room"}
+                  Create Room
                 </Button>
                 <Button 
                   size="sm"
@@ -259,10 +274,9 @@ export default function OnlineMultiplayer() {
                 <div className="mt-6 flex flex-col sm:flex-row gap-2">
                   <Button 
                     className="bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => createRoomMutation.mutate()}
-                    disabled={createRoomMutation.isPending}
+                    onClick={() => setCreateRoomOpen(true)}
                   >
-                    {createRoomMutation.isPending ? "Creating..." : "Create Room"}
+                    Create Room
                   </Button>
                   <Button variant="outline" className="bg-white/10 backdrop-blur border-white/20 text-white hover:bg-white/20">
                     Quick Match
@@ -357,6 +371,93 @@ export default function OnlineMultiplayer() {
             </Button>
           </div>
         </div>
+        
+        {/* Create Room Dialog */}
+        <Dialog open={createRoomOpen} onOpenChange={setCreateRoomOpen}>
+          <DialogContent className="bg-gray-900 text-white border-gray-700">
+            <DialogHeader>
+              <DialogTitle>Create New Game Room</DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Configure your game settings and start playing
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6 py-4">
+              {/* Player Count Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Number of Players</Label>
+                <RadioGroup value={playerCount} onValueChange={setPlayerCount}>
+                  <div className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="2" id="players-2" />
+                      <Label htmlFor="players-2" className="cursor-pointer">2 Players</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="3" id="players-3" />
+                      <Label htmlFor="players-3" className="cursor-pointer">3 Players</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="4" id="players-4" />
+                      <Label htmlFor="players-4" className="cursor-pointer">4 Players</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+              
+              {/* Rounds Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Number of Rounds</Label>
+                <RadioGroup value={roundCount} onValueChange={setRoundCount}>
+                  <div className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="5" id="rounds-5" />
+                      <Label htmlFor="rounds-5" className="cursor-pointer">5 Rounds (Quick)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="9" id="rounds-9" />
+                      <Label htmlFor="rounds-9" className="cursor-pointer">9 Rounds (Standard)</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+              
+              {/* Stake Information */}
+              <div className="p-3 bg-gray-800 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Stake Level:</span>
+                  <Badge className="bg-green-600 text-white">
+                    {STAKE_OPTIONS.find(s => s.value === selectedStake)?.label}
+                  </Badge>
+                </div>
+                {selectedStake !== "free" && (
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-sm text-gray-400">Entry Fee:</span>
+                    <span className="text-yellow-400 font-semibold">
+                      {STAKE_OPTIONS.find(s => s.value === selectedStake)?.coins} coins
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setCreateRoomOpen(false)}
+                className="bg-gray-800 text-white border-gray-700 hover:bg-gray-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateRoom}
+                disabled={createRoomMutation.isPending}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {createRoomMutation.isPending ? "Creating Game..." : "Start Game"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

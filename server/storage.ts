@@ -286,7 +286,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Game room operations
-  async createGameRoom(roomData: InsertGameRoom): Promise<GameRoom> {
+  async createGameRoom(roomData: InsertGameRoom & { status?: string; gameState?: any }): Promise<GameRoom> {
     // Calculate player count from players array
     const playerCount = Array.isArray(roomData.players) ? roomData.players.length : 1;
     
@@ -296,6 +296,9 @@ export class DatabaseStorage implements IStorage {
       playerCount: 4,
       ...roomData.settings
     };
+    
+    // Extract maxPlayers from settings or use default
+    const maxPlayers = defaultSettings.playerCount || 4;
     
     // Use raw SQL to ensure all fields are properly set
     const result = await db.execute(sql`
@@ -309,7 +312,8 @@ export class DatabaseStorage implements IStorage {
         status, 
         visibility, 
         max_players,
-        version
+        version,
+        game_state
       )
       VALUES (
         ${roomData.code},
@@ -318,10 +322,11 @@ export class DatabaseStorage implements IStorage {
         ${JSON.stringify(defaultSettings)}::jsonb,
         ${roomData.stakeBracket || 'free'},
         ${playerCount},
-        'room',
+        ${roomData.status || 'room'},
         'public',
-        4,
-        1
+        ${maxPlayers},
+        1,
+        ${roomData.gameState ? JSON.stringify(roomData.gameState) : null}::jsonb
       )
       RETURNING *
     `);
