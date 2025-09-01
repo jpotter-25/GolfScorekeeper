@@ -529,9 +529,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
-  // Helper function to get active rooms with filtering
+  // Helper function to get active rooms per Active Room definition
   async function getActiveRooms(stakeBracket?: StakeBracket): Promise<GameRoom[]> {
-    // Use improved storage method that already filters phantom and full rooms
+    // Use improved storage method that already filters per Active Room definition
     if (stakeBracket) {
       return await storage.getActiveRoomsByStake(stakeBracket);
     }
@@ -539,25 +539,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get all active rooms if no stake specified
     const allRooms = await storage.getAllActiveRooms();
     
-    // Clean up phantom rooms (zero players)
-    const cleanedRooms: GameRoom[] = [];
+    // Apply Active Room definition:
+    // 1. players ≥ 1 (at least one seated)
+    // 2. seatsOpen > 0 (not full) 
+    // 3. visibility allows listing
+    const activeRooms: GameRoom[] = [];
+    
     for (const room of allRooms) {
       const players = room.players as any[];
+      
+      // Clean up phantom rooms (zero players)
       if (!players || players.length === 0) {
-        // Delete phantom room
         await storage.deleteGameRoom(room.code);
         console.log(`Deleted phantom room ${room.code} (zero players)`);
-      } else if (players.length < room.maxPlayers) {
-        // Only include rooms that aren't full
-        cleanedRooms.push(room);
+        continue;
+      }
+      
+      // Active Room criteria check
+      const hasPlayers = players.length >= 1;
+      const seatsOpen = room.maxPlayers - players.length;
+      const hasOpenSeats = seatsOpen > 0;
+      const visibility = room.visibility || 'public';
+      const isListable = visibility === 'public';
+      const isPreGame = room.status === 'room' || !room.status;
+      
+      if (hasPlayers && hasOpenSeats && isListable && isPreGame) {
+        activeRooms.push(room);
       }
     }
     
-    return cleanedRooms.filter(room => {
-      const isPreGame = room.status === 'room' || !room.status;
-      const isPublic = room.visibility === 'public' || !room.visibility;
-      return isPreGame && isPublic;
-    });
+    return activeRooms;
   }
   
   // Broadcast room changes to subscribers

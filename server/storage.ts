@@ -374,16 +374,30 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(gameRooms.isActive, true),
           eq(gameRooms.stakeBracket, stakeBracket),
-          gt(gameRooms.playerCount, 0), // Filter out phantom rooms with 0 players
-          lt(gameRooms.playerCount, gameRooms.maxPlayers) // Filter out full rooms
+          gt(gameRooms.playerCount, 0), // Active room: players ≥ 1 (at least one seated)
+          lt(gameRooms.playerCount, gameRooms.maxPlayers) // Active room: seatsOpen > 0 (not full)
         )
       );
     
-    // Additional filtering to ensure data integrity
+    // Additional filtering per Active Room definition
     const validRooms = rooms.filter(room => {
       const players = room.players as any[];
-      // Double-check that room actually has players and isn't full
-      return players && players.length > 0 && players.length < room.maxPlayers;
+      
+      // Active Room criteria:
+      // 1. players ≥ 1 (at least one seated)
+      const hasPlayers = players && players.length >= 1;
+      
+      // 2. seatsOpen > 0 (not full)
+      const seatsOpen = room.maxPlayers - players.length;
+      const hasOpenSeats = seatsOpen > 0;
+      
+      // 3. visibility allows listing (default to public if not set)
+      const visibility = room.visibility || 'public';
+      const isListable = visibility === 'public';
+      
+      // 4. stake bracket already matched in query
+      
+      return hasPlayers && hasOpenSeats && isListable;
     });
     
     return validRooms;

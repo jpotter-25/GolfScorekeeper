@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, jsonb, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, jsonb, timestamp, index, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -154,12 +154,14 @@ export const gameRooms = pgTable("game_rooms", {
   code: text("code").notNull().unique(),
   hostId: varchar("host_id").notNull(),
   players: jsonb("players").notNull(),
+  playerCount: integer("player_count").default(0).notNull(), // Track player count for efficient queries
   gameState: jsonb("game_state"),
   settings: jsonb("settings").notNull(),
   stakeBracket: varchar("stake_bracket"), // 'free', 'low', 'medium', 'high', 'premium'
   status: varchar("status").default("room"), // 'room' (pre-game), 'playing', 'finished'
   visibility: varchar("visibility").default("public"), // 'public', 'private', 'friends'
   maxPlayers: integer("max_players").default(4),
+  version: bigint("version", { mode: "bigint" }).default(BigInt(1)).notNull(), // For optimistic concurrency control
   createdAt: text("created_at").default(sql`NOW()`),
   isActive: boolean("is_active").default(true),
 });
