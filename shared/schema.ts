@@ -162,6 +162,7 @@ export const gameRooms = pgTable("game_rooms", {
   maxPlayers: integer("max_players").default(4),
   createdAt: text("created_at").default(sql`NOW()`),
   isActive: boolean("is_active").default(true),
+  version: integer("version").default(1), // Version tracking for updates
 });
 
 // Schema definitions for inserts

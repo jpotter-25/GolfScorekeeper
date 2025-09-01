@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +13,29 @@ import {
   Copy, 
   CheckCircle2,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Settings,
+  Edit2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface RoomData {
   id: string;
@@ -47,8 +68,18 @@ export default function RoomView() {
   const { code } = useParams<{ code: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [codeCopied, setCodeCopied] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [localVersion, setLocalVersion] = useState<number>(0);
+  
+  // Settings form state
+  const [settingsForm, setSettingsForm] = useState({
+    rounds: 9,
+    maxPlayers: 4,
+    stakeBracket: "free"
+  });
 
   // Fetch room details
   const { data: room, isLoading, error } = useQuery<RoomData>({
@@ -118,6 +149,55 @@ export default function RoomView() {
     navigate("/online-multiplayer");
   };
 
+  // Update settings mutation
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (updates: Partial<typeof settingsForm>) => {
+      const res = await apiRequest("PATCH", `/api/rooms/${code}/settings`, updates);
+      return await res.json();
+    },
+    onSuccess: (response: any) => {
+      if (response.success) {
+        toast({
+          title: "Settings Updated",
+          description: "Room settings have been updated successfully",
+        });
+        setSettingsOpen(false);
+        // Update local version
+        if (response.room?.version) {
+          setLocalVersion(response.room.version);
+        }
+        // Invalidate query to get fresh data
+        queryClient.invalidateQueries({ queryKey: [`/api/rooms/${code}`] });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update room settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update form when room data changes
+  useEffect(() => {
+    if (room) {
+      setSettingsForm({
+        rounds: room.settings?.rounds || 9,
+        maxPlayers: room.maxPlayers || 4,
+        stakeBracket: room.stakeBracket || "free",
+      });
+      // Track version for optimistic updates
+      if (room.version && room.version > localVersion) {
+        setLocalVersion(room.version);
+      }
+    }
+  }, [room]);
+
+  const handleUpdateSettings = () => {
+    updateSettingsMutation.mutate(settingsForm);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 p-4 flex items-center justify-center">
@@ -151,7 +231,7 @@ export default function RoomView() {
   }
 
   const stake = STAKE_LABELS[room.stakeBracket] || STAKE_LABELS.free;
-  const isHost = true; // TODO: Check if current user is host
+  const isHost = user?.id === room.hostId;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 p-4">
@@ -197,7 +277,20 @@ export default function RoomView() {
           {/* Game Settings */}
           <Card className="bg-black/40 backdrop-blur border-white/20">
             <CardHeader>
-              <CardTitle className="text-white">Game Settings</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-white">Game Settings</CardTitle>
+                {isHost && room.status === 'room' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    <Edit2 className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-white">
@@ -338,6 +431,89 @@ export default function RoomView() {
           </Card>
         )}
       </div>
+      
+      {/* Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Room Settings</DialogTitle>
+            <DialogDescription>
+              Update the room settings. Changes will apply to all players.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="rounds" className="text-right">
+                Rounds
+              </Label>
+              <Input
+                id="rounds"
+                type="number"
+                min="1"
+                max="18"
+                value={settingsForm.rounds}
+                onChange={(e) => setSettingsForm(prev => ({ ...prev, rounds: parseInt(e.target.value) || 9 }))}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="maxPlayers" className="text-right">
+                Max Players
+              </Label>
+              <Input
+                id="maxPlayers"
+                type="number"
+                min={room?.playerCount || 1}
+                max="8"
+                value={settingsForm.maxPlayers}
+                onChange={(e) => setSettingsForm(prev => ({ ...prev, maxPlayers: parseInt(e.target.value) || 4 }))}
+                className="col-span-3"
+              />
+              {room && settingsForm.maxPlayers < room.playerCount && (
+                <p className="col-span-4 text-sm text-red-500">
+                  Cannot set below current player count ({room.playerCount})
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stakeBracket" className="text-right">
+                Stakes
+              </Label>
+              <Select
+                value={settingsForm.stakeBracket}
+                onValueChange={(value) => setSettingsForm(prev => ({ ...prev, stakeBracket: value }))}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free Play</SelectItem>
+                  <SelectItem value="low">Low Stakes (10 coins)</SelectItem>
+                  <SelectItem value="medium">Medium Stakes (50 coins)</SelectItem>
+                  <SelectItem value="high">High Stakes (100 coins)</SelectItem>
+                  <SelectItem value="vip">VIP Stakes (500 coins)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSettingsOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateSettings}
+              disabled={updateSettingsMutation.isPending || 
+                       (room && settingsForm.maxPlayers < room.playerCount)}
+            >
+              {updateSettingsMutation.isPending ? "Updating..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
