@@ -199,10 +199,9 @@ export default function Home() {
           </Button>
 
           <Button 
-            onClick={() => selectMode('online')}
+            onClick={() => setLocation('/online-multiplayer')}
             className="w-full bg-white bg-opacity-10 backdrop-blur-sm hover:bg-opacity-20 text-white py-4 px-6 rounded-xl border border-white border-opacity-20 transition-all duration-200 flex items-center justify-between h-auto"
             data-testid="button-online-mode"
-            disabled
           >
             <div className="flex items-center space-x-4">
               <i className="fas fa-wifi text-blue-400 text-xl"></i>

@@ -9,6 +9,7 @@ import GameSetup from "@/pages/GameSetup";
 import Game from "@/pages/Game";
 import Settings from "@/pages/Settings";
 import Cosmetics from "@/pages/Cosmetics";
+import OnlineMultiplayer from "@/pages/OnlineMultiplayer";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/not-found";
 
@@ -26,6 +27,7 @@ function Router() {
           <Route path="/game" component={Game} />
           <Route path="/settings" component={Settings} />
           <Route path="/cosmetics" component={Cosmetics} />
+          <Route path="/online-multiplayer" component={OnlineMultiplayer} />
         </>
       )}
       <Route component={NotFound} />
