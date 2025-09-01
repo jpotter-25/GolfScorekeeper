@@ -387,6 +387,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update room settings endpoint
+  app.patch('/api/rooms/:code/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { code } = req.params;
+      const { rounds, maxPlayers, stakeBracket } = req.body;
+      
+      // Get room to verify permissions
+      const room = await storage.getGameRoom(code);
+      if (!room) {
+        return res.status(404).json({ success: false, message: "Room not found" });
+      }
+      
+      // Check if user is host
+      if (room.hostId !== userId) {
+        return res.status(403).json({ success: false, message: "Only the host can edit settings" });
+      }
+      
+      // Check if room is in pre-game state
+      if (room.status !== 'room') {
+        return res.status(400).json({ success: false, message: "Cannot edit settings after game has started" });
+      }
+      
+      const players = room.players as any[];
+      
+      // Validate max players
+      if (maxPlayers < players.length) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Cannot set max players below current player count (${players.length})` 
+        });
+      }
+      
+      // Update room settings
+      const updatedRoom = await storage.updateGameRoom(code, {
+        maxPlayers,
+        stakeBracket,
+        settings: {
+          ...room.settings,
+          rounds: rounds || room.settings.rounds
+        },
+        version: room.version + 1 // Increment version for client-side caching
+      });
+      
+      if (!updatedRoom) {
+        return res.status(500).json({ success: false, message: "Failed to update room" });
+      }
+      
+      // Log the update
+      console.log(`Room ${code} settings updated by host`);
+      
+      // Broadcast room update to all subscribers
+      const broadcastFn = (global as any).broadcastRoomUpdate;
+      if (broadcastFn) {
+        await broadcastFn('updated', updatedRoom);
+      }
+      
+      res.json({
+        success: true,
+        room: updatedRoom,
+        message: "Room settings updated successfully"
+      });
+    } catch (error) {
+      console.error("Error updating room settings:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to update room settings",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Leave room endpoint
   app.post('/api/rooms/:code/leave', isAuthenticated, async (req: any, res) => {
     try {
