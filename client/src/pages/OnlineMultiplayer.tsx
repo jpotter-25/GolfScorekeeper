@@ -216,28 +216,70 @@ export default function OnlineMultiplayer() {
               </div>
             ) : (
               /* Room list */
-              <div className="space-y-2" data-testid="active-rooms-list">
-                {activeRooms.map((room) => (
-                  <div 
-                    key={room.id} 
-                    className="p-4 bg-white/10 rounded-lg border border-white/20 hover:bg-white/20 transition-all cursor-pointer"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-white font-semibold">Room {room.code}</p>
-                        <p className="text-white/60 text-sm">
-                          Players: {(room.players as any[]).length} / 4
-                        </p>
+              <div className="space-y-3" data-testid="active-rooms-list">
+                {activeRooms.map((room) => {
+                  const players = room.players as any[];
+                  const maxPlayers = room.maxPlayers || 4;
+                  const settings = room.settings as any;
+                  const rounds = settings?.rounds || 9;
+                  const currentStake = STAKE_BRACKETS[room.stakeBracket as StakeBracket] || STAKE_BRACKETS.free;
+                  
+                  return (
+                    <div 
+                      key={room.id} 
+                      className="p-4 bg-white/10 rounded-lg border border-white/20 hover:bg-white/15 transition-all"
+                      data-testid={`room-${room.code}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-white font-semibold text-lg">Room {room.code}</p>
+                            <Badge className="bg-white/20 text-white border-white/30">
+                              {currentStake.label}
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                            <div className="flex items-center gap-1 text-white/80">
+                              <Users className="w-4 h-4" />
+                              <span>{players.length} / {maxPlayers} players</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-1 text-white/80">
+                              <Trophy className="w-4 h-4" />
+                              <span>{rounds} rounds</span>
+                            </div>
+                            
+                            {currentStake.entryFee > 0 && (
+                              <div className="flex items-center gap-1 text-yellow-400">
+                                <Coins className="w-4 h-4" />
+                                <span>{currentStake.entryFee} coins</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Player names preview */}
+                          <div className="mt-2 text-white/60 text-xs">
+                            {players.slice(0, 3).map((p: any, idx: number) => p.name || `Player ${idx + 1}`).join(", ")}
+                            {players.length > 3 && ` +${players.length - 3} more`}
+                          </div>
+                        </div>
+                        
+                        <Button 
+                          size="sm" 
+                          className="bg-green-600 hover:bg-green-700 text-white ml-4"
+                          onClick={() => {
+                            console.log(`Joining room ${room.code}`);
+                            // TODO: Implement join room functionality
+                          }}
+                          data-testid={`button-join-${room.code}`}
+                        >
+                          Join
+                        </Button>
                       </div>
-                      <Button 
-                        size="sm" 
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        Join
-                      </Button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
