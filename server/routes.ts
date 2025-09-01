@@ -531,33 +531,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Helper function to get active rooms with filtering
   async function getActiveRooms(stakeBracket?: StakeBracket): Promise<GameRoom[]> {
+    // Use improved storage method that already filters phantom and full rooms
+    if (stakeBracket) {
+      return await storage.getActiveRoomsByStake(stakeBracket);
+    }
+    
+    // Get all active rooms if no stake specified
     const allRooms = await storage.getAllActiveRooms();
     
     // Clean up phantom rooms (zero players)
+    const cleanedRooms: GameRoom[] = [];
     for (const room of allRooms) {
       const players = room.players as any[];
       if (!players || players.length === 0) {
         // Delete phantom room
         await storage.deleteGameRoom(room.code);
         console.log(`Deleted phantom room ${room.code} (zero players)`);
+      } else if (players.length < room.maxPlayers) {
+        // Only include rooms that aren't full
+        cleanedRooms.push(room);
       }
     }
     
-    // Get fresh list after cleanup
-    const activeRooms = await storage.getAllActiveRooms();
-    
-    return activeRooms.filter(room => {
-      const players = room.players as any[];
-      const maxPlayers = room.maxPlayers || 4;
-      
-      // Active room criteria
+    return cleanedRooms.filter(room => {
       const isPreGame = room.status === 'room' || !room.status;
-      const hasPlayers = players && players.length >= 1; // Exclude zero-player rooms
-      const notFull = players.length < maxPlayers; // Exclude full rooms
       const isPublic = room.visibility === 'public' || !room.visibility;
-      const matchesStake = !stakeBracket || room.stakeBracket === stakeBracket;
-      
-      return isPreGame && hasPlayers && notFull && isPublic && matchesStake;
+      return isPreGame && isPublic;
     });
   }
   

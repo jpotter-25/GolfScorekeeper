@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const STAKE_OPTIONS: StakeOption[] = [
 
 export default function OnlineMultiplayer() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [selectedStake, setSelectedStake] = useState<StakeBracket>(() => {
     // Load persisted stake from localStorage
     const saved = localStorage.getItem("selectedStake");
@@ -64,9 +66,15 @@ export default function OnlineMultiplayer() {
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         
-        if (data.type === 'rooms_snapshot' || data.type === 'rooms_update') {
-          setActiveRooms(data.rooms);
+        if (data.type === 'rooms_snapshot') {
+          // Clear and replace with fresh data when switching stakes
+          setActiveRooms(data.rooms || []);
           setRoomsLoading(false);
+        }
+        
+        if (data.type === 'rooms_update') {
+          // Update existing rooms list
+          setActiveRooms(data.rooms || []);
         }
         
         if (data.type === 'error') {
@@ -99,21 +107,40 @@ export default function OnlineMultiplayer() {
   // Create room mutation
   const createRoomMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/rooms/create", { 
+      const res = await apiRequest("POST", "/api/rooms/create", { 
         stakeBracket: selectedStake,
         rounds: 9,
         maxPlayers: 4
       });
+      return await res.json();
     },
-    onSuccess: (response) => {
+    onSuccess: (response: any) => {
       if (response.success && response.room) {
         console.log("Room created:", response.room.code);
+        toast({
+          title: "Room Created!",
+          description: `Room code: ${response.room.code}`,
+          duration: 2000
+        });
         // Navigate to the Room View with the room code
-        navigate(`/room/${response.room.code}`);
+        setTimeout(() => {
+          navigate(`/room/${response.room.code}`);
+        }, 100); // Small delay to ensure room is in database
+      } else {
+        toast({
+          title: "Failed to create room",
+          description: response.message || "Please try again",
+          variant: "destructive"
+        });
       }
     },
     onError: (error) => {
       console.error("Failed to create room:", error);
+      toast({
+        title: "Error creating room",
+        description: "Please try again later",
+        variant: "destructive"
+      });
     }
   });
 

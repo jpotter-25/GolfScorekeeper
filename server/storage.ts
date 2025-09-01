@@ -28,7 +28,7 @@ import {
   type StakeBracket,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, gt, lt } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -373,10 +373,20 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(gameRooms.isActive, true),
-          eq(gameRooms.stakeBracket, stakeBracket)
+          eq(gameRooms.stakeBracket, stakeBracket),
+          gt(gameRooms.playerCount, 0), // Filter out phantom rooms with 0 players
+          lt(gameRooms.playerCount, gameRooms.maxPlayers) // Filter out full rooms
         )
       );
-    return rooms;
+    
+    // Additional filtering to ensure data integrity
+    const validRooms = rooms.filter(room => {
+      const players = room.players as any[];
+      // Double-check that room actually has players and isn't full
+      return players && players.length > 0 && players.length < room.maxPlayers;
+    });
+    
+    return validRooms;
   }
 
   async getAllActiveRooms(): Promise<GameRoom[]> {
