@@ -272,29 +272,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/rooms/create', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { stakeBracket = 'free' } = req.body;
+      const userName = req.user.claims.email || req.user.claims.name || 'Player';
+      const { 
+        stakeBracket = 'free',
+        rounds = 9,
+        maxPlayers = 4 
+      } = req.body;
       
       // Generate a unique room code
       const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       
+      // Create room with host as first player
       const room = await storage.createGameRoom({
         code: roomCode,
         hostId: userId,
-        players: [{ id: userId, name: req.user.claims.email || 'Player' }],
-        settings: { rounds: 9, playerCount: 4 },
+        players: [{ 
+          id: userId, 
+          name: userName,
+          isHost: true,
+          joinedAt: new Date().toISOString()
+        }],
+        settings: { 
+          rounds, 
+          playerCount: maxPlayers,
+          stakeBracket,
+          createdAt: new Date().toISOString()
+        },
         stakeBracket
       });
       
-      // Broadcast room creation to subscribers
+      // Log room creation
+      console.log(`Room ${roomCode} created by ${userName} with stake ${stakeBracket}`);
+      
+      // Broadcast updated Active Rooms list to all subscribers matching the stake bracket
       const broadcastFn = (global as any).broadcastRoomUpdate;
       if (broadcastFn) {
-        broadcastFn('created', room);
+        // This will automatically filter and send to relevant subscribers
+        await broadcastFn('created', room);
       }
       
-      res.json(room);
+      res.json({
+        success: true,
+        room,
+        message: `Room ${roomCode} created successfully`
+      });
     } catch (error) {
       console.error("Error creating room:", error);
-      res.status(500).json({ message: "Failed to create room" });
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to create room",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

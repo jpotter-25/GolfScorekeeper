@@ -97,11 +97,17 @@ export default function OnlineMultiplayer() {
   // Create room mutation
   const createRoomMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/rooms/create", { stakeBracket: selectedStake });
+      return apiRequest("POST", "/api/rooms/create", { 
+        stakeBracket: selectedStake,
+        rounds: 9,
+        maxPlayers: 4
+      });
     },
-    onSuccess: (room) => {
-      console.log("Room created:", room);
-      // Room will appear via WebSocket subscription
+    onSuccess: (response) => {
+      if (response.success && response.room) {
+        console.log("Room created:", response.room.code);
+        // Room will appear via WebSocket subscription
+      }
     },
     onError: (error) => {
       console.error("Failed to create room:", error);

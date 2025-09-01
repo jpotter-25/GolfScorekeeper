@@ -290,19 +290,38 @@ export class DatabaseStorage implements IStorage {
     // Calculate player count from players array
     const playerCount = Array.isArray(roomData.players) ? roomData.players.length : 1;
     
-    // Use raw SQL to ensure player_count is set
+    // Default settings
+    const defaultSettings = {
+      rounds: 9,
+      playerCount: 4,
+      ...roomData.settings
+    };
+    
+    // Use raw SQL to ensure all fields are properly set
     const result = await db.execute(sql`
-      INSERT INTO game_rooms (code, host_id, players, settings, stake_bracket, player_count, status, visibility, max_players)
+      INSERT INTO game_rooms (
+        code, 
+        host_id, 
+        players, 
+        settings, 
+        stake_bracket, 
+        player_count, 
+        status, 
+        visibility, 
+        max_players,
+        version
+      )
       VALUES (
         ${roomData.code},
         ${roomData.hostId},
         ${JSON.stringify(roomData.players)}::jsonb,
-        ${JSON.stringify(roomData.settings)}::jsonb,
+        ${JSON.stringify(defaultSettings)}::jsonb,
         ${roomData.stakeBracket || 'free'},
         ${playerCount},
         'room',
         'public',
-        4
+        4,
+        1
       )
       RETURNING *
     `);
@@ -340,7 +359,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteGameRoom(code: string): Promise<void> {
-    await db.delete(gameRooms).where(eq(gameRooms.code, code));
+    // Delete with CASCADE to handle foreign key constraints
+    await db.execute(sql`
+      DELETE FROM game_rooms 
+      WHERE code = ${code}
+    `);
   }
 
   async getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]> {
