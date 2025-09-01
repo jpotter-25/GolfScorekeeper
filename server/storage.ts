@@ -67,6 +67,7 @@ export interface IStorage {
   getGameRoom(code: string): Promise<GameRoom | undefined>;
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
   getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]>;
+  getAllActiveRooms(): Promise<GameRoom[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -316,6 +317,14 @@ export class DatabaseStorage implements IStorage {
           eq(gameRooms.stakeBracket, stakeBracket)
         )
       );
+    return rooms;
+  }
+
+  async getAllActiveRooms(): Promise<GameRoom[]> {
+    const rooms = await db
+      .select()
+      .from(gameRooms)
+      .where(eq(gameRooms.isActive, true));
     return rooms;
   }
 }

@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ArrowLeft, Users, Settings, Trophy, Coins, DollarSign, Star, Crown } from "lucide-react";
 import { STAKE_BRACKETS, type StakeBracket, type GameRoom } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 interface StakeOption {
   value: StakeBracket;
@@ -30,16 +31,81 @@ export default function OnlineMultiplayer() {
     const saved = localStorage.getItem("selectedStake");
     return (saved as StakeBracket) || "free";
   });
+  
+  const [activeRooms, setActiveRooms] = useState<GameRoom[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const wsRef = useRef<WebSocket | null>(null);
 
   // Persist stake selection to localStorage
   useEffect(() => {
     localStorage.setItem("selectedStake", selectedStake);
   }, [selectedStake]);
 
-  // Fetch active rooms for the selected stake bracket
-  const { data: activeRooms = [], isLoading: roomsLoading } = useQuery<GameRoom[]>({
-    queryKey: [`/api/rooms/active/${selectedStake}`],
-    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
+  // WebSocket connection for real-time room updates
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    
+    const connectWebSocket = () => {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      
+      ws.onopen = () => {
+        console.log("WebSocket connected");
+        // Subscribe to rooms with the selected stake bracket
+        ws.send(JSON.stringify({
+          type: 'subscribe_rooms',
+          stakeBracket: selectedStake
+        }));
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'rooms_snapshot' || data.type === 'rooms_update') {
+          setActiveRooms(data.rooms);
+          setRoomsLoading(false);
+        }
+        
+        if (data.type === 'error') {
+          console.error('WebSocket error:', data.message);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setRoomsLoading(false);
+      };
+      
+      ws.onclose = () => {
+        console.log("WebSocket connection closed");
+        // Attempt to reconnect after 3 seconds
+        setTimeout(connectWebSocket, 3000);
+      };
+    };
+    
+    connectWebSocket();
+    
+    return () => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'unsubscribe_rooms' }));
+        wsRef.current.close();
+      }
+    };
+  }, [selectedStake]);
+  
+  // Create room mutation
+  const createRoomMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/rooms/create", { stakeBracket: selectedStake });
+    },
+    onSuccess: (room) => {
+      console.log("Room created:", room);
+      // Room will appear via WebSocket subscription
+    },
+    onError: (error) => {
+      console.error("Failed to create room:", error);
+    }
   });
 
   return (
@@ -136,8 +202,12 @@ export default function OnlineMultiplayer() {
                 </p>
                 
                 <div className="mt-6 flex flex-col sm:flex-row gap-2">
-                  <Button className="bg-green-600 hover:bg-green-700 text-white">
-                    Create Room
+                  <Button 
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => createRoomMutation.mutate()}
+                    disabled={createRoomMutation.isPending}
+                  >
+                    {createRoomMutation.isPending ? "Creating..." : "Create Room"}
                   </Button>
                   <Button variant="outline" className="bg-white/10 backdrop-blur border-white/20 text-white hover:bg-white/20">
                     Quick Match

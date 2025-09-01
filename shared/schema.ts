@@ -157,6 +157,9 @@ export const gameRooms = pgTable("game_rooms", {
   gameState: jsonb("game_state"),
   settings: jsonb("settings").notNull(),
   stakeBracket: varchar("stake_bracket"), // 'free', 'low', 'medium', 'high', 'premium'
+  status: varchar("status").default("room"), // 'room' (pre-game), 'playing', 'finished'
+  visibility: varchar("visibility").default("public"), // 'public', 'private', 'friends'
+  maxPlayers: integer("max_players").default(4),
   createdAt: text("created_at").default(sql`NOW()`),
   isActive: boolean("is_active").default(true),
 });

@@ -1,7 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { type StakeBracket, type GameRoom } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -265,6 +267,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch active rooms" });
     }
   });
+  
+  // Create room endpoint (for testing)
+  app.post('/api/rooms/create', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { stakeBracket = 'free' } = req.body;
+      
+      // Generate a unique room code
+      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      const room = await storage.createGameRoom({
+        code: roomCode,
+        hostId: userId,
+        players: [{ id: userId, name: req.user.claims.email || 'Player' }],
+        settings: { rounds: 9, playerCount: 4 },
+        stakeBracket
+      });
+      
+      // Broadcast room creation to subscribers
+      const broadcastFn = (global as any).broadcastRoomUpdate;
+      if (broadcastFn) {
+        broadcastFn('created', room);
+      }
+      
+      res.json(room);
+    } catch (error) {
+      console.error("Error creating room:", error);
+      res.status(500).json({ message: "Failed to create room" });
+    }
+  });
 
   // Settings routes
   app.get('/api/user/settings', isAuthenticated, async (req: any, res) => {
@@ -299,5 +331,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   const httpServer = createServer(app);
+  
+  // WebSocket server for real-time subscriptions
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Track subscriptions by client
+  interface ClientSubscription {
+    ws: WebSocket;
+    stakeBracket?: StakeBracket;
+    subscribedAt: Date;
+  }
+  
+  const activeSubscriptions = new Map<string, ClientSubscription>();
+  
+  wss.on('connection', (ws: WebSocket) => {
+    const clientId = Math.random().toString(36).substring(7);
+    console.log(`WebSocket client connected: ${clientId}`);
+    
+    ws.on('message', async (message: Buffer) => {
+      try {
+        const data = JSON.parse(message.toString());
+        
+        if (data.type === 'subscribe_rooms') {
+          // Subscribe to room updates
+          const subscription: ClientSubscription = {
+            ws,
+            stakeBracket: data.stakeBracket,
+            subscribedAt: new Date()
+          };
+          activeSubscriptions.set(clientId, subscription);
+          
+          // Send initial room list
+          const rooms = await getActiveRooms(data.stakeBracket);
+          ws.send(JSON.stringify({
+            type: 'rooms_snapshot',
+            rooms,
+            timestamp: new Date().toISOString()
+          }));
+          
+          console.log(`Client ${clientId} subscribed to rooms (stake: ${data.stakeBracket || 'all'})`);
+        }
+        
+        if (data.type === 'unsubscribe_rooms') {
+          activeSubscriptions.delete(clientId);
+          console.log(`Client ${clientId} unsubscribed from rooms`);
+        }
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+        ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+      }
+    });
+    
+    ws.on('close', () => {
+      activeSubscriptions.delete(clientId);
+      console.log(`WebSocket client disconnected: ${clientId}`);
+    });
+    
+    ws.on('error', (error) => {
+      console.error(`WebSocket error for client ${clientId}:`, error);
+      activeSubscriptions.delete(clientId);
+    });
+  });
+  
+  // Helper function to get active rooms with filtering
+  async function getActiveRooms(stakeBracket?: StakeBracket): Promise<GameRoom[]> {
+    const allRooms = await storage.getAllActiveRooms();
+    
+    return allRooms.filter(room => {
+      const players = room.players as any[];
+      const maxPlayers = room.maxPlayers || 4;
+      
+      // Active room criteria
+      const isPreGame = room.status === 'room' || !room.status;
+      const hasPlayers = players.length >= 1;
+      const notFull = players.length < maxPlayers;
+      const isPublic = room.visibility === 'public' || !room.visibility;
+      const matchesStake = !stakeBracket || room.stakeBracket === stakeBracket;
+      
+      return isPreGame && hasPlayers && notFull && isPublic && matchesStake;
+    });
+  }
+  
+  // Broadcast room changes to subscribers
+  async function broadcastRoomUpdate(changeType: 'created' | 'updated' | 'removed', room: GameRoom) {
+    const allRooms = await getActiveRooms();
+    
+    activeSubscriptions.forEach((subscription, clientId) => {
+      // Filter rooms based on subscription's stake bracket
+      const filteredRooms = subscription.stakeBracket 
+        ? allRooms.filter(r => r.stakeBracket === subscription.stakeBracket)
+        : allRooms;
+      
+      // Check if this room change is relevant to the subscriber
+      const isRelevant = !subscription.stakeBracket || room.stakeBracket === subscription.stakeBracket;
+      
+      if (isRelevant && subscription.ws.readyState === WebSocket.OPEN) {
+        subscription.ws.send(JSON.stringify({
+          type: 'rooms_update',
+          changeType,
+          room,
+          rooms: filteredRooms,
+          timestamp: new Date().toISOString()
+        }));
+      }
+    });
+  }
+  
+  // Export broadcast function for use in other parts of the application
+  (global as any).broadcastRoomUpdate = broadcastRoomUpdate;
+  
   return httpServer;
 }
