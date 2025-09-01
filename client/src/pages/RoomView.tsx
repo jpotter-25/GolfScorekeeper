@@ -117,6 +117,43 @@ export default function RoomView() {
     }
   });
 
+  // Leave room mutation
+  const leaveRoomMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/rooms/${code}/leave`);
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to leave room");
+      }
+      return data;
+    },
+    onSuccess: (data: any) => {
+      if (data.roomDeleted) {
+        toast({
+          title: "Room closed",
+          description: "The room was deleted as you were the last player",
+          duration: 2000
+        });
+      } else {
+        toast({
+          title: "Left room",
+          description: data.newHost ? "Host transferred to another player" : "You have left the room",
+          duration: 2000
+        });
+      }
+      // Navigate back to multiplayer lobby
+      navigate("/online-multiplayer");
+    },
+    onError: (error) => {
+      console.error("Failed to leave room:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to leave room",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Initialize edit form when room data changes - must be before any conditional returns
   useEffect(() => {
     if (room) {
@@ -185,8 +222,7 @@ export default function RoomView() {
   };
 
   const handleLeaveRoom = () => {
-    // TODO: Implement leave room logic
-    navigate("/online-multiplayer");
+    leaveRoomMutation.mutate();
   };
 
   if (isLoading) {
@@ -256,9 +292,10 @@ export default function RoomView() {
                 onClick={handleLeaveRoom}
                 variant="outline"
                 className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                disabled={leaveRoomMutation.isPending}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Leave Room
+                {leaveRoomMutation.isPending ? "Leaving..." : "Leave Room"}
               </Button>
             </div>
           </CardHeader>

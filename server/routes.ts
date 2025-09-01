@@ -467,50 +467,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Leave room endpoint
+  // Leave room endpoint - Atomic with host transfer
   app.post('/api/rooms/:code/leave', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const userEmail = req.user.claims.email;
       const { code } = req.params;
       
-      const room = await storage.getGameRoom(code);
-      if (!room) {
-        return res.status(404).json({ message: "Room not found" });
+      // Use atomic leave method
+      const result = await storage.leaveGameRoom(code, userId);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          success: false,
+          message: result.message || "Cannot leave room"
+        });
       }
       
-      let players = room.players as any[];
-      players = players.filter(p => p.id !== userId);
-      
-      // If room is now empty, delete it
-      if (players.length === 0) {
-        await storage.deleteGameRoom(code);
-        console.log(`Room ${code} deleted (no players remaining)`);
-        
-        // Broadcast room removal
-        const broadcastFn = (global as any).broadcastRoomUpdate;
-        if (broadcastFn) {
-          broadcastFn('removed', room);
-        }
-        
-        return res.json({ message: "Left room and room deleted" });
-      }
-      
-      // Update room with remaining players
-      const updatedRoom = await storage.updateGameRoom(code, {
-        players,
-        hostId: players[0].id // Transfer host to first remaining player
-      });
-      
-      // Broadcast room update
+      // Broadcast appropriate update based on what happened
       const broadcastFn = (global as any).broadcastRoomUpdate;
-      if (broadcastFn && updatedRoom) {
-        broadcastFn('updated', updatedRoom);
+      if (broadcastFn) {
+        if (result.roomDeleted) {
+          // Room was deleted - broadcast removal to Active Rooms
+          console.log(`Room ${code} deleted (no players remaining)`);
+          await broadcastFn('removed', { code }); // Just need the code for removal
+        } else if (result.room) {
+          // Room still exists - broadcast update
+          if (result.newHost) {
+            console.log(`Host transferred in room ${code} to player ${result.newHost}`);
+          }
+          await broadcastFn('updated', result.room);
+        }
       }
       
-      res.json({ message: "Left room successfully", room: updatedRoom });
+      console.log(`Player ${userEmail} left room ${code}`);
+      
+      res.json({ 
+        success: true,
+        message: result.roomDeleted ? "Left room and room deleted" : "Left room successfully",
+        room: result.room,
+        roomDeleted: result.roomDeleted,
+        newHost: result.newHost
+      });
     } catch (error) {
       console.error("Error leaving room:", error);
-      res.status(500).json({ message: "Failed to leave room" });
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to leave room",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

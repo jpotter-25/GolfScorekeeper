@@ -439,6 +439,87 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  async leaveGameRoom(code: string, userId: string): Promise<{
+    success: boolean;
+    roomDeleted?: boolean;
+    newHost?: string;
+    room?: GameRoom | null;
+    message?: string;
+  }> {
+    // Atomic leave operation using a transaction
+    return await db.transaction(async (tx) => {
+      // Get latest room state with row-level lock
+      const result = await tx.execute(sql`
+        SELECT * FROM game_rooms 
+        WHERE code = ${code} AND is_active = true
+        FOR UPDATE
+      `);
+      
+      const room = result.rows[0] as GameRoom | undefined;
+      
+      if (!room) {
+        return { 
+          success: false, 
+          message: "Room not found or inactive" 
+        };
+      }
+      
+      const players = room.players as any[];
+      
+      // Check if player is in the room
+      const playerIndex = players.findIndex(p => p.id === userId);
+      if (playerIndex === -1) {
+        return { 
+          success: false, 
+          message: "Player not in room" 
+        };
+      }
+      
+      // Remove player from room
+      const updatedPlayers = players.filter(p => p.id !== userId);
+      
+      // If room is now empty, delete it
+      if (updatedPlayers.length === 0) {
+        await tx.execute(sql`
+          DELETE FROM game_rooms 
+          WHERE code = ${code}
+        `);
+        
+        return { 
+          success: true, 
+          roomDeleted: true,
+          room: null
+        };
+      }
+      
+      // Handle host transfer if needed
+      let newHostId = room.hostId;
+      if (room.hostId === userId && updatedPlayers.length > 0) {
+        // Transfer host to the first remaining player (earliest joiner)
+        newHostId = updatedPlayers[0].id;
+      }
+      
+      // Update room with new players list and potentially new host
+      const updateResult = await tx.execute(sql`
+        UPDATE game_rooms 
+        SET 
+          players = ${JSON.stringify(updatedPlayers)}::jsonb,
+          host_id = ${newHostId},
+          version = COALESCE(version, 1) + 1
+        WHERE code = ${code}
+        RETURNING *
+      `);
+      
+      const updatedRoom = updateResult.rows[0] as GameRoom;
+      
+      return { 
+        success: true, 
+        room: updatedRoom,
+        newHost: newHostId !== room.hostId ? newHostId : undefined
+      };
+    });
+  }
+
   async deleteGameRoom(code: string): Promise<void> {
     // Delete with CASCADE to handle foreign key constraints
     await db.execute(sql`
