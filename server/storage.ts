@@ -25,6 +25,7 @@ import {
   type InsertUserSettings,
   type UpdateUserSettings,
   type InsertGameRoom,
+  type StakeBracket,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and } from "drizzle-orm";
@@ -65,6 +66,7 @@ export interface IStorage {
   createGameRoom(room: InsertGameRoom): Promise<GameRoom>;
   getGameRoom(code: string): Promise<GameRoom | undefined>;
   updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined>;
+  getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -302,6 +304,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(gameRooms.code, code))
       .returning();
     return room;
+  }
+
+  async getActiveRoomsByStake(stakeBracket: StakeBracket): Promise<GameRoom[]> {
+    const rooms = await db
+      .select()
+      .from(gameRooms)
+      .where(
+        and(
+          eq(gameRooms.isActive, true),
+          eq(gameRooms.stakeBracket, stakeBracket)
+        )
+      );
+    return rooms;
   }
 }
 

@@ -156,6 +156,7 @@ export const gameRooms = pgTable("game_rooms", {
   players: jsonb("players").notNull(),
   gameState: jsonb("game_state"),
   settings: jsonb("settings").notNull(),
+  stakeBracket: varchar("stake_bracket"), // 'free', 'low', 'medium', 'high', 'premium'
   createdAt: text("created_at").default(sql`NOW()`),
   isActive: boolean("is_active").default(true),
 });
@@ -232,3 +233,14 @@ export type InsertCosmetic = z.infer<typeof insertCosmeticSchema>;
 export type InsertUserCosmetic = z.infer<typeof insertUserCosmeticSchema>;
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export type UpdateUserSettings = z.infer<typeof updateUserSettingsSchema>;
+
+// Stake bracket definitions
+export const STAKE_BRACKETS = {
+  free: { label: "Free", entryFee: 0, winMultiplier: 1 },
+  low: { label: "Low", entryFee: 10, winMultiplier: 1.5 },
+  medium: { label: "Medium", entryFee: 50, winMultiplier: 2 },
+  high: { label: "High", entryFee: 100, winMultiplier: 3 },
+  premium: { label: "Premium", entryFee: 500, winMultiplier: 5 },
+} as const;
+
+export type StakeBracket = keyof typeof STAKE_BRACKETS;

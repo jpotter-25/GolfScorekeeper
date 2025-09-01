@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ArrowLeft, Users, Settings, Trophy, Coins, DollarSign, Star, Crown } from "lucide-react";
-
-type StakeLevel = "free" | "low" | "medium" | "high" | "premium";
+import { STAKE_BRACKETS, type StakeBracket, type GameRoom } from "@shared/schema";
 
 interface StakeOption {
-  value: StakeLevel;
+  value: StakeBracket;
   label: string;
   coins: number;
   icon: React.ReactNode;
@@ -17,24 +17,30 @@ interface StakeOption {
 }
 
 const STAKE_OPTIONS: StakeOption[] = [
-  { value: "free", label: "Free", coins: 0, icon: <Trophy className="w-4 h-4" />, color: "bg-gray-500" },
-  { value: "low", label: "Low", coins: 10, icon: <Coins className="w-4 h-4" />, color: "bg-green-500" },
-  { value: "medium", label: "Medium", coins: 50, icon: <DollarSign className="w-4 h-4" />, color: "bg-blue-500" },
-  { value: "high", label: "High", coins: 100, icon: <Star className="w-4 h-4" />, color: "bg-purple-500" },
-  { value: "premium", label: "Premium", coins: 500, icon: <Crown className="w-4 h-4" />, color: "bg-yellow-500" },
+  { value: "free", label: STAKE_BRACKETS.free.label, coins: STAKE_BRACKETS.free.entryFee, icon: <Trophy className="w-4 h-4" />, color: "bg-gray-500" },
+  { value: "low", label: STAKE_BRACKETS.low.label, coins: STAKE_BRACKETS.low.entryFee, icon: <Coins className="w-4 h-4" />, color: "bg-green-500" },
+  { value: "medium", label: STAKE_BRACKETS.medium.label, coins: STAKE_BRACKETS.medium.entryFee, icon: <DollarSign className="w-4 h-4" />, color: "bg-blue-500" },
+  { value: "high", label: STAKE_BRACKETS.high.label, coins: STAKE_BRACKETS.high.entryFee, icon: <Star className="w-4 h-4" />, color: "bg-purple-500" },
+  { value: "premium", label: STAKE_BRACKETS.premium.label, coins: STAKE_BRACKETS.premium.entryFee, icon: <Crown className="w-4 h-4" />, color: "bg-yellow-500" },
 ];
 
 export default function OnlineMultiplayer() {
-  const [selectedStake, setSelectedStake] = useState<StakeLevel>(() => {
+  const [selectedStake, setSelectedStake] = useState<StakeBracket>(() => {
     // Load persisted stake from localStorage
     const saved = localStorage.getItem("selectedStake");
-    return (saved as StakeLevel) || "free";
+    return (saved as StakeBracket) || "free";
   });
 
   // Persist stake selection to localStorage
   useEffect(() => {
     localStorage.setItem("selectedStake", selectedStake);
   }, [selectedStake]);
+
+  // Fetch active rooms for the selected stake bracket
+  const { data: activeRooms = [], isLoading: roomsLoading } = useQuery<GameRoom[]>({
+    queryKey: [`/api/rooms/active/${selectedStake}`],
+    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-900 p-4">
@@ -70,7 +76,7 @@ export default function OnlineMultiplayer() {
             <ToggleGroup 
               type="single" 
               value={selectedStake} 
-              onValueChange={(value) => value && setSelectedStake(value as StakeLevel)}
+              onValueChange={(value) => value && setSelectedStake(value as StakeBracket)}
               className="flex flex-wrap gap-2"
             >
               {STAKE_OPTIONS.map((stake) => (
@@ -115,29 +121,55 @@ export default function OnlineMultiplayer() {
               </Badge>
             </div>
 
-            {/* Empty State */}
-            <div className="flex flex-col items-center justify-center py-12 text-white/60">
-              <Users className="w-16 h-16 mb-4 opacity-40" />
-              <p className="text-lg font-medium mb-2">No Active Rooms</p>
-              <p className="text-sm text-center max-w-sm">
-                No rooms are currently available at this stake level. 
-                Create a new room or wait for other players to join.
-              </p>
-              
-              <div className="mt-6 flex flex-col sm:flex-row gap-2">
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
-                  Create Room
-                </Button>
-                <Button variant="outline" className="bg-white/10 backdrop-blur border-white/20 text-white hover:bg-white/20">
-                  Quick Match
-                </Button>
+            {roomsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-white/60">Loading rooms...</div>
               </div>
-            </div>
-
-            {/* Room list will be populated here when subscribed */}
-            <div id="room-list" className="space-y-2" data-testid="active-rooms-list">
-              {/* Rooms will be dynamically added here */}
-            </div>
+            ) : activeRooms.length === 0 ? (
+              /* Empty State */
+              <div className="flex flex-col items-center justify-center py-12 text-white/60">
+                <Users className="w-16 h-16 mb-4 opacity-40" />
+                <p className="text-lg font-medium mb-2">No Active Rooms</p>
+                <p className="text-sm text-center max-w-sm">
+                  No rooms are currently available at this stake level. 
+                  Create a new room or wait for other players to join.
+                </p>
+                
+                <div className="mt-6 flex flex-col sm:flex-row gap-2">
+                  <Button className="bg-green-600 hover:bg-green-700 text-white">
+                    Create Room
+                  </Button>
+                  <Button variant="outline" className="bg-white/10 backdrop-blur border-white/20 text-white hover:bg-white/20">
+                    Quick Match
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* Room list */
+              <div className="space-y-2" data-testid="active-rooms-list">
+                {activeRooms.map((room) => (
+                  <div 
+                    key={room.id} 
+                    className="p-4 bg-white/10 rounded-lg border border-white/20 hover:bg-white/20 transition-all cursor-pointer"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-white font-semibold">Room {room.code}</p>
+                        <p className="text-white/60 text-sm">
+                          Players: {(room.players as any[]).length} / 4
+                        </p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        Join
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

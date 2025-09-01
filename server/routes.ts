@@ -247,6 +247,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Game room routes
+  app.get('/api/rooms/active/:stakeBracket', async (req, res) => {
+    try {
+      const { stakeBracket } = req.params;
+      
+      // Validate stake bracket
+      const validBrackets = ['free', 'low', 'medium', 'high', 'premium'];
+      if (!validBrackets.includes(stakeBracket)) {
+        return res.status(400).json({ message: "Invalid stake bracket" });
+      }
+      
+      const rooms = await storage.getActiveRoomsByStake(stakeBracket as any);
+      res.json(rooms);
+    } catch (error) {
+      console.error("Error fetching active rooms:", error);
+      res.status(500).json({ message: "Failed to fetch active rooms" });
+    }
+  });
+
   // Settings routes
   app.get('/api/user/settings', isAuthenticated, async (req: any, res) => {
     try {
