@@ -342,7 +342,8 @@ export class DatabaseStorage implements IStorage {
         UPDATE game_rooms 
         SET 
           players = ${JSON.stringify(updates.players)}::jsonb,
-          host_id = ${updates.hostId || sql`host_id`}
+          host_id = ${updates.hostId || sql`host_id`},
+          version = COALESCE(version, 1) + 1
         WHERE code = ${code}
         RETURNING *
       `);
@@ -355,6 +356,87 @@ export class DatabaseStorage implements IStorage {
       .where(eq(gameRooms.code, code))
       .returning();
     return room;
+  }
+
+  async joinGameRoom(code: string, userId: string, userEmail: string): Promise<{ 
+    success: boolean; 
+    room: GameRoom | null; 
+    message?: string;
+    isAlreadyInRoom?: boolean;
+  }> {
+    // Atomic join operation using a transaction
+    return await db.transaction(async (tx) => {
+      // Get latest room state with row-level lock to prevent concurrent modifications
+      const result = await tx.execute(sql`
+        SELECT * FROM game_rooms 
+        WHERE code = ${code} AND is_active = true
+        FOR UPDATE
+      `);
+      
+      const room = result.rows[0] as GameRoom | undefined;
+      
+      if (!room) {
+        return { 
+          success: false, 
+          room: null, 
+          message: "Room not found or inactive" 
+        };
+      }
+      
+      const players = room.players as any[];
+      const maxPlayers = room.maxPlayers || 4;
+      
+      // Check if player is already in the room (idempotent)
+      const existingPlayer = players.find(p => p.id === userId);
+      if (existingPlayer) {
+        return { 
+          success: true, 
+          room: room,
+          isAlreadyInRoom: true 
+        };
+      }
+      
+      // Check if room is full
+      if (players.length >= maxPlayers) {
+        return { 
+          success: false, 
+          room: room, 
+          message: "Room is full" 
+        };
+      }
+      
+      // Check if room has already started
+      if (room.status !== 'room') {
+        return { 
+          success: false, 
+          room: room, 
+          message: "Game has already started" 
+        };
+      }
+      
+      // Add player to room atomically
+      const newPlayers = [...players, { 
+        id: userId, 
+        name: userEmail || 'Player',
+        ready: false 
+      }];
+      
+      const updateResult = await tx.execute(sql`
+        UPDATE game_rooms 
+        SET 
+          players = ${JSON.stringify(newPlayers)}::jsonb,
+          version = COALESCE(version, 1) + 1
+        WHERE code = ${code}
+        RETURNING *
+      `);
+      
+      const updatedRoom = updateResult.rows[0] as GameRoom;
+      
+      return { 
+        success: true, 
+        room: updatedRoom 
+      };
+    });
   }
 
   async deleteGameRoom(code: string): Promise<void> {

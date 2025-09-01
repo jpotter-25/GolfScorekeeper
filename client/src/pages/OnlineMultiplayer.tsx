@@ -144,6 +144,36 @@ export default function OnlineMultiplayer() {
     }
   });
 
+  // Join room mutation
+  const joinRoomMutation = useMutation({
+    mutationFn: async (roomCode: string) => {
+      const res = await apiRequest("POST", `/api/rooms/${roomCode}/join`);
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to join room");
+      }
+      return data;
+    },
+    onSuccess: (data: any) => {
+      console.log("Successfully joined room:", data.room.code);
+      toast({
+        title: "Joining room...",
+        description: `Room code: ${data.room.code}`,
+        duration: 2000
+      });
+      // Navigate to Room View after successful join
+      navigate(`/room/${data.room.code}`);
+    },
+    onError: (error) => {
+      console.error("Failed to join room:", error);
+      toast({
+        title: "Failed to join room",
+        description: error instanceof Error ? error.message : "Room may be full or already started",
+        variant: "destructive"
+      });
+    }
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-900 p-4">
       <div className="max-w-7xl mx-auto">
@@ -323,13 +353,11 @@ export default function OnlineMultiplayer() {
                         <Button 
                           size="sm" 
                           className="bg-green-600 hover:bg-green-700 text-white ml-4"
-                          onClick={() => {
-                            // Navigate to Room View - joining will happen there
-                            navigate(`/room/${room.code}`);
-                          }}
+                          onClick={() => joinRoomMutation.mutate(room.code)}
+                          disabled={joinRoomMutation.isPending}
                           data-testid={`button-join-${room.code}`}
                         >
-                          Join
+                          {joinRoomMutation.isPending ? "Joining..." : "Join"}
                         </Button>
                       </div>
                     </div>

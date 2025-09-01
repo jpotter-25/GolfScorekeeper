@@ -343,47 +343,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Join room endpoint
+  // Join room endpoint - Atomic and idempotent
   app.post('/api/rooms/:code/join', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const userEmail = req.user.claims.email;
       const { code } = req.params;
       
-      const room = await storage.getGameRoom(code);
-      if (!room) {
-        return res.status(404).json({ message: "Room not found" });
+      // Use atomic join method
+      const result = await storage.joinGameRoom(code, userId, userEmail);
+      
+      if (!result.success) {
+        // Return error with latest room snapshot
+        return res.status(400).json({ 
+          success: false,
+          message: result.message || "Cannot join room",
+          room: result.room // Include latest room state
+        });
       }
       
-      const players = room.players as any[];
-      const maxPlayers = room.maxPlayers || 4;
-      
-      // Check if room is full
-      if (players.length >= maxPlayers) {
-        return res.status(400).json({ message: "Room is full" });
+      // If player was already in room (idempotent), still return success
+      if (result.isAlreadyInRoom) {
+        console.log(`Player ${userId} already in room ${code} - returning success`);
+        return res.json({ 
+          success: true,
+          room: result.room,
+          message: "Already in room"
+        });
       }
       
-      // Check if player already in room
-      if (players.some(p => p.id === userId)) {
-        return res.status(400).json({ message: "Already in room" });
-      }
-      
-      // Add player to room
-      players.push({ id: userId, name: req.user.claims.email || 'Player' });
-      
-      const updatedRoom = await storage.updateGameRoom(code, {
-        players
-      });
-      
-      // Broadcast room update
+      // Broadcast room update to all subscribers and Active Rooms
       const broadcastFn = (global as any).broadcastRoomUpdate;
-      if (broadcastFn && updatedRoom) {
-        broadcastFn('updated', updatedRoom);
+      if (broadcastFn && result.room) {
+        await broadcastFn('updated', result.room);
       }
       
-      res.json(updatedRoom);
+      console.log(`Player ${userEmail} joined room ${code}`);
+      
+      res.json({ 
+        success: true,
+        room: result.room,
+        message: "Successfully joined room"
+      });
     } catch (error) {
       console.error("Error joining room:", error);
-      res.status(500).json({ message: "Failed to join room" });
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to join room",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
