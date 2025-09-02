@@ -337,9 +337,30 @@ export default function OnlineMultiplayer() {
                         <Button 
                           size="sm" 
                           className="bg-green-600 hover:bg-green-700 text-white ml-4"
-                          onClick={() => {
-                            // Navigate to Room View - joining will happen there
-                            navigate(`/room/${room.code}`);
+                          onClick={async () => {
+                            try {
+                              // Join the room first to claim a seat
+                              const response = await apiRequest("POST", `/api/rooms/${room.code}/join`);
+                              const result = await response.json();
+                              
+                              if (result.success || result.alreadySeated) {
+                                // Navigate directly to game view with the room code
+                                navigate(`/game?room=${room.code}`);
+                              } else {
+                                toast({
+                                  title: "Failed to join",
+                                  description: result.message || "Table might be full",
+                                  variant: "destructive"
+                                });
+                              }
+                            } catch (error) {
+                              console.error("Error joining room:", error);
+                              toast({
+                                title: "Error",
+                                description: "Failed to join table",
+                                variant: "destructive"
+                              });
+                            }
                           }}
                           data-testid={`button-join-${room.code}`}
                         >
