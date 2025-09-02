@@ -1,0 +1,50 @@
+Fix Task — Put all players in the same live table, show waiting state, and use correct player count
+A) One table, one stream (no per-client placeholders)
+
+Authoritative room key: Every multiplayer screen must be keyed by the roomId from the server snapshot.
+
+Subscribe to the room stream: Game View must subscribe to room:<roomId> (or equivalent) and render only the snapshots from that stream.
+
+No local mode fallback: Remove/disable any Solo/Local “placeholder” state from mounting when mode=online. Block Solo init explicitly.
+
+B) Waiting state until full (inGame_waiting)
+
+On create and joins, the server sets/keeps status inGame_waiting while seatsOpen > 0.
+
+Game View must render empty seats for unfilled slots (seat placeholders).
+
+Auto-start: when playersSeated == maxPlayers, server transitions to inGame_active, initializes turn order/round counter, and broadcasts a snapshot. (No manual start.)
+
+C) Correct player count and layout (2/3/4 players)
+
+Initialize from snapshot: layout, seat grid, and turn order must use maxPlayers from the latest snapshot, never a hard-coded 2-player layout.
+
+Dynamic seats: render N seats = maxPlayers. Filled seats show player; unfilled show “waiting”.
+
+Prevent stale UI: client applies snapshots only if version increases; no optimistic recomputation of seat count.
+
+D) Actions must be server-authoritative (flip, draw, etc.)
+
+Client → Server: all actions (e.g., flip card) are requests to the server, not local mutations.
+
+Server validates & mutates: update the authoritative game state for this roomId, increment version, persist, broadcast full snapshot to room:<roomId>.
+
+Clients render from broadcast: each client updates UI only after receiving the new snapshot (no local “flip” that never appears elsewhere).
+
+E) Join puts player into the same table (not a new session)
+
+Join handler:
+
+Re-read table by roomId, ensure seat available, assign seat atomically, increment version, persist, broadcast.
+
+Idempotent if already seated in this room; error with snapshot if full.
+
+Navigation after join must pass the same roomId used by the server; Game View subscribes to that exact room stream.
+
+F) Projection (Active Rooms) stays accurate
+
+Active Rooms lists only rooms where playersSeated ≥ 1 and seatsOpen > 0, stake matches, visible.
+
+Full tables delist immediately; zero-player tables delete immediately.
+
+Counts are computed fresh from the authoritative state (no cached counters).

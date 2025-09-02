@@ -555,6 +555,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Game action endpoint - server authoritative
+  app.post('/api/rooms/:code/action', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { code } = req.params;
+      const { action, ...actionData } = req.body;
+      
+      const room = await storage.getGameRoom(code);
+      if (!room) {
+        return res.status(404).json({ success: false, message: "Room not found" });
+      }
+      
+      // Verify player is in the room
+      const players = room.players as any[];
+      const player = players.find(p => p.id === userId);
+      if (!player) {
+        return res.status(403).json({ success: false, message: "Not in this room" });
+      }
+      
+      // Get current game state
+      let gameState = room.gameState as any;
+      if (!gameState) {
+        return res.status(400).json({ success: false, message: "Game not started" });
+      }
+      
+      // Process the action based on type
+      let updated = false;
+      const version = room.version ? BigInt(room.version) : BigInt(1);
+      
+      switch (action) {
+        case 'draw_card':
+          // TODO: Implement draw card logic
+          console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+          break;
+          
+        case 'select_grid_position':
+          // TODO: Implement grid selection logic
+          console.log(`[GAME_ACTION] ${action} at position ${actionData.position} by ${userId} in room ${code}`);
+          break;
+          
+        case 'keep_drawn_card':
+          // TODO: Implement keep drawn card logic
+          console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+          break;
+          
+        case 'keep_revealed_card':
+          // TODO: Implement keep revealed card logic
+          console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+          break;
+          
+        case 'peek_card':
+          // TODO: Implement peek card logic
+          console.log(`[GAME_ACTION] ${action} at index ${actionData.index} by ${userId} in room ${code}`);
+          break;
+          
+        case 'end_turn':
+          // TODO: Implement end turn logic
+          console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+          break;
+          
+        default:
+          return res.status(400).json({ success: false, message: "Unknown action" });
+      }
+      
+      // If game state was updated, save and broadcast
+      if (updated) {
+        const newVersion = version + BigInt(1);
+        const updatedRoom = await storage.updateGameRoom(code, {
+          gameState,
+          version: newVersion
+        });
+        
+        if (updatedRoom) {
+          // Broadcast updated room snapshot to all room subscribers
+          await broadcastRoomSnapshot(code, updatedRoom);
+        }
+      }
+      
+      res.json({ success: true, message: "Action processed" });
+    } catch (error) {
+      console.error("Error processing game action:", error);
+      res.status(500).json({ success: false, message: "Failed to process action" });
+    }
+  });
+
   // Leave room endpoint
   app.post('/api/rooms/:code/leave', isAuthenticated, async (req: any, res) => {
     try {
@@ -590,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Broadcast room removal to Active Rooms subscribers
         const broadcastFn = (global as any).broadcastRoomUpdate;
-        if (broadcastFn) {
+        if (broadcastFn && room) {
           broadcastFn('removed', room);
         }
         
@@ -663,6 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     subscribedAt: Date;
     userId?: string;
     roomCode?: string;
+    roomId?: string; // For specific room subscriptions
   }
   
   const activeSubscriptions = new Map<string, ClientSubscription>();
@@ -696,7 +782,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        if (data.type === 'subscribe_rooms') {
+        if (data.type === 'subscribe_room') {
+          // Subscribe to specific room for game updates
+          const roomId = data.roomId;
+          const room = await storage.getGameRoom(roomId);
+          
+          if (room) {
+            const subscription: ClientSubscription = {
+              ws,
+              subscribedAt: new Date(),
+              roomId: roomId
+            };
+            activeSubscriptions.set(clientId, subscription);
+            
+            console.log(`Client ${clientId} subscribed to room ${roomId}`);
+            
+            // Send initial room snapshot with proper serialization
+            const snapshot = {
+              code: room.code,
+              id: room.id,
+              maxPlayers: room.maxPlayers || 4,
+              playersSeated: room.players ? (room.players as any[]).length : 0,
+              seatsOpen: (room.maxPlayers || 4) - (room.players ? (room.players as any[]).length : 0),
+              rounds: (room.settings as any)?.rounds || 9,
+              stakeBracket: room.stakeBracket,
+              status: room.status,
+              gameState: room.gameState,
+              players: room.players,
+              version: room.version ? room.version.toString() : '1',
+              currentRound: (room.gameState as any)?.currentRound || 0,
+              currentPlayerIndex: (room.gameState as any)?.currentPlayerIndex || 0
+            };
+            
+            ws.send(JSON.stringify({
+              type: 'room_snapshot',
+              snapshot,
+              timestamp: new Date().toISOString()
+            }));
+          } else {
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'Room not found' 
+            }));
+          }
+        } else if (data.type === 'subscribe_rooms') {
           // Subscribe to room updates
           const subscription: ClientSubscription = {
             ws,
@@ -925,8 +1054,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
   
-  // Export broadcast function for use in other parts of the application
+  // Broadcast room snapshot to specific room subscribers
+  async function broadcastRoomSnapshot(roomCode: string, room: GameRoom) {
+    activeSubscriptions.forEach((subscription, clientId) => {
+      // Check if this client is subscribed to this specific room
+      if (subscription.roomId === roomCode && subscription.ws.readyState === WebSocket.OPEN) {
+        const snapshot = {
+          code: room.code,
+          id: room.id,
+          maxPlayers: room.maxPlayers || 4,
+          playersSeated: (room.players as any[]).length,
+          seatsOpen: (room.maxPlayers || 4) - (room.players as any[]).length,
+          rounds: (room.settings as any)?.rounds || 9,
+          stakeBracket: room.stakeBracket,
+          status: room.status,
+          gameState: room.gameState,
+          players: room.players,
+          version: room.version ? room.version.toString() : '1',
+          currentRound: (room.gameState as any)?.currentRound || 0,
+          currentPlayerIndex: (room.gameState as any)?.currentPlayerIndex || 0
+        };
+        
+        subscription.ws.send(JSON.stringify({
+          type: 'room_snapshot',
+          snapshot,
+          timestamp: new Date().toISOString()
+        }));
+      }
+    });
+  }
+  
+  // Export broadcast functions for use in other parts of the application
   (global as any).broadcastRoomUpdate = broadcastRoomUpdate;
+  (global as any).broadcastRoomSnapshot = broadcastRoomSnapshot;
   
   // Periodic cleanup of phantom rooms (every 30 seconds)
   setInterval(async () => {

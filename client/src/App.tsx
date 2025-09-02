@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/Home";
 import GameSetup from "@/pages/GameSetup";
-import Game from "@/pages/Game";
+import GameWrapper from "@/pages/GameWrapper";
 import Settings from "@/pages/Settings";
 import Cosmetics from "@/pages/Cosmetics";
 import OnlineMultiplayer from "@/pages/OnlineMultiplayer";
@@ -25,7 +25,7 @@ function Router() {
         <>
           <Route path="/" component={Home} />
           <Route path="/setup" component={GameSetup} />
-          <Route path="/game" component={Game} />
+          <Route path="/game" component={GameWrapper} />
           <Route path="/settings" component={Settings} />
           <Route path="/cosmetics" component={Cosmetics} />
           <Route path="/online-multiplayer" component={OnlineMultiplayer} />
