@@ -82,10 +82,14 @@ export default function MultiplayerGame() {
           console.log('[MultiplayerGame] Received message:', message.type, message);
           
           if (message.type === 'room_snapshot' && message.snapshot) {
-            // Only apply if version is newer
-            if (message.snapshot.version > lastVersionRef.current) {
-              console.log('[MultiplayerGame] Applying snapshot v' + message.snapshot.version);
-              lastVersionRef.current = message.snapshot.version;
+            // Convert version to number for comparison
+            const newVersion = parseInt(message.snapshot.version || '0');
+            const currentVersion = lastVersionRef.current;
+            
+            // Apply snapshot if version is newer or same (for real-time sync)
+            if (newVersion >= currentVersion) {
+              console.log('[MultiplayerGame] Applying snapshot v' + newVersion);
+              lastVersionRef.current = newVersion;
               setRoomSnapshot(message.snapshot);
               
               // Check if game has ended
@@ -93,7 +97,7 @@ export default function MultiplayerGame() {
                 setShowGameResults(true);
               }
             } else {
-              console.log('[MultiplayerGame] Ignoring stale snapshot v' + message.snapshot.version);
+              console.log('[MultiplayerGame] Ignoring stale snapshot v' + newVersion + ' (current: ' + currentVersion + ')');
             }
           } else if (message.type === 'room_deleted') {
             toast({
@@ -153,8 +157,10 @@ export default function MultiplayerGame() {
   useEffect(() => {
     if (initialRoom && !roomSnapshot) {
       console.log('[MultiplayerGame] Setting initial snapshot from query');
-      setRoomSnapshot(initialRoom as RoomSnapshot);
-      lastVersionRef.current = (initialRoom as RoomSnapshot).version || 0;
+      const snapshot = initialRoom as RoomSnapshot;
+      setRoomSnapshot(snapshot);
+      // Parse version as number
+      lastVersionRef.current = parseInt(snapshot.version?.toString() || '0');
     }
   }, [initialRoom, roomSnapshot]);
 

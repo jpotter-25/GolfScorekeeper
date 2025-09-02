@@ -539,8 +539,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await broadcastFn('updated', updatedRoom);
       }
       
-      // TODO: Broadcast to table participants via WebSocket
-      // This will be implemented when we have table-specific WebSocket channels
+      // Broadcast room snapshot to all room subscribers
+      const broadcastSnapshotFn = (global as any).broadcastRoomSnapshot;
+      if (broadcastSnapshotFn) {
+        await broadcastSnapshotFn(code, updatedRoom);
+      }
       
       res.json({
         success: true,
@@ -691,10 +694,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[LEAVE] roomId=${code}, seatsAfter=${players.length}, deleted=false`);
       
-      // Broadcast room update
+      // Broadcast room update to lobby
       const broadcastFn = (global as any).broadcastRoomUpdate;
       if (broadcastFn && updatedRoom) {
         broadcastFn('updated', updatedRoom);
+      }
+      
+      // Broadcast room snapshot to remaining room subscribers
+      const broadcastSnapshotFn = (global as any).broadcastRoomSnapshot;
+      if (broadcastSnapshotFn && updatedRoom) {
+        await broadcastSnapshotFn(code, updatedRoom);
       }
       
       res.json({ message: "Left room successfully", room: serializeRoom(updatedRoom) });
