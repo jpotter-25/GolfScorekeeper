@@ -1,0 +1,63 @@
+Fix Task — Rooms linger, Join fails, Wrong mode loads
+
+A) Quit → room still listed (should vanish if empty)
+
+On leave/quit by the last seated player:
+
+Server must vacate seat, recompute seats, and if activeSeats == 0 → delete room immediately.
+
+Emit projection update to remove it from Active Rooms.
+
+Client should send a best-effort leave on exit/navigation; server disconnect/grace remains authoritative.
+
+Add temp log: [LEAVE] roomId=..., seatsAfter=..., deleted=true|false and [PROJECTION_REMOVE] roomId=....
+
+B) Join fails but count shows 2/3 (split-brain)
+
+Join must be atomic against latest authoritative state:
+
+Re-read state → if seatsOpen > 0, assign seat + persist in one atomic step → then broadcast full snapshot.
+
+If assignment fails (race), do not update counts; return error with latest snapshot.
+
+Make join idempotent (already seated returns same snapshot, not error).
+
+Never update the count on the client optimistically; render only from server snapshot.
+
+Add temp log: [JOIN_ATTEMPT] roomId=..., before seats=..., result=ok|full|error, after seats=....
+
+C) Creating a room loads Solo vs AI (wrong mode)
+
+Creation flow must initialize online multiplayer table, not solo session:
+
+Set the game mode/flag to “online” (authoritative) during room creation.
+
+Initialize table with open seats (per selected players) and route host to Multiplayer Game View (table UI), not Solo.
+
+Ensure client navigation uses the multiplayer route/screen returned by the server snapshot.
+
+Guard rails:
+
+If a solo scene/component is mounted, block it when snapshot indicates online table.
+
+Decouple solo init from generic “start game” so it cannot trigger from online create.
+
+Add temp log: [CREATE_MODE] roomId=..., mode=online, seatsOpen=....
+
+D) Active Rooms projection (re-confirm)
+
+Include only: activeSeats ≥ 1 AND seatsOpen > 0 AND visible AND stake matches.
+
+Exclude immediately on delete or when activeSeats == 0.
+
+Compute counts fresh from authoritative state on each emit (no stale cache).
+
+E) Acceptance (done = correct)
+
+Create → host lands in Multiplayer Game View with open seats (not Solo).
+
+Quit out as the only player → room disappears from Active Rooms within one update tick.
+
+Second player taps Join → seated and navigated to the same table; no “Failed to Join” while a seat exists.
+
+Counts in Active Rooms and in-table header always match the latest server snapshot (no optimistic drift).

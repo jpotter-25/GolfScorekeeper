@@ -332,7 +332,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameState: initialGameState
       });
       
-      // Log room creation
+      // Log room creation with mode
+      console.log(`[CREATE_MODE] roomId=${roomCode}, mode=online, seatsOpen=${maxPlayers - 1}`);
       console.log(`Room ${roomCode} created by ${userName} with stake ${stakeBracket} - game table initialized`);
       
       // Broadcast updated Active Rooms list to all subscribers matching the stake bracket
@@ -407,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if player already seated (idempotent)
       const existingPlayer = players.find(p => p.id === userId);
       if (existingPlayer) {
-        // Already seated - return current state
+        // Already seated - return current state (idempotent)
         const gameSnapshot = {
           code: room.code,
           hostId: room.hostId,
@@ -416,8 +417,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameState: room.gameState,
           settings: room.settings,
           stakeBracket: room.stakeBracket,
-          version: room.version
+          version: room.version ? room.version.toString() : '1'
         };
+        console.log(`[JOIN_ATTEMPT] roomId=${code}, before seats=${players.length}, result=already_seated, after seats=${players.length}`);
         return res.json({
           success: true,
           alreadySeated: true,
@@ -439,8 +441,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameState: room.gameState,
           settings: room.settings,
           stakeBracket: room.stakeBracket,
-          version: room.version
+          version: room.version ? room.version.toString() : '1'
         };
+        console.log(`[JOIN_ATTEMPT] roomId=${code}, before seats=${players.length}, result=full, after seats=${players.length}`);
         return res.status(400).json({ 
           success: false,
           message: "Table is full - no seats available",
@@ -481,8 +484,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameState: room.gameState,
           settings: room.settings,
           stakeBracket: room.stakeBracket,
-          version: room.version
+          version: room.version ? room.version.toString() : '1'
         };
+        console.log(`[JOIN_ATTEMPT] roomId=${code}, before seats=${players.length}, result=no_seat, after seats=${players.length}`);
         return res.status(400).json({ 
           success: false,
           message: "No seats available",
@@ -515,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to update room" });
       }
       
-      // Create full game snapshot with version
+      // Create full game snapshot with version (serialize BigInt)
       const gameSnapshot = {
         code: updatedRoom.code,
         hostId: updatedRoom.hostId,
@@ -524,8 +528,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameState: updatedRoom.gameState,
         settings: updatedRoom.settings,
         stakeBracket: updatedRoom.stakeBracket,
-        version: updatedRoom.version
+        version: updatedRoom.version ? updatedRoom.version.toString() : '1'
       };
+      
+      console.log(`[JOIN_ATTEMPT] roomId=${code}, before seats=${room.players.length}, result=ok, after seats=${players.length}`);
       
       // Broadcast to Active Rooms subscribers
       const broadcastFn = (global as any).broadcastRoomUpdate;
@@ -561,12 +567,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       let players = room.players as any[];
+      const beforeSeats = players.length;
       players = players.filter(p => p.id !== userId);
       
-      // If room is now empty, delete it immediately (ghost room prevention)
+      // Also update game state to vacate the seat
+      const gameState = room.gameState as any;
+      if (gameState?.tableSlots) {
+        const seat = gameState.tableSlots.find((s: any) => s.playerId === userId);
+        if (seat) {
+          seat.isEmpty = true;
+          seat.playerId = null;
+          seat.playerName = null;
+          seat.isActive = false;
+        }
+      }
+      
+      // If room is now empty, delete it immediately
       if (players.length === 0) {
         await storage.deleteGameRoom(code);
-        console.log(`Room ${code} deleted immediately (no players remaining)`);
+        console.log(`[LEAVE] roomId=${code}, seatsAfter=0, deleted=true`);
+        console.log(`[PROJECTION_REMOVE] roomId=${code}`);
         
         // Broadcast room removal to Active Rooms subscribers
         const broadcastFn = (global as any).broadcastRoomUpdate;
@@ -577,11 +597,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ message: "Left room and room deleted" });
       }
       
-      // Update room with remaining players
+      // Update room with remaining players and updated game state
       const updatedRoom = await storage.updateGameRoom(code, {
         players,
+        gameState,
         hostId: players[0].id // Transfer host to first remaining player
       });
+      
+      console.log(`[LEAVE] roomId=${code}, seatsAfter=${players.length}, deleted=false`);
       
       // Broadcast room update
       const broadcastFn = (global as any).broadcastRoomUpdate;
@@ -589,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         broadcastFn('updated', updatedRoom);
       }
       
-      res.json({ message: "Left room successfully", room: updatedRoom });
+      res.json({ message: "Left room successfully", room: serializeRoom(updatedRoom) });
     } catch (error) {
       console.error("Error leaving room:", error);
       res.status(500).json({ message: "Failed to leave room" });

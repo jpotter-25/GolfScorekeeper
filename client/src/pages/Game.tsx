@@ -35,11 +35,22 @@ export default function Game() {
   // Initialize game from URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const mode = params.get('mode') as 'solo' | 'pass-play' | 'online' || 'solo';
+    const roomCode = params.get('room');
+    
+    // If room parameter exists, this is an online multiplayer game
+    const mode = roomCode ? 'online' : 
+                 (params.get('mode') as 'solo' | 'pass-play' | 'online' || 'solo');
     const players = parseInt(params.get('players') || '2') as 2 | 3 | 4;
     const rounds = parseInt(params.get('rounds') || '5') as 5 | 9;
 
     const settings: GameSettings = { mode, playerCount: players, rounds };
+    
+    // Guard against solo mode when room is present
+    if (roomCode && mode !== 'online') {
+      console.warn('[GUARD] Room parameter detected but mode is not online, forcing online mode');
+      settings.mode = 'online';
+    }
+    
     startGame(settings);
   }, [startGame]);
 
