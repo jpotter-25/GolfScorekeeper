@@ -316,7 +316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: userId, 
           name: userName,
           isHost: true,
-          joinedAt: new Date().toISOString()
+          joinedAt: new Date().toISOString(),
+          connected: true,
+          lastSeen: new Date().toISOString(),
+          connectionId: null
         }],
         settings: { 
           rounds, 
@@ -487,12 +490,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Add player to players array
+      // Add player to players array with connection state
       players.push({ 
         id: userId, 
         name: userName,
         seatNumber,
-        joinedAt: new Date().toISOString()
+        joinedAt: new Date().toISOString(),
+        connected: true,
+        lastSeen: new Date().toISOString(),
+        connectionId: null
       });
       
       // Increment version for optimistic concurrency
@@ -632,9 +638,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws: WebSocket;
     stakeBracket?: StakeBracket;
     subscribedAt: Date;
+    userId?: string;
+    roomCode?: string;
   }
   
   const activeSubscriptions = new Map<string, ClientSubscription>();
+  const userConnections = new Map<string, Set<string>>(); // userId -> Set of clientIds
+  const GRACE_PERIOD_MS = 30000; // 30 seconds grace period for reconnection
   
   wss.on('connection', (ws: WebSocket) => {
     const clientId = Math.random().toString(36).substring(7);
@@ -643,6 +653,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws.on('message', async (message: Buffer) => {
       try {
         const data = JSON.parse(message.toString());
+        
+        // Handle user authentication for connection tracking
+        if (data.type === 'authenticate' && data.userId) {
+          const subscription = activeSubscriptions.get(clientId) || { ws, subscribedAt: new Date() };
+          subscription.userId = data.userId;
+          activeSubscriptions.set(clientId, subscription);
+          
+          // Track user connections
+          if (!userConnections.has(data.userId)) {
+            userConnections.set(data.userId, new Set());
+          }
+          userConnections.get(data.userId)!.add(clientId);
+          
+          // If user joins a room, update their connection state
+          if (data.roomCode) {
+            subscription.roomCode = data.roomCode;
+            await updatePlayerConnectionState(data.roomCode, data.userId, true, clientId);
+          }
+        }
         
         if (data.type === 'subscribe_rooms') {
           // Subscribe to room updates
@@ -674,7 +703,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
     
-    ws.on('close', () => {
+    ws.on('close', async () => {
+      const subscription = activeSubscriptions.get(clientId);
+      
+      if (subscription?.userId && subscription?.roomCode) {
+        // Mark player as disconnected but don't remove immediately (grace period)
+        await updatePlayerConnectionState(subscription.roomCode, subscription.userId, false, clientId);
+        
+        // Remove from user connections
+        const userConns = userConnections.get(subscription.userId);
+        if (userConns) {
+          userConns.delete(clientId);
+          if (userConns.size === 0) {
+            userConnections.delete(subscription.userId);
+            
+            // Start grace period timer
+            setTimeout(async () => {
+              // Check if user reconnected
+              if (!userConnections.has(subscription.userId!)) {
+                // User didn't reconnect, clean up their seat
+                await cleanupDisconnectedPlayer(subscription.roomCode!, subscription.userId!);
+              }
+            }, GRACE_PERIOD_MS);
+          }
+        }
+      }
+      
       activeSubscriptions.delete(clientId);
       console.log(`WebSocket client disconnected: ${clientId}`);
     });
@@ -763,6 +817,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }));
       }
     });
+  }
+  
+  // Helper function to update player connection state
+  async function updatePlayerConnectionState(roomCode: string, userId: string, connected: boolean, connectionId?: string) {
+    try {
+      const room = await storage.getGameRoom(roomCode);
+      if (!room) return;
+      
+      const players = room.players as any[];
+      const player = players.find(p => p.id === userId);
+      
+      if (player) {
+        // Update connection state
+        player.connected = connected;
+        player.lastSeen = new Date().toISOString();
+        if (connectionId) {
+          player.connectionId = connectionId;
+        }
+        
+        // Update room with new player state
+        await storage.updateGameRoom(roomCode, { players });
+        
+        // Broadcast update
+        broadcastRoomUpdate('updated', room);
+      }
+    } catch (error) {
+      console.error(`Error updating connection state for ${userId} in room ${roomCode}:`, error);
+    }
+  }
+  
+  // Helper function to clean up disconnected player after grace period
+  async function cleanupDisconnectedPlayer(roomCode: string, userId: string) {
+    try {
+      const room = await storage.getGameRoom(roomCode);
+      if (!room) return;
+      
+      let players = room.players as any[];
+      const player = players.find(p => p.id === userId);
+      
+      if (player && !player.connected) {
+        const lastSeenTime = new Date(player.lastSeen).getTime();
+        const now = Date.now();
+        
+        // Check if grace period has expired
+        if (now - lastSeenTime >= GRACE_PERIOD_MS) {
+          // Remove player from room
+          players = players.filter(p => p.id !== userId);
+          
+          // Update game state to vacate seat
+          const gameState = room.gameState as any;
+          if (gameState?.tableSlots) {
+            const seat = gameState.tableSlots.find((s: any) => s.playerId === userId);
+            if (seat) {
+              seat.isEmpty = true;
+              seat.playerId = null;
+              seat.playerName = null;
+              seat.isActive = false;
+            }
+          }
+          
+          // If room is now empty, delete it
+          if (players.length === 0) {
+            await storage.deleteGameRoom(roomCode);
+            console.log(`[Grace Period] Room ${roomCode} deleted (all players disconnected)`);
+            broadcastRoomUpdate('removed', room);
+          } else {
+            // Update room with remaining players
+            const updatedRoom = await storage.updateGameRoom(roomCode, { 
+              players,
+              gameState,
+              hostId: players[0].id // Transfer host if needed
+            });
+            
+            if (updatedRoom) {
+              console.log(`[Grace Period] Player ${userId} removed from room ${roomCode} after grace period`);
+              broadcastRoomUpdate('updated', updatedRoom);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error cleaning up disconnected player ${userId} in room ${roomCode}:`, error);
+    }
   }
   
   // Export broadcast function for use in other parts of the application

@@ -402,33 +402,46 @@ export class DatabaseStorage implements IStorage {
     // Additional filtering per Active Room definition
     // Active Rooms = Tables with Open Seats
     const validRooms: GameRoom[] = [];
+    const GRACE_PERIOD_MS = 30000; // 30 seconds
+    const now = Date.now();
     
     for (const room of rooms) {
       const players = room.players as any[];
       
-      // Delete empty rooms immediately (synchronously to prevent them from showing)
-      if (!players || players.length === 0) {
-        // Delete synchronously before continuing to ensure they don't appear in the list
+      // Count only active seats (connected or within grace period)
+      const activeSeats = players.filter(player => {
+        if (player.connected) return true;
+        if (player.lastSeen) {
+          const lastSeenTime = new Date(player.lastSeen).getTime();
+          return (now - lastSeenTime) < GRACE_PERIOD_MS;
+        }
+        return false;
+      }).length;
+      
+      // Delete rooms with zero active seats immediately
+      if (activeSeats === 0) {
         await this.deleteGameRoom(room.code);
-        console.log(`[Active Rooms] Deleted empty room ${room.code} immediately`);
-        continue; // Skip this room entirely
+        console.log(`[Active Rooms] Deleted empty room ${room.code} (no active seats)`);
+        continue;
       }
       
       // Active Room criteria:
-      // 1. players ≥ 1 (at least one seated)
-      const hasPlayers = players.length >= 1;
+      // 1. activeSeats ≥ 1 (at least one active player)
+      const hasActivePlayers = activeSeats >= 1;
       
       // 2. seatsOpen > 0 (MUST have open seats - not full)
       const maxPlayers = room.maxPlayers || 4;
-      const seatsOpen = maxPlayers - players.length;
+      const seatsOpen = maxPlayers - activeSeats; // Count open seats based on active players
       const hasOpenSeats = seatsOpen > 0;
       
       // 3. visibility allows listing (default to public if not set)
       const visibility = room.visibility || 'public';
       const isListable = visibility === 'public';
       
-      // Only show tables with open seats
-      if (hasPlayers && hasOpenSeats && isListable) {
+      // Only show tables with active players and open seats
+      if (hasActivePlayers && hasOpenSeats && isListable) {
+        // Update player count to reflect only active seats
+        room.playerCount = activeSeats;
         validRooms.push(room);
       }
     }
