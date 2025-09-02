@@ -412,18 +412,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           players: room.players,
           gameState: room.gameState,
           settings: room.settings,
-          stakeBracket: room.stakeBracket
+          stakeBracket: room.stakeBracket,
+          version: room.version
         };
         return res.json({
           success: true,
           alreadySeated: true,
           gameSnapshot,
+          seatNumber: existingPlayer.seatNumber || 0,
           message: "Already seated at this table"
         });
       }
       
       // Check if room is full
-      if (players.length >= maxPlayers) {
+      const seatsOpen = maxPlayers - players.length;
+      if (seatsOpen <= 0) {
         // Room is full - return error with latest snapshot
         const gameSnapshot = {
           code: room.code,
@@ -432,22 +435,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           players: room.players,
           gameState: room.gameState,
           settings: room.settings,
-          stakeBracket: room.stakeBracket
+          stakeBracket: room.stakeBracket,
+          version: room.version
         };
         return res.status(400).json({ 
           success: false,
-          message: "Table is full",
+          message: "Table is full - no seats available",
           gameSnapshot
         });
       }
       
-      // Find next available seat and claim it
+      // Find next available seat and claim it atomically
       let seatNumber = -1;
       if (gameState && gameState.tableSlots) {
         for (let i = 0; i < gameState.tableSlots.length; i++) {
           if (gameState.tableSlots[i].isEmpty) {
             seatNumber = i;
-            // Claim the seat
+            // Claim the seat atomically
             gameState.tableSlots[i] = {
               seatNumber: i,
               isEmpty: false,
@@ -462,6 +466,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
           }
         }
+      }
+      
+      // Verify seat was actually claimed
+      if (seatNumber === -1) {
+        const gameSnapshot = {
+          code: room.code,
+          hostId: room.hostId,
+          status: room.status,
+          players: room.players,
+          gameState: room.gameState,
+          settings: room.settings,
+          stakeBracket: room.stakeBracket,
+          version: room.version
+        };
+        return res.status(400).json({ 
+          success: false,
+          message: "No seats available",
+          gameSnapshot
+        });
       }
       
       // Add player to players array
@@ -486,7 +509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to update room" });
       }
       
-      // Create full game snapshot
+      // Create full game snapshot with version
       const gameSnapshot = {
         code: updatedRoom.code,
         hostId: updatedRoom.hostId,
@@ -494,7 +517,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         players: updatedRoom.players,
         gameState: updatedRoom.gameState,
         settings: updatedRoom.settings,
-        stakeBracket: updatedRoom.stakeBracket
+        stakeBracket: updatedRoom.stakeBracket,
+        version: updatedRoom.version
       };
       
       // Broadcast to Active Rooms subscribers
@@ -533,12 +557,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let players = room.players as any[];
       players = players.filter(p => p.id !== userId);
       
-      // If room is now empty, delete it
+      // If room is now empty, delete it immediately (ghost room prevention)
       if (players.length === 0) {
         await storage.deleteGameRoom(code);
-        console.log(`Room ${code} deleted (no players remaining)`);
+        console.log(`Room ${code} deleted immediately (no players remaining)`);
         
-        // Broadcast room removal
+        // Broadcast room removal to Active Rooms subscribers
         const broadcastFn = (global as any).broadcastRoomUpdate;
         if (broadcastFn) {
           broadcastFn('removed', room);

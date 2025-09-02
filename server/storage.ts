@@ -294,7 +294,7 @@ export class DatabaseStorage implements IStorage {
     const defaultSettings = {
       rounds: 9,
       playerCount: 4,
-      ...(roomData.settings || {})
+      ...(roomData.settings ? roomData.settings : {})
     };
     
     // Extract maxPlayers from settings or use default
@@ -340,64 +340,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateGameRoom(code: string, updates: Partial<GameRoom>): Promise<GameRoom | undefined> {
-    // Build dynamic update query
-    const setClause: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+    // Use drizzle's update builder instead of raw SQL for safety
+    const updateData: any = {};
     
     if (updates.players !== undefined) {
-      setClause.push(`players = $${paramIndex}::jsonb`);
-      values.push(JSON.stringify(updates.players));
-      paramIndex++;
-      
-      // Also update player_count
-      const players = updates.players as any[];
-      setClause.push(`player_count = $${paramIndex}`);
-      values.push(players.length);
-      paramIndex++;
+      updateData.players = updates.players;
+      updateData.playerCount = updates.players.length;
     }
     
     if (updates.gameState !== undefined) {
-      setClause.push(`game_state = $${paramIndex}::jsonb`);
-      values.push(JSON.stringify(updates.gameState));
-      paramIndex++;
+      updateData.gameState = updates.gameState;
     }
     
     if (updates.version !== undefined) {
-      setClause.push(`version = $${paramIndex}`);
-      values.push(updates.version.toString());
-      paramIndex++;
+      updateData.version = updates.version.toString();
     }
     
     if (updates.status !== undefined) {
-      setClause.push(`status = $${paramIndex}`);
-      values.push(updates.status);
-      paramIndex++;
+      updateData.status = updates.status;
     }
     
     if (updates.hostId !== undefined) {
-      setClause.push(`host_id = $${paramIndex}`);
-      values.push(updates.hostId);
-      paramIndex++;
+      updateData.hostId = updates.hostId;
     }
     
-    if (setClause.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       // Nothing to update
       return await this.getGameRoom(code);
     }
     
-    // Add the room code as the last parameter
-    values.push(code);
-    
-    const query = `
-      UPDATE game_rooms 
-      SET ${setClause.join(', ')}
-      WHERE code = $${paramIndex}
-      RETURNING *
-    `;
-    
-    const result = await db.execute(sql.raw(query, values));
-    return result.rows[0] as GameRoom;
+    const [result] = await db
+      .update(gameRooms)
+      .set(updateData)
+      .where(eq(gameRooms.code, code))
+      .returning();
+    return result as GameRoom;
   }
 
   async deleteGameRoom(code: string): Promise<void> {
@@ -424,16 +401,17 @@ export class DatabaseStorage implements IStorage {
     
     // Additional filtering per Active Room definition
     // Active Rooms = Tables with Open Seats
-    const validRooms = rooms.filter(room => {
+    const validRooms: GameRoom[] = [];
+    
+    for (const room of rooms) {
       const players = room.players as any[];
       
-      // Delete empty rooms immediately
+      // Delete empty rooms immediately (synchronously to prevent them from showing)
       if (!players || players.length === 0) {
-        // Schedule deletion but don't await to avoid blocking
-        this.deleteGameRoom(room.code).catch(err => 
-          console.error(`Failed to delete empty room ${room.code}:`, err)
-        );
-        return false;
+        // Delete synchronously before continuing to ensure they don't appear in the list
+        await this.deleteGameRoom(room.code);
+        console.log(`[Active Rooms] Deleted empty room ${room.code} immediately`);
+        continue; // Skip this room entirely
       }
       
       // Active Room criteria:
@@ -450,8 +428,10 @@ export class DatabaseStorage implements IStorage {
       const isListable = visibility === 'public';
       
       // Only show tables with open seats
-      return hasPlayers && hasOpenSeats && isListable;
-    });
+      if (hasPlayers && hasOpenSeats && isListable) {
+        validRooms.push(room);
+      }
+    }
     
     return validRooms;
   }
