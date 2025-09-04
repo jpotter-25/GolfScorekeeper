@@ -131,9 +131,9 @@ export default function OnlineMultiplayer() {
           duration: 2000
         });
         setCreateRoomOpen(false);
-        // Navigate directly to Game View with the game snapshot
+        // Navigate to MultiplayerGame component for online rooms
         setTimeout(() => {
-          navigate(`/game?room=${response.gameSnapshot.code}`);
+          navigate(`/multiplayer-game?room=${response.gameSnapshot.code}`);
         }, 100);
       } else {
         toast({
@@ -344,8 +344,8 @@ export default function OnlineMultiplayer() {
                               const result = await response.json();
                               
                               if (result.success || result.alreadySeated) {
-                                // Navigate directly to game view with the room code
-                                navigate(`/game?room=${room.code}`);
+                                // Navigate to MultiplayerGame component for online rooms
+                                navigate(`/multiplayer-game?room=${room.code}`);
                               } else {
                                 toast({
                                   title: "Failed to join",
