@@ -41,6 +41,17 @@ export default function GameTable({
     humanPlayer = currentPlayer;
     aiPlayers = gameState.players.filter((_, index) => index !== gameState.currentPlayerIndex);
     isPlayerTurn = true; // Always true in pass-and-play since current player is always active
+  } else if (gameState.gameMode === 'online') {
+    // Online multiplayer mode: Show all players including empty seats
+    // For now, assume player 0 is the current user (this should be improved to use actual user ID)
+    humanPlayer = gameState.players[0];
+    // Show all other players/seats (including empty ones)
+    aiPlayers = gameState.players.filter((_, index) => index !== 0);
+    
+    // Check if it's the human player's turn (only considering active players)
+    const activePlayers = gameState.players.filter((p: any) => !p.isEmpty);
+    const currentActivePlayer = activePlayers[gameState.currentPlayerIndex];
+    isPlayerTurn = currentActivePlayer && currentActivePlayer.id === humanPlayer.id;
   } else {
     // Solo mode: Player 0 is human, others are AI
     humanPlayer = gameState.players[0];

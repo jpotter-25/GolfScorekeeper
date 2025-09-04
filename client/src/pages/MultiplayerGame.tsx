@@ -302,18 +302,36 @@ export default function MultiplayerGame() {
     const serverState = roomSnapshot.gameState as any;
     
     // Transform server game state to match client's expected format
+    // IMPORTANT: Include ALL table slots to show correct number of seats (2, 3, or 4 players)
     const transformedGameState: any = {
       players: (serverState.tableSlots || [])
-        .filter((slot: any) => !slot.isEmpty)
-        .map((slot: any, index: number) => ({
-          id: slot.playerId,
-          name: slot.playerName || `Player ${index + 1}`,
-          isAI: false,
-          grid: slot.cards || [],
-          roundScore: slot.score || 0,
-          totalScore: slot.totalScore || 0,
-          roundScores: slot.roundScores || []
-        })),
+        .map((slot: any, index: number) => {
+          if (slot.isEmpty) {
+            // Show empty seat as a placeholder player
+            return {
+              id: `empty_${index}`,
+              name: 'Empty Seat',
+              isAI: false,
+              isEmpty: true,
+              grid: Array(9).fill({ suit: '', rank: '', isRevealed: false }),
+              roundScore: 0,
+              totalScore: 0,
+              roundScores: []
+            };
+          } else {
+            // Active player
+            return {
+              id: slot.playerId,
+              name: slot.playerName || `Player ${index + 1}`,
+              isAI: false,
+              isEmpty: false,
+              grid: slot.cards || [],
+              roundScore: slot.score || 0,
+              totalScore: slot.totalScore || 0,
+              roundScores: slot.roundScores || []
+            };
+          }
+        }),
       currentPlayerIndex: serverState.currentPlayerIndex || 0,
       gamePhase: serverState.gamePhase || 'playing',
       drawnCard: serverState.drawnCard || null,
@@ -323,6 +341,7 @@ export default function MultiplayerGame() {
       currentRound: roomSnapshot.currentRound || 0,
       totalRounds: (roomSnapshot.rounds || 9) as (5 | 9),
       gameMode: 'online' as const,
+      maxPlayers: roomSnapshot.maxPlayers || 4,
       roundEndTriggered: false,
       hasRevealedCardThisTurn: false
     };
@@ -330,7 +349,9 @@ export default function MultiplayerGame() {
     console.log('[MultiplayerGame] Rendering game state:', {
       phase: transformedGameState.gamePhase,
       currentPlayer: transformedGameState.currentPlayerIndex,
-      players: transformedGameState.players.length,
+      totalSeats: transformedGameState.players.length,
+      activePlayers: transformedGameState.players.filter((p: any) => !p.isEmpty).length,
+      maxPlayers: transformedGameState.maxPlayers,
       deck: transformedGameState.deck.length,
       discardPile: transformedGameState.discardPile.length
     });

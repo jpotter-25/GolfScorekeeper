@@ -11,7 +11,10 @@ interface OpponentGridProps {
 }
 
 export default function OpponentGrid({ player, isCurrentPlayer = false, className }: OpponentGridProps) {
-  const threeOfAKindColumns = checkThreeOfAKind(player.grid);
+  // Check if this is an empty seat
+  const isEmpty = (player as any).isEmpty;
+  
+  const threeOfAKindColumns = isEmpty ? [] : checkThreeOfAKind(player.grid);
   const { getAvatarUrl } = useCosmetics();
   
   const getColumnForPosition = (position: number): number => {
@@ -24,7 +27,35 @@ export default function OpponentGrid({ player, isCurrentPlayer = false, classNam
   };
 
   // Calculate current round score based on revealed cards
-  const currentRoundScore = calculatePlayerScore(player.grid);
+  const currentRoundScore = isEmpty ? 0 : calculatePlayerScore(player.grid);
+
+  // Show empty seat placeholder
+  if (isEmpty) {
+    return (
+      <div className={cn('opponent-grid opacity-50', className)} data-testid={`opponent-grid-${player.id}`}>
+        <div className="text-center mb-3">
+          {/* Playing indicator with reserved space to avoid layout shift */}
+          <div className="h-4 flex items-center justify-center mb-1"></div>
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white text-sm font-semibold">
+              ?
+            </div>
+            <div className="text-gray-400 font-medium">Waiting for player...</div>
+          </div>
+          <div className="text-gray-500 text-sm">
+            <div>Round: <span className="font-semibold">-</span></div>
+            <div>Total: <span className="font-semibold">-</span></div>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2 w-36">
+          {Array(9).fill(null).map((_, index) => (
+            <div key={index} className="w-10 h-14 bg-gray-700 rounded-lg opacity-30"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('opponent-grid', className)} data-testid={`opponent-grid-${player.id}`}>
