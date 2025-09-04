@@ -30,7 +30,7 @@ export default function Home() {
     queryKey: ["/api/user/cosmetics"],
   });
 
-  const selectMode = (mode: 'solo' | 'pass-play' | 'online') => {
+  const selectMode = (mode: 'solo' | 'pass-play') => {
     setLocation(`/setup?mode=${mode}`);
   };
 

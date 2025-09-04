@@ -15,7 +15,7 @@ export default function GameSetup() {
   // Get mode from URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const mode = params.get('mode') as 'solo' | 'pass-play' | 'online';
+    const mode = params.get('mode') as 'solo' | 'pass-play';
     if (mode) {
       setSettings(prev => ({ ...prev, mode }));
     }
@@ -42,7 +42,7 @@ export default function GameSetup() {
     switch (settings.mode) {
       case 'solo': return 'Solo vs AI';
       case 'pass-play': return 'Pass & Play';
-      case 'online': return 'Online Multiplayer';
+      // Online multiplayer should never go through this component
       default: return 'Game Setup';
     }
   };

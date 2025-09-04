@@ -32,7 +32,7 @@ export interface GameState {
   gamePhase: 'setup' | 'peek' | 'playing' | 'round-end' | 'game-end';
   drawnCard: Card | null;
   selectedGridPosition: number | null;
-  gameMode: 'solo' | 'pass-play' | 'online';
+  gameMode: 'solo' | 'pass-play' | 'online'; // Note: 'online' mode is handled by MultiplayerGame component, not Game component
   roundEndTriggered: boolean;
   roundEndingPlayer?: number; // Index of player who triggered round end
   extraTurn: boolean;
@@ -42,7 +42,7 @@ export interface GameState {
 export interface GameSettings {
   playerCount: 2 | 3 | 4;
   rounds: 5 | 9;
-  mode: 'solo' | 'pass-play' | 'online';
+  mode: 'solo' | 'pass-play'; // Note: 'online' mode is handled by MultiplayerGame component, not Game component
 }
 
 export type GameAction = 

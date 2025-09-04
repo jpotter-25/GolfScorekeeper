@@ -41,7 +41,7 @@ export default function Game() {
     if (roomCode) {
       console.error('[Game] Room parameter detected but this component should not be used for online games');
       // Redirect to proper multiplayer component
-      setLocation(`/game?room=${roomCode}`);
+      setLocation(`/multiplayer-game?room=${roomCode}`);
       return;
     }
     
@@ -200,7 +200,7 @@ export default function Game() {
   const playAgain = () => {
     setShowGameResults(false);
     const params = new URLSearchParams(window.location.search);
-    const mode = params.get('mode') as 'solo' | 'pass-play' | 'online' || 'solo';
+    const mode = params.get('mode') as 'solo' | 'pass-play' || 'solo';
     const players = parseInt(params.get('players') || '2') as 2 | 3 | 4;
     const rounds = parseInt(params.get('rounds') || '5') as 5 | 9;
 
