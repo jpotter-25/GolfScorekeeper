@@ -55,6 +55,29 @@ export default function MultiplayerGame() {
     refetchOnWindowFocus: false,
   });
 
+  // Handle cleanup when component unmounts or user navigates away
+  useEffect(() => {
+    if (!roomCode) return;
+
+    // Handle browser/tab close
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      // Call leave endpoint synchronously (best effort)
+      navigator.sendBeacon(`/api/rooms/${roomCode}/leave`, JSON.stringify({}));
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // When component unmounts (navigation), leave the room
+      if (roomCode) {
+        // Use sendBeacon for reliable delivery even during page unload
+        navigator.sendBeacon(`/api/rooms/${roomCode}/leave`, JSON.stringify({}));
+      }
+    };
+  }, [roomCode]);
+
   // WebSocket connection for real-time updates
   useEffect(() => {
     if (!roomCode || !initialRoom) return;
