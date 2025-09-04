@@ -297,18 +297,54 @@ export default function MultiplayerGame() {
     );
   }
 
-  // Active game state
+  // Active game state - render server's authoritative game state
   if (roomSnapshot.status === 'inGame_active' && roomSnapshot.gameState) {
+    const serverState = roomSnapshot.gameState as any;
+    
+    // Transform server game state to match client's expected format
+    const transformedGameState: any = {
+      players: (serverState.tableSlots || [])
+        .filter((slot: any) => !slot.isEmpty)
+        .map((slot: any, index: number) => ({
+          id: slot.playerId,
+          name: slot.playerName || `Player ${index + 1}`,
+          isAI: false,
+          grid: slot.cards || [],
+          roundScore: slot.score || 0,
+          totalScore: slot.totalScore || 0,
+          roundScores: slot.roundScores || []
+        })),
+      currentPlayerIndex: serverState.currentPlayerIndex || 0,
+      gamePhase: serverState.gamePhase || 'playing',
+      drawnCard: serverState.drawnCard || null,
+      discardPile: serverState.discardPile || [],
+      deck: serverState.deck || [],
+      selectedGridPosition: serverState.selectedPosition,
+      currentRound: roomSnapshot.currentRound || 0,
+      totalRounds: (roomSnapshot.rounds || 9) as (5 | 9),
+      gameMode: 'online' as const,
+      roundEndTriggered: false,
+      hasRevealedCardThisTurn: false
+    };
+    
+    console.log('[MultiplayerGame] Rendering game state:', {
+      phase: transformedGameState.gamePhase,
+      currentPlayer: transformedGameState.currentPlayerIndex,
+      players: transformedGameState.players.length,
+      deck: transformedGameState.deck.length,
+      discardPile: transformedGameState.discardPile.length
+    });
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-game-green to-game-felt">
         <GameHeader 
-          gameState={roomSnapshot.gameState} 
+          gameState={transformedGameState} 
           onPause={() => setShowPauseMenu(true)} 
         />
 
         <div className="flex-1 p-4 overflow-hidden">
           <GameTable
-            gameState={roomSnapshot.gameState}
+            gameState={transformedGameState}
             onDrawCard={handleDrawCard}
             onSelectGridPosition={handleSelectGridPosition}
             onKeepDrawnCard={handleKeepDrawnCard}

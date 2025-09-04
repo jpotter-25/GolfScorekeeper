@@ -651,21 +651,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ success: false, message: "Game not started" });
       }
       
-      // Process the action based on type
+      // Process the action based on type - ALL actions must update state and broadcast
       let updated = false;
       const version = room.version ? BigInt(room.version) : BigInt(1);
       
+      // Verify it's the player's turn (except for peek phase where all players peek)
+      const currentPlayerSlot = gameState.tableSlots[gameState.currentPlayerIndex];
+      const isPlayerTurn = currentPlayerSlot?.playerId === userId;
+      
       switch (action) {
         case 'draw_card':
+          if (!isPlayerTurn && gameState.gamePhase !== 'peek') {
+            return res.status(400).json({ success: false, message: "Not your turn" });
+          }
+          
           // Draw a card from the deck
           if (gameState.deck && gameState.deck.length > 0) {
             gameState.drawnCard = gameState.deck.pop();
+            gameState.drawnCard.faceUp = true; // Drawn card is visible
             updated = true;
-            console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+            console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code} - deck now has ${gameState.deck.length} cards`);
           }
           break;
           
         case 'select_grid_position':
+          if (!isPlayerTurn && gameState.gamePhase !== 'peek') {
+            return res.status(400).json({ success: false, message: "Not your turn" });
+          }
+          
           // Store the selected position for card replacement
           gameState.selectedPosition = actionData.position;
           updated = true;
@@ -673,99 +686,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
           break;
           
         case 'keep_drawn_card':
+          if (!isPlayerTurn) {
+            return res.status(400).json({ success: false, message: "Not your turn" });
+          }
+          
           // Replace selected card with drawn card
           if (gameState.drawnCard && gameState.selectedPosition !== undefined) {
             const playerSlot = gameState.tableSlots.find((s: any) => s.playerId === userId);
-            if (playerSlot && playerSlot.cards[gameState.selectedPosition]) {
+            if (playerSlot && playerSlot.cards && playerSlot.cards[gameState.selectedPosition]) {
               // Move old card to discard pile
-              gameState.discardPile.push(playerSlot.cards[gameState.selectedPosition]);
+              const oldCard = playerSlot.cards[gameState.selectedPosition];
+              oldCard.faceUp = true; // Discarded cards are face up
+              gameState.discardPile.push(oldCard);
+              
               // Replace with drawn card
               playerSlot.cards[gameState.selectedPosition] = {
                 ...gameState.drawnCard,
                 isRevealed: true,
+                faceUp: false, // In player's grid, cards are face down but revealed to them
                 position: gameState.selectedPosition
               };
+              
               gameState.drawnCard = null;
               gameState.selectedPosition = undefined;
               updated = true;
+              console.log(`[GAME_ACTION] ${action} by ${userId} - replaced card at position ${gameState.selectedPosition}`);
             }
           }
-          console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
           break;
           
         case 'keep_revealed_card':
+          if (!isPlayerTurn) {
+            return res.status(400).json({ success: false, message: "Not your turn" });
+          }
+          
           // Keep card from discard pile
           if (gameState.discardPile && gameState.discardPile.length > 0 && gameState.selectedPosition !== undefined) {
             const playerSlot = gameState.tableSlots.find((s: any) => s.playerId === userId);
-            if (playerSlot && playerSlot.cards[gameState.selectedPosition]) {
+            if (playerSlot && playerSlot.cards && playerSlot.cards[gameState.selectedPosition]) {
               const revealedCard = gameState.discardPile.pop();
+              
               // Move old card to discard pile
-              gameState.discardPile.push(playerSlot.cards[gameState.selectedPosition]);
+              const oldCard = playerSlot.cards[gameState.selectedPosition];
+              oldCard.faceUp = true;
+              gameState.discardPile.push(oldCard);
+              
               // Replace with revealed card
               playerSlot.cards[gameState.selectedPosition] = {
                 ...revealedCard,
                 isRevealed: true,
+                faceUp: false,
                 position: gameState.selectedPosition
               };
+              
               gameState.selectedPosition = undefined;
               updated = true;
+              console.log(`[GAME_ACTION] ${action} by ${userId} - took card from discard pile`);
             }
           }
-          console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+          break;
+          
+        case 'discard_drawn_card':
+          if (!isPlayerTurn) {
+            return res.status(400).json({ success: false, message: "Not your turn" });
+          }
+          
+          // Discard the drawn card without keeping it
+          if (gameState.drawnCard) {
+            gameState.drawnCard.faceUp = true;
+            gameState.discardPile.push(gameState.drawnCard);
+            gameState.drawnCard = null;
+            gameState.selectedPosition = undefined;
+            updated = true;
+            console.log(`[GAME_ACTION] ${action} by ${userId} - discarded drawn card`);
+          }
           break;
           
         case 'peek_card':
-          // Reveal a card during peek phase
+          // During peek phase, players can only peek at their own cards
           if (gameState.gamePhase === 'peek') {
             const playerSlot = gameState.tableSlots.find((s: any) => s.playerId === userId);
-            if (playerSlot && playerSlot.cards[actionData.index]) {
+            if (playerSlot && playerSlot.cards && playerSlot.cards[actionData.index]) {
+              // Mark card as revealed for this player
               playerSlot.cards[actionData.index].isRevealed = true;
               updated = true;
               
               // Check if player has peeked at 2 cards
               const revealedCount = playerSlot.cards.filter((c: any) => c.isRevealed).length;
+              console.log(`[GAME_ACTION] ${action} at index ${actionData.index} by ${userId} - revealed ${revealedCount} cards`);
+              
+              // Auto-advance if all players have peeked
               if (revealedCount >= 2) {
-                // Move to next player or start playing phase
-                gameState.currentPlayerIndex++;
-                if (gameState.currentPlayerIndex >= gameState.tableSlots.filter((s: any) => !s.isEmpty).length) {
-                  gameState.currentPlayerIndex = 0;
+                // Check if all players have peeked
+                const allPeeked = gameState.tableSlots
+                  .filter((s: any) => !s.isEmpty)
+                  .every((s: any) => s.cards.filter((c: any) => c.isRevealed).length >= 2);
+                
+                if (allPeeked) {
                   gameState.gamePhase = 'playing';
+                  gameState.currentPlayerIndex = 0;
+                  console.log(`[GAME_ACTION] All players peeked - starting playing phase`);
                 }
               }
             }
           }
-          console.log(`[GAME_ACTION] ${action} at index ${actionData.index} by ${userId} in room ${code}`);
           break;
           
         case 'end_turn':
+          if (!isPlayerTurn) {
+            return res.status(400).json({ success: false, message: "Not your turn" });
+          }
+          
           // Move to next player
           const activePlayers = gameState.tableSlots.filter((s: any) => !s.isEmpty);
           gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % activePlayers.length;
           gameState.drawnCard = null;
           gameState.selectedPosition = undefined;
+          gameState.turnCount = (gameState.turnCount || 0) + 1;
           updated = true;
-          console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+          console.log(`[GAME_ACTION] ${action} by ${userId} - now player ${gameState.currentPlayerIndex}'s turn`);
           break;
           
         default:
-          return res.status(400).json({ success: false, message: "Unknown action" });
+          return res.status(400).json({ success: false, message: "Unknown action: " + action });
       }
       
-      // If game state was updated, save and broadcast
+      // If game state was updated, save and broadcast to ALL clients
       if (updated) {
         const newVersion = version + BigInt(1);
+        
+        // Save the updated game state
         const updatedRoom = await storage.updateGameRoom(code, {
           gameState,
           version: newVersion
         });
         
         if (updatedRoom) {
-          // Broadcast updated room snapshot to all room subscribers
-          await broadcastRoomSnapshot(code, updatedRoom);
+          // Broadcast updated room snapshot to ALL room subscribers
+          const broadcastSnapshotFn = (global as any).broadcastRoomSnapshot;
+          if (broadcastSnapshotFn) {
+            await broadcastSnapshotFn(code, updatedRoom);
+            console.log(`[BROADCAST] Room ${code} snapshot v${newVersion} sent to all subscribers`);
+          }
+          
+          res.json({ 
+            success: true, 
+            message: "Action processed and broadcast",
+            version: newVersion.toString()
+          });
+        } else {
+          res.status(500).json({ 
+            success: false, 
+            message: "Failed to save game state" 
+          });
         }
+      } else {
+        res.json({ 
+          success: true, 
+          message: "No state change",
+          version: version.toString()
+        });
       }
-      
-      res.json({ success: true, message: "Action processed" });
     } catch (error) {
       console.error("Error processing game action:", error);
       res.status(500).json({ success: false, message: "Failed to process action" });
