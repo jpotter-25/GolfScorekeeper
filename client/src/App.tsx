@@ -10,6 +10,7 @@ import GameWrapper from "@/pages/GameWrapper";
 import Settings from "@/pages/Settings";
 import Cosmetics from "@/pages/Cosmetics";
 import OnlineMultiplayer from "@/pages/OnlineMultiplayer";
+import MultiplayerGame from "@/pages/MultiplayerGame";
 import RoomView from "@/pages/RoomView";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/not-found";
@@ -29,6 +30,7 @@ function Router() {
           <Route path="/settings" component={Settings} />
           <Route path="/cosmetics" component={Cosmetics} />
           <Route path="/online-multiplayer" component={OnlineMultiplayer} />
+          <Route path="/multiplayer-game" component={MultiplayerGame} />
           <Route path="/room/:code" component={RoomView} />
         </>
       )}
