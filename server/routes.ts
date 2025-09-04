@@ -5,6 +5,42 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { type StakeBracket, type GameRoom } from "@shared/schema";
 
+// Helper function to create a shuffled deck
+function createShuffledDeck() {
+  const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+  const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  const deck = [];
+  
+  // Create two standard decks (104 cards for Golf)
+  for (let deckNum = 0; deckNum < 2; deckNum++) {
+    for (const suit of suits) {
+      for (const value of values) {
+        let points = 0;
+        if (value === 'K') points = 0;  // King is 0 points
+        else if (value === 'A') points = 1;
+        else if (value === 'J' || value === 'Q') points = 10;
+        else points = parseInt(value);
+        
+        deck.push({
+          id: `${deckNum}-${suit}-${value}`,
+          suit,
+          value,
+          points,
+          faceUp: false
+        });
+      }
+    }
+  }
+  
+  // Shuffle the deck
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  
+  return deck;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
@@ -508,10 +544,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Increment version for optimistic concurrency
       const newVersion = (room.version ? BigInt(room.version) : BigInt(1)) + BigInt(1);
       
+      // Check if room is now full and auto-start game
+      let roomStatus = room.status;
+      if (players.length === maxPlayers && roomStatus === 'inGame_waiting') {
+        console.log(`[AUTO_START] Room ${code} is full, starting game automatically`);
+        roomStatus = 'inGame_active';
+        
+        // Initialize the actual game state (deck, deal cards, etc.)
+        const deck = createShuffledDeck();
+        
+        // Deal 9 cards to each player
+        for (let i = 0; i < gameState.tableSlots.length; i++) {
+          if (!gameState.tableSlots[i].isEmpty) {
+            gameState.tableSlots[i].cards = [];
+            for (let j = 0; j < 9; j++) {
+              gameState.tableSlots[i].cards.push({
+                ...deck.pop(),
+                isRevealed: false,
+                position: j
+              });
+            }
+          }
+        }
+        
+        // Initialize game state
+        gameState.state = 'active';
+        gameState.deck = deck;
+        gameState.discardPile = [deck.pop()];
+        gameState.currentPlayerIndex = 0;
+        gameState.gamePhase = 'peek';
+      }
+      
       // Update room with new player and incremented version
       const updatedRoom = await storage.updateGameRoom(code, {
         players,
         gameState,
+        status: roomStatus,
         version: newVersion
       });
       
@@ -589,32 +657,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       switch (action) {
         case 'draw_card':
-          // TODO: Implement draw card logic
-          console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+          // Draw a card from the deck
+          if (gameState.deck && gameState.deck.length > 0) {
+            gameState.drawnCard = gameState.deck.pop();
+            updated = true;
+            console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
+          }
           break;
           
         case 'select_grid_position':
-          // TODO: Implement grid selection logic
+          // Store the selected position for card replacement
+          gameState.selectedPosition = actionData.position;
+          updated = true;
           console.log(`[GAME_ACTION] ${action} at position ${actionData.position} by ${userId} in room ${code}`);
           break;
           
         case 'keep_drawn_card':
-          // TODO: Implement keep drawn card logic
+          // Replace selected card with drawn card
+          if (gameState.drawnCard && gameState.selectedPosition !== undefined) {
+            const playerSlot = gameState.tableSlots.find((s: any) => s.playerId === userId);
+            if (playerSlot && playerSlot.cards[gameState.selectedPosition]) {
+              // Move old card to discard pile
+              gameState.discardPile.push(playerSlot.cards[gameState.selectedPosition]);
+              // Replace with drawn card
+              playerSlot.cards[gameState.selectedPosition] = {
+                ...gameState.drawnCard,
+                isRevealed: true,
+                position: gameState.selectedPosition
+              };
+              gameState.drawnCard = null;
+              gameState.selectedPosition = undefined;
+              updated = true;
+            }
+          }
           console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
           break;
           
         case 'keep_revealed_card':
-          // TODO: Implement keep revealed card logic
+          // Keep card from discard pile
+          if (gameState.discardPile && gameState.discardPile.length > 0 && gameState.selectedPosition !== undefined) {
+            const playerSlot = gameState.tableSlots.find((s: any) => s.playerId === userId);
+            if (playerSlot && playerSlot.cards[gameState.selectedPosition]) {
+              const revealedCard = gameState.discardPile.pop();
+              // Move old card to discard pile
+              gameState.discardPile.push(playerSlot.cards[gameState.selectedPosition]);
+              // Replace with revealed card
+              playerSlot.cards[gameState.selectedPosition] = {
+                ...revealedCard,
+                isRevealed: true,
+                position: gameState.selectedPosition
+              };
+              gameState.selectedPosition = undefined;
+              updated = true;
+            }
+          }
           console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
           break;
           
         case 'peek_card':
-          // TODO: Implement peek card logic
+          // Reveal a card during peek phase
+          if (gameState.gamePhase === 'peek') {
+            const playerSlot = gameState.tableSlots.find((s: any) => s.playerId === userId);
+            if (playerSlot && playerSlot.cards[actionData.index]) {
+              playerSlot.cards[actionData.index].isRevealed = true;
+              updated = true;
+              
+              // Check if player has peeked at 2 cards
+              const revealedCount = playerSlot.cards.filter((c: any) => c.isRevealed).length;
+              if (revealedCount >= 2) {
+                // Move to next player or start playing phase
+                gameState.currentPlayerIndex++;
+                if (gameState.currentPlayerIndex >= gameState.tableSlots.filter((s: any) => !s.isEmpty).length) {
+                  gameState.currentPlayerIndex = 0;
+                  gameState.gamePhase = 'playing';
+                }
+              }
+            }
+          }
           console.log(`[GAME_ACTION] ${action} at index ${actionData.index} by ${userId} in room ${code}`);
           break;
           
         case 'end_turn':
-          // TODO: Implement end turn logic
+          // Move to next player
+          const activePlayers = gameState.tableSlots.filter((s: any) => !s.isEmpty);
+          gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % activePlayers.length;
+          gameState.drawnCard = null;
+          gameState.selectedPosition = undefined;
+          updated = true;
           console.log(`[GAME_ACTION] ${action} by ${userId} in room ${code}`);
           break;
           

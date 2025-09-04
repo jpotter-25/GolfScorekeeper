@@ -32,27 +32,27 @@ export default function Game() {
     resetGame
   } = useGameLogic();
 
-  // Initialize game from URL params
+  // Initialize game from URL params (ONLY for solo and pass-play modes)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomCode = params.get('room');
     
-    // If room parameter exists, this is an online multiplayer game
-    const mode = roomCode ? 'online' : 
-                 (params.get('mode') as 'solo' | 'pass-play' | 'online' || 'solo');
+    // This component should NEVER handle online games
+    if (roomCode) {
+      console.error('[Game] Room parameter detected but this component should not be used for online games');
+      // Redirect to proper multiplayer component
+      setLocation(`/game?room=${roomCode}`);
+      return;
+    }
+    
+    // Only handle solo and pass-play modes
+    const mode = params.get('mode') as 'solo' | 'pass-play' || 'solo';
     const players = parseInt(params.get('players') || '2') as 2 | 3 | 4;
     const rounds = parseInt(params.get('rounds') || '5') as 5 | 9;
 
     const settings: GameSettings = { mode, playerCount: players, rounds };
-    
-    // Guard against solo mode when room is present
-    if (roomCode && mode !== 'online') {
-      console.warn('[GUARD] Room parameter detected but mode is not online, forcing online mode');
-      settings.mode = 'online';
-    }
-    
     startGame(settings);
-  }, [startGame]);
+  }, [startGame, setLocation]);
 
   // Handle AI turns (only in solo mode)
   useEffect(() => {
