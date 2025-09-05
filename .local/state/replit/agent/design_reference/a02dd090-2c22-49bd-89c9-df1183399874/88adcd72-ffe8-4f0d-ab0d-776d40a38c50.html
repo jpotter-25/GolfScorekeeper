@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golf 9 - The Card Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'game-green': '#0F5132',
+                        'game-felt': '#1B4332',
+                        'game-gold': '#F59E0B',
+                        'game-cream': '#FEF7ED',
+                        'card-back': '#1E3A8A',
+                        'highlight-blue': '#2563EB',
+                        'highlight-green': '#10B981'
+                    },
+                    fontFamily: {
+                        'game': ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="font-game bg-gradient-to-br from-game-green to-game-felt min-h-screen">
+    <!-- @COMPONENT: App Container -->
+    <div id="app" class="min-h-screen">
+        
+        <!-- Main Menu Screen -->
+        <div id="mainMenu" class="screen active min-h-screen flex flex-col">
+            <!-- Header -->
+            <header class="flex justify-between items-center p-6">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-game-gold rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-white text-xl"></i>
+                    </div>
+                    <div class="text-white">
+                        <div class="font-semibold" data-bind="user.name">Player</div>
+                        <div class="text-sm opacity-80">Level <span data-bind="user.level">12</span> • <span data-bind="user.exp">2,450</span> XP</div>
+                    </div>
+                </div>
+                
+                <button class="text-white text-2xl hover:text-game-gold transition-colors" onclick="toggleSettings()">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </header>
+
+            <!-- Game Logo -->
+            <div class="flex-1 flex flex-col items-center justify-center px-6">
+                <div class="text-center mb-12">
+                    <h1 class="text-6xl md:text-8xl font-bold text-white mb-4">Golf 9</h1>
+                    <p class="text-xl text-game-cream opacity-90">The Card Game</p>
+                </div>
+
+                <!-- Mode Selection -->
+                <div class="w-full max-w-md space-y-4">
+                    <button onclick="selectMode('solo')" class="w-full bg-white bg-opacity-10 backdrop-blur-sm hover:bg-opacity-20 text-white py-4 px-6 rounded-xl border border-white border-opacity-20 transition-all duration-200 flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <i class="fas fa-robot text-game-gold text-xl"></i>
+                            <span class="font-semibold">Solo vs AI</span>
+                        </div>
+                        <i class="fas fa-chevron-right opacity-60"></i>
+                    </button>
+
+                    <button onclick="selectMode('passplay')" class="w-full bg-white bg-opacity-10 backdrop-blur-sm hover:bg-opacity-20 text-white py-4 px-6 rounded-xl border border-white border-opacity-20 transition-all duration-200 flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <i class="fas fa-users text-game-gold text-xl"></i>
+                            <span class="font-semibold">Pass & Play</span>
+                        </div>
+                        <i class="fas fa-chevron-right opacity-60"></i>
+                    </button>
+
+                    <button onclick="selectMode('online')" class="w-full bg-white bg-opacity-10 backdrop-blur-sm hover:bg-opacity-20 text-white py-4 px-6 rounded-xl border border-white border-opacity-20 transition-all duration-200 flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <i class="fas fa-wifi text-game-gold text-xl"></i>
+                            <span class="font-semibold">Online Multiplayer</span>
+                        </div>
+                        <i class="fas fa-chevron-right opacity-60"></i>
+                    </button>
+
+                    <button onclick="showHowToPlay()" class="w-full bg-game-gold hover:bg-yellow-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200">
+                        <i class="fas fa-question-circle mr-2"></i>
+                        How to Play
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Setup Screen -->
+        <div id="gameSetup" class="screen hidden min-h-screen flex flex-col">
+            <header class="flex justify-between items-center p-6">
+                <button onclick="showScreen('mainMenu')" class="text-white text-xl hover:text-game-gold transition-colors">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 class="text-white text-xl font-semibold">Game Setup</h2>
+                <div></div>
+            </header>
+
+            <div class="flex-1 px-6 pb-6">
+                <div class="max-w-md mx-auto space-y-6">
+                    <!-- Player Count -->
+                    <div class="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-6">
+                        <h3 class="text-white font-semibold mb-4">Number of Players</h3>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setPlayers(2)" class="player-btn bg-white bg-opacity-20 text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-30 transition-all" data-players="2">2</button>
+                            <button onclick="setPlayers(3)" class="player-btn bg-white bg-opacity-20 text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-30 transition-all" data-players="3">3</button>
+                            <button onclick="setPlayers(4)" class="player-btn bg-white bg-opacity-20 text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-30 transition-all" data-players="4">4</button>
+                        </div>
+                    </div>
+
+                    <!-- Rounds -->
+                    <div class="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-6">
+                        <h3 class="text-white font-semibold mb-4">Number of Rounds</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="setRounds(5)" class="rounds-btn bg-white bg-opacity-20 text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-30 transition-all" data-rounds="5">5 Rounds</button>
+                            <button onclick="setRounds(9)" class="rounds-btn bg-white bg-opacity-20 text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-30 transition-all" data-rounds="9">9 Rounds</button>
+                        </div>
+                    </div>
+
+                    <!-- Start Game -->
+                    <button onclick="startGame()" class="w-full bg-game-gold hover:bg-yellow-500 text-white font-bold py-4 px-6 rounded-xl text-lg transition-all duration-200">
+                        Start Game
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Game Screen -->
+        <div id="gameScreen" class="screen hidden min-h-screen">
+            <!-- @COMPONENT: GameHeader -->
+            <!-- Game Header -->
+            <div class="bg-game-felt border-b border-white border-opacity-10 px-4 py-3">
+                <div class="flex justify-between items-center">
+                    <button onclick="showPauseMenu()" class="text-white hover:text-game-gold transition-colors">
+                        <i class="fas fa-pause text-xl"></i>
+                    </button>
+                    
+                    <div class="text-center text-white">
+                        <div class="font-semibold">Round <span id="currentRound" data-bind="game.currentRound">1</span> / <span id="totalRounds" data-bind="game.totalRounds">5</span></div>
+                        <div class="text-sm opacity-80">Current Player: <span id="currentPlayerName" data-bind="game.currentPlayer.name">Player 1</span></div>
+                    </div>
+
+                    <div class="text-white text-right">
+                        <div class="font-semibold">Score</div>
+                        <div class="text-lg" id="currentPlayerScore" data-bind="game.currentPlayer.totalScore">12</div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: GameHeader -->
+
+            <!-- Game Table -->
+            <div class="flex-1 p-4 overflow-hidden">
+                <!-- @COMPONENT: GameTable -->
+                <div class="h-full max-w-6xl mx-auto">
+                    
+                    <!-- Opponent Grids (Dynamic Layout) -->
+                    <div id="opponentGrids" class="mb-6">
+                        <!-- @COMPONENT: OpponentGrid -->
+                        <!-- 2 Player Layout -->
+                        <div class="opponent-layout-2 hidden">
+                            <div class="flex justify-center">
+                                <div class="opponent-grid" data-player="1">
+                                    <div class="text-center mb-3">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">AI</div>
+                                            <div class="text-white font-medium">AI Player</div>
+                                        </div>
+                                        <div class="text-game-cream text-sm">Score: <span class="font-semibold" data-bind="opponent.score">8</span></div>
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-1 w-24">
+                                        <!-- @MAP: opponent.cards.map(card => ( -->
+                                        <div class="card-slot opponent-card bg-card-back rounded-lg aspect-square flex items-center justify-center text-white text-xs border border-white border-opacity-20"></div>
+                                        <div class="card-slot opponent-card bg-white rounded-lg aspect-square flex items-center justify-center text-black text-xs font-semibold">K</div>
+                                        <div class="card-slot opponent-card bg-card-back rounded-lg aspect-square flex items-center justify-center text-white text-xs border border-white border-opacity-20"></div>
+                                        <div class="card-slot opponent-card bg-white rounded-lg aspect-square flex items-center justify-center text-black text-xs font-semibold">A</div>
+                                        <div class="card-slot opponent-card bg-card-back rounded-lg aspect-square flex items-center justify-center text-white text-xs border border-white border-opacity-20"></div>
+                                        <div class="card-slot opponent-card bg-white rounded-lg aspect-square flex items-center justify-center text-black text-xs font-semibold">5</div>
+                                        <div class="card-slot opponent-card bg-card-back rounded-lg aspect-square flex items-center justify-center text-white text-xs border border-white border-opacity-20"></div>
+                                        <div class="card-slot opponent-card bg-card-back rounded-lg aspect-square flex items-center justify-center text-white text-xs border border-white border-opacity-20"></div>
+                                        <div class="card-slot opponent-card bg-card-back rounded-lg aspect-square flex items-center justify-center text-white text-xs border border-white border-opacity-20"></div>
+                                        <!-- @END_MAP )) -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3-4 Player Layouts (Similar structure, different positioning) -->
+                        <div class="opponent-layout-3 hidden">
+                            <div class="flex justify-between px-8">
+                                <div class="opponent-grid" data-player="1"><!-- Similar structure --></div>
+                                <div class="opponent-grid" data-player="2"><!-- Similar structure --></div>
+                            </div>
+                        </div>
+                        <!-- @END_COMPONENT: OpponentGrid -->
+                    </div>
+
+                    <!-- Center Area: Draw & Discard Piles -->
+                    <div class="flex justify-center items-center mb-6">
+                        <div class="flex items-center space-x-8">
+                            <!-- Draw Pile -->
+                            <div class="text-center">
+                                <div class="text-white text-sm mb-2">Draw Pile</div>
+                                <div class="relative">
+                                    <div class="card-pile w-16 h-24 bg-card-back rounded-lg border-2 border-white border-opacity-30 cursor-pointer hover:border-highlight-blue transition-colors" onclick="drawCard('draw')">
+                                        <div class="absolute inset-0 bg-black bg-opacity-20 rounded-lg"></div>
+                                        <div class="absolute inset-0 bg-black bg-opacity-10 rounded-lg transform translate-x-0.5 translate-y-0.5"></div>
+                                    </div>
+                                    <!-- Active drawn card overlay -->
+                                    <div id="drawnCard" class="absolute inset-0 bg-white rounded-lg border-2 border-highlight-blue hidden items-center justify-center text-black font-bold text-lg">
+                                        7
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Discard Pile -->
+                            <div class="text-center">
+                                <div class="text-white text-sm mb-2">Discard Pile</div>
+                                <div class="card w-16 h-24 bg-white rounded-lg border-2 border-white border-opacity-30 cursor-pointer hover:border-highlight-blue transition-colors flex items-center justify-center text-black font-bold text-lg" onclick="drawCard('discard')">
+                                    <span data-bind="game.discardCard.value">Q</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Player's Grid -->
+                    <div class="text-center">
+                        <div class="mb-4">
+                            <div class="flex items-center justify-center space-x-3 mb-2">
+                                <div class="w-10 h-10 bg-game-gold rounded-full flex items-center justify-center text-white font-semibold">P1</div>
+                                <div class="text-white font-semibold">You</div>
+                                <div class="bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm">
+                                    Your Turn
+                                </div>
+                            </div>
+                            <div class="text-game-cream text-sm">Round Score: <span class="font-semibold" data-bind="player.roundScore">15</span> | Total: <span class="font-semibold" data-bind="player.totalScore">42</span></div>
+                        </div>
+
+                        <!-- @COMPONENT: PlayerGrid -->
+                        <div class="grid grid-cols-3 gap-3 w-fit mx-auto" id="playerGrid">
+                            <!-- @MAP: player.cards.map((card, index) => ( -->
+                            <div class="card-slot player-card bg-card-back rounded-xl aspect-square flex items-center justify-center text-white border-2 border-white border-opacity-20 cursor-pointer hover:border-highlight-blue transition-all w-20 h-28" 
+                                 onclick="selectCard(0)" data-card-index="0">
+                                <div class="text-xs">?</div>
+                            </div>
+                            <div class="card-slot player-card bg-white rounded-xl aspect-square flex items-center justify-center text-black font-bold border-2 border-white border-opacity-20 w-20 h-28" 
+                                 data-card-index="1" data-card-value="K">
+                                K
+                            </div>
+                            <div class="card-slot player-card bg-card-back rounded-xl aspect-square flex items-center justify-center text-white border-2 border-white border-opacity-20 cursor-pointer hover:border-highlight-blue transition-all w-20 h-28" 
+                                 onclick="selectCard(2)" data-card-index="2">
+                                <div class="text-xs">?</div>
+                            </div>
+                            <div class="card-slot player-card bg-white rounded-xl aspect-square flex items-center justify-center text-black font-bold border-2 border-white border-opacity-20 w-20 h-28" 
+                                 data-card-index="3" data-card-value="A">
+                                A
+                            </div>
+                            <div class="card-slot player-card bg-card-back rounded-xl aspect-square flex items-center justify-center text-white border-2 border-white border-opacity-20 cursor-pointer hover:border-highlight-blue transition-all w-20 h-28" 
+                                 onclick="selectCard(4)" data-card-index="4">
+                                <div class="text-xs">?</div>
+                            </div>
+                            <div class="card-slot player-card bg-card-back rounded-xl aspect-square flex items-center justify-center text-white border-2 border-white border-opacity-20 cursor-pointer hover:border-highlight-blue transition-all w-20 h-28" 
+                                 onclick="selectCard(5)" data-card-index="5">
+                                <div class="text-xs">?</div>
+                            </div>
+                            <!-- Three of a kind example -->
+                            <div class="card-slot player-card bg-white rounded-xl aspect-square flex items-center justify-center text-black font-bold border-2 border-highlight-green border-opacity-80 w-20 h-28 shadow-lg" 
+                                 data-card-index="6" data-card-value="7" data-special="three-of-kind">
+                                7
+                            </div>
+                            <div class="card-slot player-card bg-white rounded-xl aspect-square flex items-center justify-center text-black font-bold border-2 border-highlight-green border-opacity-80 w-20 h-28 shadow-lg" 
+                                 data-card-index="7" data-card-value="7" data-special="three-of-kind">
+                                7
+                            </div>
+                            <div class="card-slot player-card bg-white rounded-xl aspect-square flex items-center justify-center text-black font-bold border-2 border-highlight-green border-opacity-80 w-20 h-28 shadow-lg" 
+                                 data-card-index="8" data-card-value="7" data-special="three-of-kind">
+                                7
+                            </div>
+                            <!-- @END_MAP )) -->
+                        </div>
+                        <!-- @END_COMPONENT: PlayerGrid -->
+
+                        <!-- Special Rule Indicator -->
+                        <div id="specialRuleIndicator" class="mt-4 bg-highlight-green bg-opacity-20 text-highlight-green px-4 py-2 rounded-lg inline-block">
+                            <i class="fas fa-star mr-2"></i>
+                            Three of a Kind! Column Zeroed - Extra Turn
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: GameTable -->
+            </div>
+
+            <!-- Game Actions -->
+            <div class="bg-game-felt border-t border-white border-opacity-10 p-4">
+                <div class="max-w-2xl mx-auto">
+                    <div class="text-center text-white mb-3">
+                        <div class="text-sm opacity-80">Select a card slot to place your drawn card</div>
+                    </div>
+                    <div class="flex justify-center space-x-4">
+                        <button class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-times mr-2"></i>
+                            Discard Drawn
+                        </button>
+                        <button class="bg-game-gold hover:bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-check mr-2"></i>
+                            Keep Drawn
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- How to Play Modal -->
+        <div id="howToPlay" class="modal hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-900">How to Play Golf 9</h2>
+                        <button onclick="hideModal('howToPlay')" class="text-gray-500 hover:text-gray-700 text-2xl">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <!-- Objective -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3">Objective</h3>
+                        <p class="text-gray-700">Get the lowest total score across 5 or 9 rounds by strategically managing your 3×3 grid of cards.</p>
+                    </div>
+
+                    <!-- Card Values -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3">Card Values</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                <div class="font-semibold">Ace</div>
+                                <div class="text-2xl font-bold text-green-600">1</div>
+                            </div>
+                            <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                <div class="font-semibold">2-4, 6-10</div>
+                                <div class="text-sm text-gray-600">Face Value</div>
+                            </div>
+                            <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                <div class="font-semibold">5</div>
+                                <div class="text-2xl font-bold text-green-600">-5</div>
+                            </div>
+                            <div class="bg-gray-100 p-3 rounded-lg text-center">
+                                <div class="font-semibold">J, Q</div>
+                                <div class="text-2xl font-bold text-red-600">10</div>
+                            </div>
+                        </div>
+                        <div class="mt-4 bg-yellow-100 p-3 rounded-lg text-center">
+                            <div class="font-semibold">King</div>
+                            <div class="text-2xl font-bold text-blue-600">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Special Rule -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3">Special Rule: Three of a Kind</h3>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <p class="text-gray-700">When you get three cards of the same value in a <strong>column</strong>, that entire column becomes worth 0 points and you get an extra turn!</p>
+                        </div>
+                    </div>
+
+                    <!-- Game Flow -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3">Game Flow</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-start space-x-3">
+                                <div class="bg-game-gold text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">1</div>
+                                <div>
+                                    <div class="font-medium">Deal Phase</div>
+                                    <div class="text-gray-600">Each player gets 9 face-down cards in a 3×3 grid</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="bg-game-gold text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">2</div>
+                                <div>
+                                    <div class="font-medium">Peek Phase</div>
+                                    <div class="text-gray-600">Each player flips 2 cards face-up</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="bg-game-gold text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">3</div>
+                                <div>
+                                    <div class="font-medium">Turn Phase</div>
+                                    <div class="text-gray-600">Draw a card, select a grid slot, then decide to keep the drawn card or the revealed card</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="bg-game-gold text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">4</div>
+                                <div>
+                                    <div class="font-medium">Round End</div>
+                                    <div class="text-gray-600">When any player has all 9 cards revealed, others get one final turn</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-blue-900 mb-2">Pro Tips</h4>
+                        <ul class="text-blue-800 space-y-1 text-sm">
+                            <li>• Remember where your low-value cards are!</li>
+                            <li>• Try to collect three of the same card in a column for the bonus</li>
+                            <li>• Kings are worth 0 points - they're valuable!</li>
+                            <li>• 5s are worth -5 points - even better!</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-md w-full">
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-900">Settings</h2>
+                        <button onclick="hideModal('settingsModal')" class="text-gray-500 hover:text-gray-700 text-xl">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-volume-up text-gray-600"></i>
+                            <span class="text-gray-900">Sound</span>
+                        </div>
+                        <button class="w-12 h-6 bg-game-gold rounded-full relative transition-colors">
+                            <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 transition-transform"></div>
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-mobile-alt text-gray-600"></i>
+                            <span class="text-gray-900">Vibrate</span>
+                        </div>
+                        <button class="w-12 h-6 bg-gray-300 rounded-full relative transition-colors">
+                            <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 transition-transform"></div>
+                        </button>
+                    </div>
+
+                    <hr class="border-gray-200">
+                    
+                    <button onclick="showHowToPlay()" class="w-full text-left py-3 px-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-question-circle text-gray-600"></i>
+                            <span class="text-gray-900">How to Play</span>
+                        </div>
+                    </button>
+
+                    <button class="w-full text-left py-3 px-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-sign-out-alt text-red-600"></i>
+                            <span class="text-red-600">Logout</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Results Modal -->
+        <div id="gameResults" class="modal hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-lg w-full">
+                <div class="p-8 text-center">
+                    <div class="mb-6">
+                        <i class="fas fa-crown text-game-gold text-6xl mb-4"></i>
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Game Over!</h2>
+                        <p class="text-gray-600">Final Results</p>
+                    </div>
+
+                    <!-- Results Table -->
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-crown text-game-gold"></i>
+                                    <span class="font-semibold">You</span>
+                                </div>
+                                <span class="text-2xl font-bold text-green-600">42</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">AI</div>
+                                    <span>AI Player</span>
+                                </div>
+                                <span class="text-xl font-semibold text-gray-700">58</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rewards -->
+                    <div class="bg-game-gold bg-opacity-10 rounded-xl p-4 mb-6">
+                        <h3 class="font-semibold text-gray-900 mb-3">Rewards Earned</h3>
+                        <div class="flex justify-center space-x-6">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-game-gold">+150</div>
+                                <div class="text-sm text-gray-600">XP</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-game-gold">+25</div>
+                                <div class="text-sm text-gray-600">Coins</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="space-y-3">
+                        <button onclick="startGame()" class="w-full bg-game-gold hover:bg-yellow-500 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+                            Play Again
+                        </button>
+                        <button onclick="showScreen('mainMenu')" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-colors">
+                            Back to Menu
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // TODO: Implement full game logic, state management, and API integrations
+        
+        // Global game state
+        let gameState = {
+            currentScreen: 'mainMenu',
+            selectedMode: null,
+            players: 2,
+            rounds: 5,
+            currentRound: 1,
+            currentPlayer: 0,
+            // TODO: Add complete game state structure
+        };
+
+        // Screen navigation
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.add('hidden');
+                screen.classList.remove('active');
+            });
+            
+            // Show selected screen
+            const screen = document.getElementById(screenId);
+            if (screen) {
+                screen.classList.remove('hidden');
+                screen.classList.add('active');
+            }
+        }
+
+        // Game mode selection
+        function selectMode(mode) {
+            gameState.selectedMode = mode;
+            showScreen('gameSetup');
+        }
+
+        // Player count selection
+        function setPlayers(count) {
+            gameState.players = count;
+            
+            // Update UI
+            document.querySelectorAll('.player-btn').forEach(btn => {
+                btn.classList.remove('bg-game-gold', 'bg-opacity-80');
+                btn.classList.add('bg-white', 'bg-opacity-20');
+            });
+            
+            document.querySelector(`[data-players="${count}"]`).classList.remove('bg-white', 'bg-opacity-20');
+            document.querySelector(`[data-players="${count}"]`).classList.add('bg-game-gold', 'bg-opacity-80');
+        }
+
+        // Rounds selection
+        function setRounds(count) {
+            gameState.rounds = count;
+            
+            // Update UI
+            document.querySelectorAll('.rounds-btn').forEach(btn => {
+                btn.classList.remove('bg-game-gold', 'bg-opacity-80');
+                btn.classList.add('bg-white', 'bg-opacity-20');
+            });
+            
+            document.querySelector(`[data-rounds="${count}"]`).classList.remove('bg-white', 'bg-opacity-20');
+            document.querySelector(`[data-rounds="${count}"]`).classList.add('bg-game-gold', 'bg-opacity-80');
+        }
+
+        // Start game
+        function startGame() {
+            // TODO: Initialize game state, deal cards, setup players
+            showScreen('gameScreen');
+        }
+
+        // Card interactions
+        function drawCard(source) {
+            // TODO: Implement card drawing logic from draw pile or discard pile
+            console.log(`Drawing card from ${source}`);
+            
+            // Show drawn card overlay (demo)
+            if (source === 'draw') {
+                document.getElementById('drawnCard').classList.remove('hidden');
+                document.getElementById('drawnCard').classList.add('flex');
+            }
+        }
+
+        function selectCard(index) {
+            // TODO: Implement card selection logic for player grid
+            console.log(`Selected card at index ${index}`);
+            
+            // Visual feedback for card selection
+            document.querySelectorAll('.player-card').forEach(card => {
+                card.classList.remove('border-highlight-blue');
+                card.classList.add('border-white', 'border-opacity-20');
+            });
+            
+            const selectedCard = document.querySelector(`[data-card-index="${index}"]`);
+            if (selectedCard) {
+                selectedCard.classList.remove('border-white', 'border-opacity-20');
+                selectedCard.classList.add('border-highlight-blue');
+            }
+        }
+
+        // Modal controls
+        function showHowToPlay() {
+            hideModal('settingsModal');
+            document.getElementById('howToPlay').classList.remove('hidden');
+        }
+
+        function toggleSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function showPauseMenu() {
+            // TODO: Implement pause menu functionality
+            console.log('Pause menu');
+        }
+
+        // Initialize default selections
+        (function() {
+            setPlayers(2);
+            setRounds(5);
+        })();
+
+        // TODO: Implement the following core game features:
+        // - Card deck management (2x 52-card decks)
+        // - Auto-reshuffle when draw pile empties
+        // - Peek phase logic (flip 2 cards initially)
+        // - Turn-based gameplay with proper validation
+        // - Three-of-a-kind column detection and scoring
+        // - AI opponent logic with human-like decision making
+        // - Score calculation and round management
+        // - Real-time multiplayer functionality
+        // - Pass-and-play mode implementation
+        // - Card flip animations and visual transitions
+        // - Idle timer and autoplay system
+        // - Game state persistence and recovery
+    </script>
+
+    <style>
+        .screen {
+            transition: all 0.3s ease-in-out;
+        }
+        
+        .card-slot {
+            transition: all 0.2s ease;
+        }
+        
+        .card-pile {
+            box-shadow: 
+                0 2px 4px rgba(0,0,0,0.1),
+                0 4px 8px rgba(0,0,0,0.05);
+        }
+        
+        .modal {
+            backdrop-filter: blur(4px);
+        }
+        
+        @media (max-width: 768px) {
+            .opponent-grid {
+                transform: scale(0.8);
+            }
+            
+            #playerGrid .card-slot {
+                width: 4rem;
+                height: 5.5rem;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .opponent-grid {
+                transform: scale(0.7);
+            }
+            
+            #playerGrid .card-slot {
+                width: 3.5rem;
+                height: 5rem;
+            }
+        }
+    </style>
+</body>
+</html>
